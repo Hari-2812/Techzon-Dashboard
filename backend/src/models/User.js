@@ -28,7 +28,9 @@ const UserSchema = new mongoose.Schema({
         relationship: { type: String }
     },
     
-    mustChangePassword: { type: Boolean, default: false }
+    mustChangePassword: { type: Boolean, default: false },
+    resetPasswordToken: { type: String },
+    resetPasswordExpire: { type: Date }
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', UserSchema);

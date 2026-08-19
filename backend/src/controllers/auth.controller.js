@@ -157,3 +157,93 @@ exports.changePassword = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server Error' });
   }
 };
+
+// @route   POST /api/auth/forgot-password
+// @desc    Send password reset email
+// @access  Public
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, message: 'Please provide an email' });
+
+    const user = await User.findOne({ email });
+    // Always return the same message for security
+    const message = 'If an account exists for this email, password reset instructions have been sent.';
+
+    if (!user || !user.isActive) {
+      return res.json({ success: true, message });
+    }
+
+    // Generate token
+    const crypto = require('crypto');
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+    user.resetPasswordToken = resetTokenHash;
+    user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+    await user.save();
+
+    // Send email via Brevo
+    const emailService = require('../services/email.service');
+    const resetUrl = `${env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+
+    try {
+      await emailService.sendNotificationEmail(
+        user.email,
+        user.name,
+        'Password Reset Request',
+        `You requested a password reset. Please click the link below to reset your password:\n\n${resetUrl}\n\nThis link will expire in 10 minutes.\nIf you did not request this, please ignore this email.`
+      );
+      res.json({ success: true, message });
+    } catch (err) {
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpire = undefined;
+      await user.save();
+      return res.status(500).json({ success: false, message: 'Email could not be sent' });
+    }
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
+// @route   POST /api/auth/reset-password
+// @desc    Reset password
+// @access  Public
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Invalid request' });
+    }
+
+    const crypto = require('crypto');
+    const resetPasswordToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await User.findOne({
+      resetPasswordToken,
+      resetPasswordExpire: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired token' });
+    }
+
+    // Set new password
+    const salt = await bcrypt.genSalt(10);
+    user.passwordHash = await bcrypt.hash(newPassword, salt);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    user.mustChangePassword = false;
+    user.status = 'ACTIVE';
+    user.isActive = true;
+
+    await user.save();
+
+    res.json({ success: true, message: 'Password reset successfully. You can now log in.' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};

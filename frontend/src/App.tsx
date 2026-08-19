@@ -7,6 +7,8 @@ import RoleRoute from './components/auth/RoleRoute';
 // Pages
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import NotFound from './pages/NotFound';
 import Leads from './pages/Leads';
 import LeadDetail from './pages/LeadDetail';
@@ -31,7 +33,7 @@ import EmployeeManagement from './pages/EmployeeManagement';
 import CreateEmployee from './pages/CreateEmployee';
 import EmployeeProfile from './pages/EmployeeProfile';
 import EditEmployee from './pages/EditEmployee';
-import ForcePasswordChange from './components/auth/ForcePasswordChange';
+import ChangePassword from './pages/ChangePassword';
 
 const DynamicTitle = () => {
   const location = useLocation();
@@ -52,6 +54,8 @@ const DynamicTitle = () => {
     else if (path.startsWith('/groups')) title = 'WhatsApp Groups | Techzon CRM Dashboard';
     else if (path.startsWith('/settings')) title = 'Settings | Techzon CRM Dashboard';
     else if (path.startsWith('/login')) title = 'Login | Techzon CRM Dashboard';
+    else if (path.startsWith('/forgot-password')) title = 'Forgot Password | Techzon CRM Dashboard';
+    else if (path.startsWith('/reset-password')) title = 'Reset Password | Techzon CRM Dashboard';
     else if (path.startsWith('/notifications')) title = 'Notifications | Techzon CRM Dashboard';
     else if (path.startsWith('/holiday-management')) title = 'Holiday Management | Techzon CRM Dashboard';
     else if (path.startsWith('/audit-logs')) title = 'Audit Logs | Techzon CRM Dashboard';
@@ -70,10 +74,12 @@ function App() {
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         
         {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
-          <Route path="/change-password" element={<ForcePasswordChange />} />
+          <Route path="/change-password" element={<ChangePassword />} />
           <Route path="/" element={<Layout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
