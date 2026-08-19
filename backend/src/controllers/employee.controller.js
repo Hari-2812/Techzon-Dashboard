@@ -99,19 +99,27 @@ exports.createEmployee = async (req, res) => {
             emailSent = true;
             await AuditLog.create({
                 actorId: req.user.id,
-                action: 'INVITATION_SENT',
+                action: 'EMPLOYEE_WELCOME_EMAIL_SENT',
                 entityType: 'User',
                 entityId: user._id
             });
         } catch (err) {
             console.error('Email failed', err);
+            await AuditLog.create({
+                actorId: req.user.id,
+                action: 'EMPLOYEE_WELCOME_EMAIL_FAILED',
+                entityType: 'User',
+                entityId: user._id,
+                metadata: { error: err.message }
+            });
         }
 
         // Note: we DO NOT send back rawPassword in response to keep it secure
         res.status(201).json({ 
             success: true, 
-            message: emailSent ? 'Employee created successfully' : 'Employee created successfully. Welcome email failed to send.',
+            employeeCreated: true,
             emailSent,
+            message: emailSent ? 'Employee created successfully' : 'Employee created successfully, but the welcome email could not be sent.',
             data: { 
                 id: user._id, 
                 employeeId: user.employeeId,
@@ -216,23 +224,26 @@ exports.resendInvitation = async (req, res) => {
         user.status = 'INVITED';
         await user.save();
 
-        await sendEmployeeWelcomeEmail({
-            email: user.email,
-            name: user.name,
-            employeeId: user.employeeId,
-            role: user.role,
-            department: user.department,
-            temporaryPassword: rawPassword
-        });
-
-        await AuditLog.create({
-            actorId: req.user.id,
-            action: 'INVITATION_RESENT',
-            entityType: 'User',
-            entityId: user._id
-        });
-
-        res.json({ success: true, message: 'Invitation resent successfully' });
+        try {
+            await sendEmployeeWelcomeEmail({
+                email: user.email,
+                name: user.name,
+                employeeId: user.employeeId,
+                role: user.role,
+                department: user.department,
+                temporaryPassword: rawPassword
+            });
+            await AuditLog.create({
+                actorId: req.user.id,
+                action: 'EMPLOYEE_INVITATION_RESENT',
+                entityType: 'User',
+                entityId: user._id
+            });
+            res.json({ success: true, message: 'Invitation resent successfully' });
+        } catch (err) {
+            console.error('Email failed', err);
+            res.status(500).json({ success: false, message: 'Failed to resend invitation email. Please try again.' });
+        }
     } catch (err) {
         console.error(err);
         res.status(500).json({ success: false, message: 'Server Error' });
@@ -388,23 +399,31 @@ exports.resetPassword = async (req, res) => {
         user.mustChangePassword = true;
         await user.save();
 
-        await sendEmployeeWelcomeEmail({
-            email: user.email,
-            name: user.name,
-            employeeId: user.employeeId,
-            role: user.role,
-            department: user.department,
-            temporaryPassword: rawPassword
-        });
-
-        await AuditLog.create({
-            actorId: req.user.id,
-            action: 'PASSWORD_RESET_BY_ADMIN',
-            entityType: 'User',
-            entityId: user._id
-        });
-
-        res.json({ success: true, message: 'Password reset successfully' });
+        try {
+            const { sendPasswordResetEmail } = require('../services/email.service');
+            await sendPasswordResetEmail({
+                email: user.email,
+                name: user.name,
+                temporaryPassword: rawPassword
+            });
+            await AuditLog.create({
+                actorId: req.user.id,
+                action: 'PASSWORD_RESET_EMAIL_SENT',
+                entityType: 'User',
+                entityId: user._id
+            });
+            res.json({ success: true, message: 'Password reset successfully' });
+        } catch (err) {
+            console.error('Email failed', err);
+            await AuditLog.create({
+                actorId: req.user.id,
+                action: 'PASSWORD_RESET_EMAIL_FAILED',
+                entityType: 'User',
+                entityId: user._id,
+                metadata: { error: err.message }
+            });
+            res.status(500).json({ success: false, message: 'Failed to send password reset email. Please try again.' });
+        }
     } catch (err) {
         console.error(err);
         res.status(500).json({ success: false, message: 'Server Error' });

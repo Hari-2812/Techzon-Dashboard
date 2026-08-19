@@ -39,6 +39,11 @@ io.on('connection', (socket) => {
 });
 
 // Database connection
+if (!env.MONGODB_URI) {
+  console.error('❌ FATAL ERROR: MONGODB_URI is not defined in the environment variables.');
+  process.exit(1);
+}
+
 mongoose.connect(env.MONGODB_URI)
   .then(() => {
     console.log(`
@@ -54,7 +59,7 @@ Server: Running
     server.listen(env.PORT, async () => {
       console.log(`🚀 Server listening on port ${env.PORT}`);
       
-      // Verify SMTP Configuration
+      // Verify Brevo Configuration
       const emailService = require('./services/email.service');
       await emailService.verifyConnection();
 

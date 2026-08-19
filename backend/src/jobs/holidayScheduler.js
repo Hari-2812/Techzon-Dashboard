@@ -38,25 +38,21 @@ module.exports = (io) => {
       }
 
       // 4. Emit Socket.IO event
-      pendingEmployees.forEach(emp => {
+      const { sendHolidayNotificationEmail } = require('../services/email.service');
+
+      for (const emp of pendingEmployees) {
         io.emit(`holiday:tomorrow-alert:${emp._id}`, {
           holiday,
           message: `Tomorrow is a Government Holiday: ${holiday.name}. Please confirm your availability.`
         });
         
-        // 5. Optional: Save to Notification Collection
-        /*
-        if (Notification) {
-          Notification.create({
-            userId: emp._id,
-            title: 'Government Holiday Tomorrow',
-            message: `"${holiday.name}" is tomorrow. Please confirm whether you would like to take leave.`,
-            link: '/dashboard',
-            type: 'HOLIDAY_ALERT'
-          });
+        // 5. Send Email
+        try {
+            await sendHolidayNotificationEmail(emp.email, emp.name, holiday.name, holiday.date);
+        } catch (err) {
+            console.error(`Failed to send holiday email to ${emp.email}: `, err);
         }
-        */
-      });
+      }
 
       console.log(`Sent holiday notification to ${pendingEmployees.length} employees.`);
 

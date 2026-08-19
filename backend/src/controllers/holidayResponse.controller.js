@@ -1,7 +1,6 @@
 const HolidayResponse = require('../models/HolidayResponse');
 const Holiday = require('../models/Holiday');
 const User = require('../models/User');
-const { io } = require('../server');
 
 // Submit response (Employee)
 exports.submitResponse = async (req, res) => {
@@ -28,6 +27,7 @@ exports.submitResponse = async (req, res) => {
     });
 
     // Notify Admin via Socket.IO
+    const { io } = require('../server');
     if (io) {
       io.emit('holiday:response-submitted', holidayResponse);
     }
@@ -78,6 +78,7 @@ exports.reviewResponse = async (req, res) => {
     await response.save();
 
     // Notify Employee via Socket.IO
+    const { io } = require('../server');
     if (io) {
       io.emit(`holiday:reviewed:${response.employeeId}`, response);
     }
@@ -102,6 +103,7 @@ exports.remindPending = async (req, res) => {
     const pendingEmployees = activeEmployees.filter(emp => !respondedEmployeeIds.includes(emp._id.toString()));
 
     // Emit socket event to these employees to trigger the notification/popup again
+    const { io } = require('../server');
     if (io) {
       pendingEmployees.forEach(emp => {
         io.emit(`holiday:reminder:${emp._id}`, {

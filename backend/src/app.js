@@ -31,7 +31,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/dashboard', require('./routes/dashboard.routes'));
 app.use('/api/leads', require('./routes/lead.routes'));
-app.use('/api/follow-ups', require('./routes/followUp.routes'));
+app.use('/api/follow-ups', require('./routes/followup.routes'));
 app.use('/api/crs', require('./routes/cr.routes'));
 app.use('/api/whatsapp-groups', require('./routes/whatsappGroup.routes'));
 app.use('/api/attendance', require('./routes/attendance.routes'));
@@ -41,5 +41,6 @@ app.use('/api/performance', require('./routes/performance.routes'));
 app.use('/api/holidays', require('./routes/holiday.routes'));
 app.use('/api/holiday-responses', require('./routes/holidayResponse.routes'));
 app.use('/api/employees', require('./routes/employee.routes'));
+app.use('/api/email', require('./routes/email.routes'));
 
 module.exports = app;

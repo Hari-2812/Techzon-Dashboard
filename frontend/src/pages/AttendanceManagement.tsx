@@ -52,10 +52,12 @@ const AttendanceManagement = () => {
   const fetchAdminAttendance = async () => {
     try {
       const token = localStorage.getItem('token') || '';
-      const res = await fetch('http://localhost:5001/api/attendance-management/today', {
-        headers: { 'x-auth-token': token }
-      });
-      const result = await res.json();
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+      const res = await fetch(`${apiUrl}/attendance-management/today`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });const result = await res.json();
       if (result.success) {
         setData(result.data);
       }
@@ -69,7 +71,9 @@ const AttendanceManagement = () => {
   useEffect(() => {
     fetchAdminAttendance();
 
-    const socket: Socket = io('http://localhost:5001', {
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+    const baseUrl = apiUrl.replace('/api', '');
+    const socket: Socket = io(baseUrl, {
       withCredentials: true,
     });
 
