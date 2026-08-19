@@ -1,0 +1,12 @@
+Student Name,Email,Phone,College,Degree / Branch,Year,Course,Parent / Contact Name,Parent / Contact Phone
+John Doe,johndoe@example.com,9876543210,IIT Bombay,Computer Science,2024,B.Tech,Jane Doe,9876543211
+Alice Smith,,8888888888,MIT Pune,IT,2025,B.E,Bob Smith,
+Charlie Brown,charlie@example.com,7777777777,VIT Vellore,ECE,2023,B.Tech,,
+Duplicate John,johndoe@example.com,9876543210,IIT Bombay,Computer Science,2024,B.Tech,Jane Doe,9876543211
+Invalid Phone,invalid@example.com,12345,NIT Trichy,Mechanical,2025,B.Tech,,
+Eve Adams,eve.adams@example.com,9999999999,SRM Chennai,CSE,2026,B.Tech,Adam Eve,9999999998
+Frank Castle,frank@punisher.com,+91 9123456789,Delhi University,Arts,2024,BA,,
+Grace Hopper,grace@navy.mil,800-555-1234,Yale,Math,2023,PhD,,
+Henry Ford,henry@ford.com,9000000000,Michigan Tech,Automobile,2025,B.E,Edsel Ford,9000000001
+Ivy Plant,ivy@garden.com,8111111111,Anna University,Civil,2024,B.E,,
+Jack Sparrow,jack@pearl.com,9222222222,Maritime Academy,Navigation,2025,B.Sc,,
