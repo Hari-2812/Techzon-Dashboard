@@ -10,7 +10,7 @@ const getNextEmployeeId = async (role) => {
     const counter = await Counter.findOneAndUpdate(
         { id: counterId },
         { $inc: { seq: 1 } },
-        { new: true, upsert: true }
+        { returnDocument: 'after', upsert: true }
     );
     // Pad with zeros to length 3
     const seqStr = String(counter.seq).padStart(3, '0');
@@ -186,7 +186,7 @@ exports.updateEmployeeStatus = async (req, res) => {
         const user = await User.findByIdAndUpdate(
             req.params.id, 
             updateData, 
-            { new: true }
+            { returnDocument: 'after' }
         ).select('-passwordHash');
 
         if (!user) return res.status(404).json({ success: false, message: 'Employee not found' });

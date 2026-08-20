@@ -1,13 +1,12 @@
-const { TransactionalEmailsApi, SendSmtpEmail, ApiClient } = require('@getbrevo/brevo');
+const { BrevoClient } = require('@getbrevo/brevo');
 
 /**
  * Initialize Brevo API Client
  */
 const initBrevoClient = () => {
-    let defaultClient = ApiClient.instance;
-    let apiKey = defaultClient.authentications['api-key'];
-    apiKey.apiKey = process.env.BREVO_API_KEY;
-    return new TransactionalEmailsApi();
+    return new BrevoClient({
+        apiKey: process.env.BREVO_API_KEY
+    });
 };
 
 const getSender = () => {
@@ -31,19 +30,19 @@ const sendEmail = async (toEmail, toName, subject, htmlContent, textContent) => 
     }
 
     try {
-        const apiInstance = initBrevoClient();
-        const sendSmtpEmail = new SendSmtpEmail();
+        const brevo = initBrevoClient();
         
-        sendSmtpEmail.subject = subject;
-        if (htmlContent) sendSmtpEmail.htmlContent = htmlContent;
-        if (textContent) sendSmtpEmail.textContent = textContent;
-        sendSmtpEmail.sender = getSender();
-        sendSmtpEmail.to = [{ email: toEmail, name: toName }];
-
-        await apiInstance.sendTransacEmail(sendSmtpEmail);
+        await brevo.transactionalEmails.sendTransacEmail({
+            subject,
+            ...(htmlContent && { htmlContent }),
+            ...(textContent && { textContent }),
+            sender: getSender(),
+            to: [{ email: toEmail, name: toName }]
+        });
+        
         return { success: true, message: 'Email sent successfully' };
     } catch (error) {
-        console.error('Brevo API Error:', error.response?.text || error.message);
+        console.error('Brevo API Error:', error.statusCode, error.message);
         throw new Error('Unable to send the employee invitation. Please try again.');
     }
 };
@@ -196,9 +195,13 @@ exports.verifyConnection = async () => {
     
     // Attempting a simple initialization to confirm SDK works
     try {
-        initBrevoClient();
-        console.log('Brevo email service: CONFIGURED');
-        return true;
+        const brevo = initBrevoClient();
+        if (brevo && brevo.transactionalEmails) {
+            console.log('Brevo email service: CONFIGURED');
+            return true;
+        } else {
+            throw new Error('Brevo instance invalid');
+        }
     } catch (error) {
         console.log('Brevo email service: CONFIGURED (but SDK initialization failed)');
         return false;

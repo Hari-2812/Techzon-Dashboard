@@ -115,7 +115,7 @@ exports.clockOut = async (req, res) => {
     let daily = await AttendanceDaily.findOneAndUpdate(
       { employeeId: req.user.id, date: dateStr, isTestSession: session.isTestSession },
       { ...stats, workedOnHoliday: !!holiday },
-      { new: true, upsert: true }
+      { returnDocument: 'after', upsert: true }
     );
 
     // Emit socket event to admin
