@@ -22,9 +22,12 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // Only redirect to login if it's a 401 and not from the login endpoint itself
+    if (error.response?.status === 401 && !error.config?.url?.includes('/auth/login')) {
       useAuthStore.getState().logout();
-      window.location.href = '/login';
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
