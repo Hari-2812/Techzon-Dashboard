@@ -70,6 +70,10 @@ Server: Running
     server.listen(env.PORT, async () => {
       console.log(`🚀 Server listening on port ${env.PORT}`);
       
+      // Initialize Default Admin
+      const initializeDefaultAdmin = require('./utils/seedAdmin');
+      await initializeDefaultAdmin();
+
       // Verify Brevo Configuration
       const emailService = require('./services/email.service');
       await emailService.verifyConnection();
