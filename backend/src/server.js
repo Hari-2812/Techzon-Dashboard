@@ -6,10 +6,21 @@ const { env } = require('./config/env');
 
 const server = http.createServer(app);
 
+const allowedOrigins = [
+  'https://techzon-dashboard.vercel.app',
+  'https://crm.techzonwide.com',
+  'http://localhost:5173',
+  env.FRONTEND_URL
+];
+
+if (process.env.CORS_ORIGINS) {
+  allowedOrigins.push(...process.env.CORS_ORIGINS.split(',').map(o => o.trim()));
+}
+
 // Initialize Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: env.FRONTEND_URL,
+    origin: allowedOrigins,
     credentials: true,
   },
 });

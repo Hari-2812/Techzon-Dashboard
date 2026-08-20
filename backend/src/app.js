@@ -5,11 +5,33 @@ const { env } = require('./config/env');
 
 const app = express();
 
+const allowedOrigins = [
+  'https://techzon-dashboard.vercel.app',
+  'https://crm.techzonwide.com',
+  'http://localhost:5173',
+  env.FRONTEND_URL
+];
+
+if (process.env.CORS_ORIGINS) {
+  allowedOrigins.push(...process.env.CORS_ORIGINS.split(',').map(o => o.trim()));
+}
+
 // Middlewares
 app.use(helmet({ crossOriginResourcePolicy: false }));
 app.use(cors({
-  origin: env.FRONTEND_URL,
-  credentials: true
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) === -1 && !allowedOrigins.includes('*')) {
+      var msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token']
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
