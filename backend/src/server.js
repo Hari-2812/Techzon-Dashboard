@@ -25,6 +25,8 @@ const io = new Server(server, {
   },
 });
 
+app.set('io', io);
+
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`);
   

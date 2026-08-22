@@ -14,14 +14,20 @@ const LeadSchema = new mongoose.Schema({
     assignedEmployeeId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
     crStatus: {
         type: String,
-        enum: ['Not Verified', 'Asked Student', 'Student Is CR', 'Student Is Not CR', 'CR Details Received', 'CR Confirmed'],
+        enum: ['Not Verified', 'Not Asked', 'Student Is CR', 'Student Is Not CR', 'CR Details Received', 'CR Confirmed', 'Not Applicable'],
         default: 'Not Verified',
         index: true
     },
     leadStatus: {
         type: String,
-        enum: ['New', 'Assigned', 'Contact Pending', 'Contacted', 'CR Identified', 'Follow-up', 'Completed', 'No Response', 'Invalid'],
+        enum: ['New', 'Assigned', 'Contact Pending', 'Contacted', 'Interested', 'Follow-up', 'CR Identified', 'Converted', 'Completed', 'Not Interested', 'No Response', 'Invalid'],
         default: 'New',
+        index: true
+    },
+    salesStatus: {
+        type: String,
+        enum: ['Not Contacted', 'Interested', 'Follow-up', 'Converted', 'Not Interested', 'Lost'],
+        default: 'Not Contacted',
         index: true
     },
     priority: {

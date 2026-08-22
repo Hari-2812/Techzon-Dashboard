@@ -48,10 +48,24 @@ export const useDailyUpdates = () => {
     },
   });
 
+  const editUpdate = useMutation({
+    mutationFn: async ({ id, payload }: { id: string, payload: any }) => {
+      const res = await api.put(`/daily-updates/${id}`, payload);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dailyUpdates'] });
+      queryClient.invalidateQueries({ queryKey: ['dailyUpdatesAnalytics'] });
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['dailyUpdatesLead'] });
+    },
+  });
+
   return {
     getUpdates,
     getAnalytics,
     getLeadUpdates,
-    createUpdate
+    createUpdate,
+    editUpdate
   };
 };

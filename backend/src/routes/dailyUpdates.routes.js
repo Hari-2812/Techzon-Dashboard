@@ -5,10 +5,12 @@ const {
   createUpdate, 
   getUpdates, 
   getAnalytics, 
-  getLeadUpdates 
+  getLeadUpdates,
+  updateRecord 
 } = require('../controllers/dailyUpdates.controller');
 
 router.post('/', auth, createUpdate);
+router.put('/:id', auth, updateRecord);
 router.get('/', auth, getUpdates);
 router.get('/analytics', auth, getAnalytics);
 router.get('/lead/:leadId', auth, getLeadUpdates);
