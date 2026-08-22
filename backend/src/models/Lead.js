@@ -5,7 +5,7 @@ const LeadSchema = new mongoose.Schema({
     studentName: { type: String, required: true },
     phone: { type: String, required: true, index: true },
     email: { type: String },
-    college: { type: String, required: true, index: true },
+    college: { type: String, required: false, index: true },
     department: { type: String, required: false },
     year: { type: String, required: false },
     course: { type: String, required: false },

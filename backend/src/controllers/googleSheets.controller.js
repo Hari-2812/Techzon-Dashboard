@@ -234,20 +234,22 @@ exports.executeSync = async (req, res) => {
         const newLeadsToInsert = [];
         const existingLeadsToUpdate = [];
         
-        // Expected columns mapping
+        // Expected columns mapping with robust case-insensitive names
         const mapping = {
-            'Student Name': 'studentName',
-            'Phone': 'phone',
-            'College': 'college',
-            'Email': 'email',
-            'Degree / Branch': 'department',
-            'Year': 'year',
-            'Course': 'course',
-            'Parent / Contact Name': 'parentContactName',
-            'Parent / Contact Phone': 'parentContactPhone'
+            'name': 'studentName', // Changed from 'Student Name'
+            'phonenumber': 'phone', // Handled space
+            'phone': 'phone',
+            'college': 'college',
+            'department': 'department',
+            'degreebranch': 'department',
+            'year': 'year'
         };
 
         for (const row of allRawData) {
+            // Check for completely empty rows
+            const hasData = Object.keys(row).some(k => k !== '_rowIndex' && k !== '_sourceSheetName' && row[k] && String(row[k]).trim() !== '');
+            if (!hasData) continue;
+
             const mappedData = {};
             const normalizedRow = {};
             for (const key of Object.keys(row)) {
@@ -265,10 +267,10 @@ exports.executeSync = async (req, res) => {
                 }
             }
             
-            if (!mappedData.studentName || !mappedData.phone || !mappedData.college) {
+            if (!mappedData.studentName || !mappedData.phone) {
                 syncRecord.invalidRows++;
                 if (syncRecord.errors.length < 50) {
-                    syncRecord.errors.push(`Row ${row._rowIndex} in ${row._sourceSheetName}: Missing Name, Phone, or College`);
+                    syncRecord.errors.push(`Row ${row._rowIndex} in ${row._sourceSheetName}: Missing Name or Phone number`);
                 }
                 continue;
             }
@@ -283,16 +285,13 @@ exports.executeSync = async (req, res) => {
                 }
                 
                 phoneMap.set(normalizedPhone, true); 
+                syncRecord.duplicates++; // Since it already exists, count it as duplicate according to user requirements
                 
                 const updateData = {
                     studentName: mappedData.studentName,
-                    email: mappedData.email || existingLead.email,
-                    college: mappedData.college,
+                    college: mappedData.college || existingLead.college,
                     department: mappedData.department || existingLead.department,
                     year: mappedData.year || existingLead.year,
-                    course: mappedData.course || existingLead.course,
-                    parentContactName: mappedData.parentContactName || existingLead.parentContactName,
-                    parentContactPhone: mappedData.parentContactPhone || existingLead.parentContactPhone,
                     sourceWorksheet: row._sourceSheetName // Overwrite or preserve the source
                 };
                 
@@ -322,13 +321,9 @@ exports.executeSync = async (req, res) => {
             const newLead = {
                 studentName: mappedData.studentName,
                 phone: mappedData.phone,
-                email: mappedData.email,
-                college: mappedData.college,
-                department: mappedData.department,
-                year: mappedData.year,
-                course: mappedData.course,
-                parentContactName: mappedData.parentContactName,
-                parentContactPhone: mappedData.parentContactPhone,
+                college: mappedData.college || '',
+                department: mappedData.department || '',
+                year: mappedData.year || '',
                 assignedEmployeeId,
                 leadStatus: 'New',
                 source: 'GOOGLE_SHEETS',
@@ -397,29 +392,31 @@ const generateMockData = () => {
     const data = [];
     for (let i = 1; i <= 30; i++) {
         data.push({
-            'Student Name': `Mock Student ${i}`,
-            'Email': `student${i}@test.com`,
-            'Phone': `9876543${String(i).padStart(3, '0')}`,
-            'College': i % 2 === 0 ? 'PSNA College' : 'Anna University',
-            'Degree / Branch': 'B.E CSE',
-            'Year': '4th Year',
-            'Course': 'Full Stack',
-            'Parent / Contact Name': `Parent ${i}`,
-            'Parent / Contact Phone': `9988776${String(i).padStart(3, '0')}`,
+            'Name': `Mock Student ${i}`,
+            'Phone number': `9876543${String(i).padStart(3, '0')}`,
+            'college': i % 2 === 0 ? 'PSNA College' : 'Anna University',
+            'department': 'CSE',
+            'year': '4th Year',
             '_rowIndex': i + 1
         });
     }
+    // Add a duplicate
     data.push({
-        'Student Name': `Mock Student 1 (Duplicate)`,
-        'Email': `student1@test.com`,
-        'Phone': `9876543001`,
-        'College': 'PSNA College',
-        'Degree / Branch': 'B.E CSE',
-        'Year': '4th Year',
-        'Course': 'Full Stack',
-        'Parent / Contact Name': `Parent 1`,
-        'Parent / Contact Phone': `9988776001`,
+        'Name': `Hari Prasath`,
+        'Phone number': `9876543210`,
+        'college': 'PSNA College',
+        'department': 'CSE',
+        'year': '4th Year',
         '_rowIndex': 32
+    });
+    // Add invalid row
+    data.push({
+        'Name': `Missing Phone`,
+        'Phone number': ``,
+        'college': 'PSNA College',
+        'department': 'CSE',
+        'year': '4th Year',
+        '_rowIndex': 33
     });
     return data;
 };
