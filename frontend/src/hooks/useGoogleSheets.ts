@@ -1,24 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 
-export const useGoogleSheetsAuthStatus = () => {
+export const useGoogleSheetsConfig = () => {
   return useQuery({
-    queryKey: ['googleSheetsAuthStatus'],
+    queryKey: ['googleSheets', 'status'],
     queryFn: async () => {
-      const res = await api.get('/google-sheets/auth-status');
-      return res.data.isConnected;
-    }
-  });
-};
-
-export const useGoogleSheetsAuthUrl = () => {
-  return useQuery({
-    queryKey: ['googleSheetsAuthUrl'],
-    queryFn: async () => {
-      const res = await api.get('/google-sheets/auth');
-      return res.data.url;
+      const { data } = await api.get('/google-sheets/status');
+      return data.isConnected;
     },
-    enabled: false // Only fetch when clicked
   });
 };
 

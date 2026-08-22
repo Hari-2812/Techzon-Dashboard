@@ -1,5 +1,4 @@
 const { google } = require('googleapis');
-const GoogleSheetsSettings = require('../models/GoogleSheetsSettings');
 const { env } = require('../config/env');
 
 class GoogleSheetsService {
@@ -10,84 +9,47 @@ class GoogleSheetsService {
         ];
     }
 
-    getOAuthClient() {
-        const clientId = process.env.GOOGLE_CLIENT_ID;
-        const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-        const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'https://techzon-dashboard.onrender.com/api/google-sheets/callback';
-
-        if (!clientId || !clientSecret) {
-            console.error('Google OAuth: NOT CONFIGURED');
-            throw new Error('Google OAuth credentials not configured on server.');
-        }
-
-        return new google.auth.OAuth2(
-            clientId,
-            clientSecret,
-            redirectUri
-        );
-    }
-
-    generateAuthUrl(state) {
-        const oAuth2Client = this.getOAuthClient();
-        console.log(`\n--- GOOGLE OAUTH DEBUG ---`);
-        console.log(`Google OAuth redirect URI:\n${process.env.GOOGLE_REDIRECT_URI || 'https://techzon-dashboard.onrender.com/api/google-sheets/callback'}`);
-        console.log(`--------------------------\n`);
-        return oAuth2Client.generateAuthUrl({
-            access_type: 'offline',
-            scope: this.SCOPES,
-            state: state, // CSRF protection
-            prompt: 'consent' // Force to get refresh token
-        });
-    }
-
-    async exchangeCodeForTokens(code) {
-        const oAuth2Client = this.getOAuthClient();
-        const { tokens } = await oAuth2Client.getToken(code);
-        return tokens;
-    }
-
-    async saveTokens(tokens) {
-        let settings = await GoogleSheetsSettings.findOne();
-        if (!settings) {
-            settings = new GoogleSheetsSettings();
+    async getAuthenticatedClient() {
+        // Option A: Service Account (Recommended)
+        if (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) {
+            // Handle escaped newlines in private key from environment variables
+            const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY.replace(/\\n/g, '\n');
+            
+            const auth = new google.auth.GoogleAuth({
+                credentials: {
+                    client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+                    private_key: privateKey
+                },
+                scopes: this.SCOPES
+            });
+            return auth.getClient();
         }
         
-        if (tokens.access_token) settings.accessToken = tokens.access_token;
-        if (tokens.refresh_token) settings.refreshToken = tokens.refresh_token;
-        if (tokens.expiry_date) settings.tokenExpiry = tokens.expiry_date;
-
-        await settings.save();
-        return settings;
-    }
-
-    async getAuthenticatedClient() {
-        const settings = await GoogleSheetsSettings.findOne();
-        if (!settings || !settings.refreshToken) {
-            throw new Error('Google account not connected. Please authenticate first.');
+        // Option B: Static Refresh Token (OAuth Client)
+        if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_REFRESH_TOKEN) {
+            const oAuth2Client = new google.auth.OAuth2(
+                process.env.GOOGLE_CLIENT_ID,
+                process.env.GOOGLE_CLIENT_SECRET,
+                'postmessage' // No redirect URI needed since we only refresh
+            );
+            
+            oAuth2Client.setCredentials({
+                refresh_token: process.env.GOOGLE_REFRESH_TOKEN
+            });
+            
+            return oAuth2Client;
         }
 
-        const oAuth2Client = this.getOAuthClient();
-        oAuth2Client.setCredentials({
-            access_token: settings.accessToken,
-            refresh_token: settings.refreshToken,
-            expiry_date: settings.tokenExpiry
-        });
+        throw new Error('Google Sheets backend credentials are not configured. Please set GOOGLE_SERVICE_ACCOUNT_EMAIL/PRIVATE_KEY or GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN in the environment variables.');
+    }
 
-        // Automatically refresh if expired
-        oAuth2Client.on('tokens', async (tokens) => {
-            if (tokens.access_token) {
-                settings.accessToken = tokens.access_token;
-            }
-            if (tokens.refresh_token) {
-                settings.refreshToken = tokens.refresh_token;
-            }
-            if (tokens.expiry_date) {
-                settings.tokenExpiry = tokens.expiry_date;
-            }
-            await settings.save();
-        });
-
-        return oAuth2Client;
+    async checkStatus() {
+        try {
+            await this.getAuthenticatedClient();
+            return true;
+        } catch (err) {
+            return false;
+        }
     }
 
     async getWorksheets(spreadsheetId) {

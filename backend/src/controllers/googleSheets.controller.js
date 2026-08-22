@@ -11,63 +11,12 @@ const normalizePhone = (phone) => {
     return phone.replace(/\D/g, '').slice(-10); // Keep last 10 digits
 };
 
-// --- OAUTH FLOW CONTROLLERS ---
-
-exports.getAuthStatus = async (req, res) => {
+exports.getStatus = async (req, res) => {
     try {
-        const settings = await GoogleSheetsSettings.findOne();
-        const isConnected = !!(settings && settings.refreshToken);
+        const isConnected = await googleSheetsService.checkStatus();
         res.json({ success: true, isConnected });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Server error' });
-    }
-};
-
-exports.generateAuthUrl = async (req, res) => {
-    try {
-        // We use JWT to sign the admin's ID as the state to prevent CSRF
-        const state = jwt.sign({ adminId: req.user.id }, process.env.JWT_SECRET, { expiresIn: '15m' });
-        const url = googleSheetsService.generateAuthUrl(state);
-        res.json({ success: true, url });
-    } catch (err) {
-        console.error('Error generating auth url:', err);
-        res.status(500).json({ success: false, message: 'Failed to initialize Google OAuth. Ensure credentials are set.' });
-    }
-};
-
-exports.handleOAuthCallback = async (req, res) => {
-    try {
-        const { code, state, error } = req.query;
-        
-        if (error) {
-            return res.redirect(`${process.env.FRONTEND_URL || 'https://techzon-dashboard.vercel.app'}/import-leads?google_error=access_denied`);
-        }
-
-        if (!code || !state) {
-            return res.status(400).send('Missing code or state parameter.');
-        }
-
-        // Verify CSRF state
-        try {
-            jwt.verify(state, process.env.JWT_SECRET);
-        } catch (err) {
-            return res.status(403).send('Invalid or expired state token. Please try connecting again.');
-        }
-
-        const tokens = await googleSheetsService.exchangeCodeForTokens(code);
-        await googleSheetsService.saveTokens(tokens);
-
-        // Redirect back to CRM frontend
-        const frontendUrl = process.env.FRONTEND_URL || 'https://techzon-dashboard.vercel.app';
-        res.redirect(`${frontendUrl}/import-leads?google_success=true`);
-    } catch (err) {
-        console.error('OAuth Callback Error:', err);
-        let errorMsg = 'access_denied';
-        if (err.message && err.message.includes('redirect_uri_mismatch')) {
-            errorMsg = 'redirect_uri_mismatch';
-        }
-        const frontendUrl = process.env.FRONTEND_URL || 'https://techzon-dashboard.vercel.app';
-        res.redirect(`${frontendUrl}/import-leads?google_error=${errorMsg}`);
     }
 };
 
@@ -202,9 +151,19 @@ exports.previewSync = async (req, res) => {
 
         for (const row of rawData) {
             const mappedData = {};
+            const normalizedRow = {};
+            for (const key of Object.keys(row)) {
+                if (key === '_rowIndex') {
+                    normalizedRow[key] = row[key];
+                } else {
+                    normalizedRow[normalizeColumn(key)] = row[key];
+                }
+            }
+
             for (const [sheetCol, crmField] of Object.entries(mapping)) {
-                if (crmField && row[sheetCol]) {
-                    mappedData[crmField] = row[sheetCol];
+                const normSheetCol = normalizeColumn(sheetCol);
+                if (crmField && normalizedRow[normSheetCol]) {
+                    mappedData[crmField] = normalizedRow[normSheetCol];
                 }
             }
             
@@ -267,6 +226,10 @@ exports.previewSync = async (req, res) => {
     }
 };
 
+const normalizeColumn = (colName) => {
+    return colName.toLowerCase().replace(/[^a-z0-9]/g, '');
+};
+
 exports.executeSync = async (req, res) => {
     let syncRecord;
     try {
@@ -311,12 +274,24 @@ exports.executeSync = async (req, res) => {
         
         let rrIndex = 0;
         const newLeadsToInsert = [];
+        const existingLeadsToUpdate = [];
         
         for (const row of rawData) {
             const mappedData = {};
+            // Normalize row keys for robust matching
+            const normalizedRow = {};
+            for (const key of Object.keys(row)) {
+                if (key === '_rowIndex') {
+                    normalizedRow[key] = row[key];
+                } else {
+                    normalizedRow[normalizeColumn(key)] = row[key];
+                }
+            }
+
             for (const [sheetCol, crmField] of Object.entries(mapping)) {
-                if (crmField && row[sheetCol]) {
-                    mappedData[crmField] = row[sheetCol];
+                const normSheetCol = normalizeColumn(sheetCol);
+                if (crmField && normalizedRow[normSheetCol]) {
+                    mappedData[crmField] = normalizedRow[normSheetCol];
                 }
             }
             
@@ -329,12 +304,34 @@ exports.executeSync = async (req, res) => {
             }
             
             const normalizedPhone = normalizePhone(mappedData.phone);
-            if (phoneMap.has(normalizedPhone)) {
-                syncRecord.duplicates++;
+            const existingLead = phoneMap.get(normalizedPhone);
+
+            if (existingLead) {
+                // Determine if it's already in our map for this sync batch (duplicate in sheet)
+                if (existingLead === true) {
+                    syncRecord.duplicates++;
+                    continue;
+                }
+                // Update existing lead safely
+                phoneMap.set(normalizedPhone, true); // Mark as processed for this batch
+                
+                // Construct update object - DO NOT overwrite assignments, followups, or status
+                const updateData = {
+                    studentName: mappedData.studentName,
+                    email: mappedData.email || existingLead.email,
+                    college: mappedData.college,
+                    department: mappedData.department || existingLead.department,
+                    year: mappedData.year || existingLead.year,
+                    course: mappedData.course || existingLead.course,
+                    parentContactName: mappedData.parentContactName || existingLead.parentContactName,
+                    parentContactPhone: mappedData.parentContactPhone || existingLead.parentContactPhone,
+                };
+                
+                existingLeadsToUpdate.push({ id: existingLead._id, update: updateData });
                 continue;
             }
             
-            phoneMap.set(normalizedPhone, true);
+            phoneMap.set(normalizedPhone, true); // Mark as processed
             
             let assignedEmployeeId = null;
             if (activeUsers.length > 0) {
@@ -347,7 +344,7 @@ exports.executeSync = async (req, res) => {
                     }
                     assignedEmployeeId = minId;
                     employeeLoad.set(minId, employeeLoad.get(minId) + 1);
-                } else {
+                } else if (settings.assignmentStrategy === 'ROUND_ROBIN' || settings.assignmentStrategy === 'MANUAL') {
                     assignedEmployeeId = activeUsers[rrIndex % activeUsers.length]._id;
                     rrIndex++;
                 }
@@ -374,6 +371,13 @@ exports.executeSync = async (req, res) => {
             newLeadsToInsert.push(newLead);
         }
 
+        if (existingLeadsToUpdate.length > 0) {
+            for (const item of existingLeadsToUpdate) {
+                await Lead.findByIdAndUpdate(item.id, item.update, { runValidators: true });
+            }
+            syncRecord.updatedLeads = existingLeadsToUpdate.length;
+        }
+
         if (newLeadsToInsert.length > 0) {
             await Lead.insertMany(newLeadsToInsert);
             syncRecord.newLeads = newLeadsToInsert.length;
@@ -389,7 +393,8 @@ exports.executeSync = async (req, res) => {
         if (io) {
             io.emit('leads:synced', { 
                 newLeadsCount: syncRecord.newLeads,
-                message: `${syncRecord.newLeads} new leads have been assigned.`
+                updatedLeadsCount: syncRecord.updatedLeads,
+                message: `${syncRecord.newLeads} new leads imported and ${syncRecord.updatedLeads} updated.`
             });
         }
 

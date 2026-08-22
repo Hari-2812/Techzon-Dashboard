@@ -19,8 +19,7 @@ import {
   usePreviewGoogleSheetsSync,
   useExecuteGoogleSheetsSync,
   useGoogleSheetsHistory,
-  useGoogleSheetsAuthStatus,
-  useGoogleSheetsAuthUrl
+  useGoogleSheetsConfig
 } from '../hooks/useGoogleSheets';
 
 const EXPECTED_FIELDS = [
@@ -57,8 +56,7 @@ export default function ImportLeads() {
   // --- GOOGLE SHEETS STATE ---
   const { data: settingsData } = useGoogleSheetsSettings();
   const { data: historyData } = useGoogleSheetsHistory();
-  const { data: isConnected, isLoading: authStatusLoading } = useGoogleSheetsAuthStatus();
-  const { refetch: fetchAuthUrl } = useGoogleSheetsAuthUrl();
+  const { data: isConnected, isLoading: authStatusLoading } = useGoogleSheetsConfig();
   const updateSettings = useUpdateGoogleSheetsSettings();
   const connectSheets = useConnectGoogleSheets();
   const previewSync = usePreviewGoogleSheetsSync();
@@ -77,26 +75,7 @@ export default function ImportLeads() {
   const [showSettings, setShowSettings] = useState(false);
   const [assignMethod, setAssignMethod] = useState('ROUND_ROBIN');
 
-  // Check URL params for OAuth redirect
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    if (params.get('google_success')) {
-      setActiveTab('google-sheets');
-      setGsStep(2);
-      // Clean up URL
-      window.history.replaceState({}, '', '/import-leads');
-    }
-    if (params.get('google_error')) {
-      setActiveTab('google-sheets');
-      const errorType = params.get('google_error');
-      if (errorType === 'redirect_uri_mismatch') {
-          setAuthError('Google authentication failed. Error: redirect_uri_mismatch. Check Google Cloud OAuth configuration.');
-      } else {
-          setAuthError('Failed to connect to Google Account.');
-      }
-      window.history.replaceState({}, '', '/import-leads');
-    }
-  }, [location]);
+  // Removed OAuth redirect check
 
   useEffect(() => {
     if (settingsData) {
@@ -134,17 +113,7 @@ export default function ImportLeads() {
 
 
   // --- GOOGLE SHEETS LOGIC ---
-  const handleInitiateAuth = async () => {
-    try {
-      setAuthError('');
-      const res = await fetchAuthUrl();
-      if (res.data) {
-        window.location.href = res.data;
-      }
-    } catch (err) {
-      setAuthError('Could not generate authentication link. Check server configuration.');
-    }
-  };
+  // (OAuth Removed)
 
   const handleFetchWorksheets = async () => {
     if (!spreadsheetId) return alert('Enter Spreadsheet ID');
@@ -276,14 +245,11 @@ export default function ImportLeads() {
                          <div className="text-center py-8">
                              {!isConnected ? (
                                 <>
-                                    <div className="mx-auto bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mb-4">
-                                        <LinkIcon size={24} className="text-green-600" />
+                                    <div className="mx-auto bg-red-100 w-16 h-16 rounded-full flex items-center justify-center mb-4">
+                                        <AlertCircle size={24} className="text-red-600" />
                                     </div>
-                                    <h3 className="text-xl font-bold mb-2">Connect Google Account</h3>
-                                    <p className="text-gray-500 mb-6 text-sm max-w-md mx-auto">Authorize Techzon CRM to read data from your Google Sheets to synchronize leads automatically.</p>
-                                    <Button onClick={handleInitiateAuth} className="bg-[#4285F4] hover:bg-[#3367d6] text-white">
-                                        Sign in with Google
-                                    </Button>
+                                    <h3 className="text-xl font-bold mb-2">Google Sheets Not Configured</h3>
+                                    <p className="text-gray-500 mb-6 text-sm max-w-md mx-auto">Google Sheets integration is not configured. Please configure the backend Google credentials (Service Account or Refresh Token).</p>
                                 </>
                              ) : (
                                 <>
@@ -291,7 +257,7 @@ export default function ImportLeads() {
                                         <CheckCircle size={24} className="text-green-600" />
                                     </div>
                                     <h3 className="text-xl font-bold mb-2">Google Account Connected</h3>
-                                    <p className="text-gray-500 mb-6 text-sm">Your CRM is authenticated with Google.</p>
+                                    <p className="text-gray-500 mb-6 text-sm">Your CRM is authenticated with Google via backend credentials.</p>
                                     <Button onClick={() => setGsStep(2)} variant="primary" className="bg-green-600 hover:bg-green-700">
                                         Continue to Configuration <ArrowRight size={16} className="ml-2" />
                                     </Button>
@@ -383,7 +349,7 @@ export default function ImportLeads() {
                                 <h3 className="font-bold text-[var(--color-text-primary)] text-lg">Sync Preview</h3>
                             </div>
 
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
                                 <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 text-center">
                                     <div className="text-[10px] uppercase font-bold text-gray-500">Total Rows</div>
                                     <div className="text-2xl font-black">{gsPreview.totalRows}</div>
@@ -391,6 +357,10 @@ export default function ImportLeads() {
                                 <div className="bg-green-50 p-3 rounded-lg border border-green-200 text-center">
                                     <div className="text-[10px] uppercase font-bold text-green-700">New Leads</div>
                                     <div className="text-2xl font-black text-green-600">{gsPreview.newLeadsCount}</div>
+                                </div>
+                                <div className="bg-blue-50 p-3 rounded-lg border border-blue-200 text-center">
+                                    <div className="text-[10px] uppercase font-bold text-blue-700">Updated</div>
+                                    <div className="text-2xl font-black text-blue-600">{gsPreview.updatedLeadsCount || 0}</div>
                                 </div>
                                 <div className="bg-orange-50 p-3 rounded-lg border border-orange-200 text-center">
                                     <div className="text-[10px] uppercase font-bold text-orange-700">Duplicates</div>
@@ -442,6 +412,10 @@ export default function ImportLeads() {
                                 <div>
                                     <p className="text-xs text-gray-500 font-bold uppercase">New Leads</p>
                                     <p className="text-3xl font-black text-green-600">{gsResults.newLeads}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-gray-500 font-bold uppercase">Updated Leads</p>
+                                    <p className="text-3xl font-black text-blue-600">{gsResults.updatedLeads || 0}</p>
                                 </div>
                                 <div>
                                     <p className="text-xs text-gray-500 font-bold uppercase">Assigned</p>
@@ -505,6 +479,7 @@ export default function ImportLeads() {
                                 <TableHead>Worksheet</TableHead>
                                 <TableHead>Total Rows</TableHead>
                                 <TableHead className="text-green-700">New</TableHead>
+                                <TableHead className="text-blue-700">Updated</TableHead>
                                 <TableHead className="text-orange-700">Duplicates</TableHead>
                                 <TableHead className="text-red-700">Invalid</TableHead>
                                 <TableHead>Status</TableHead>
@@ -517,6 +492,7 @@ export default function ImportLeads() {
                                     <TableCell>{h.worksheetName}</TableCell>
                                     <TableCell className="font-mono">{h.totalRows}</TableCell>
                                     <TableCell className="font-mono text-green-600 font-bold">{h.newLeads}</TableCell>
+                                    <TableCell className="font-mono text-blue-600 font-bold">{h.updatedLeads || 0}</TableCell>
                                     <TableCell className="font-mono text-orange-600">{h.duplicates}</TableCell>
                                     <TableCell className="font-mono text-red-600">{h.invalidRows}</TableCell>
                                     <TableCell>
