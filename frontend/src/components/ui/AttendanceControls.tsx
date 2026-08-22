@@ -24,6 +24,50 @@ export const AttendanceControls: React.FC<AttendanceControlsProps> = ({ layout =
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [resumeComment, setResumeComment] = useState('');
 
+  const [isLocating, setIsLocating] = useState(false);
+  const [locationError, setLocationError] = useState('');
+
+  const getLocationAndExecute = (actionStr: 'CLOCK_IN' | 'CLOCK_OUT') => {
+    setIsLocating(true);
+    setLocationError('');
+    
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser.');
+      setIsLocating(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude, accuracy } = position.coords;
+        const payload = { latitude, longitude, accuracy };
+        
+        const action = actionStr === 'CLOCK_IN' 
+          ? attendance.clockIn.mutateAsync(payload)
+          : attendance.clockOut.mutateAsync(payload);
+          
+        action
+          .catch((e: any) => {
+            if (e.response?.data?.code === 'OUTSIDE_OFFICE' || e.response?.data?.code === 'LOCATION_ERROR') {
+              setLocationError(e.response?.data?.message);
+            } else {
+              alert(e.response?.data?.message || 'Error');
+            }
+          })
+          .finally(() => setIsLocating(false));
+      },
+      (error) => {
+        setIsLocating(false);
+        if (error.code === error.PERMISSION_DENIED) {
+          setLocationError('Location permission is required to verify office attendance. Please enable it in your browser settings.');
+        } else {
+          setLocationError('Failed to retrieve location. Please try again.');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
+
   // Protect against no user/admin
   if (attendance.isLoading || !attendance.data) return null;
 
@@ -46,7 +90,7 @@ export const AttendanceControls: React.FC<AttendanceControlsProps> = ({ layout =
     setResumeComment('');
   };
 
-  const isPending = attendance.clockIn.isPending || attendance.clockOut.isPending || attendance.startBreak.isPending || attendance.endBreak.isPending;
+  const isPending = attendance.clockIn.isPending || attendance.clockOut.isPending || attendance.startBreak.isPending || attendance.endBreak.isPending || isLocating;
 
   // Render logic based on layout
   const renderButtons = () => {
@@ -56,11 +100,11 @@ export const AttendanceControls: React.FC<AttendanceControlsProps> = ({ layout =
           fullWidth={layout === 'dashboard' || layout === 'full'} 
           size={layout === 'topbar' ? 'sm' : 'md'}
           variant="primary" 
-          onClick={() => attendance.clockIn.mutateAsync(false).catch(e => alert(e.response?.data?.message || 'Error'))} 
+          onClick={() => getLocationAndExecute('CLOCK_IN')} 
           disabled={isPending}
           className={layout !== 'topbar' ? "py-3 shadow-md" : ""}
         >
-          <Play className="mr-2" size={layout === 'topbar' ? 14 : 18} /> {isPending ? 'Processing...' : 'CLOCK IN'}
+          <Play className="mr-2" size={layout === 'topbar' ? 14 : 18} /> {isPending ? (isLocating ? 'Verifying office location...' : 'Processing...') : 'CLOCK IN'}
         </Button>
       );
     }
@@ -78,7 +122,7 @@ export const AttendanceControls: React.FC<AttendanceControlsProps> = ({ layout =
            <Button size="sm" variant="danger" onClick={() => {
               if (isOnBreak) { alert("You are currently on a break. Please resume work before clocking out."); return; }
               if (window.confirm("Are you sure you want to end your work session?")) {
-                attendance.clockOut.mutateAsync().catch(e => alert(e.response?.data?.message || 'Error'));
+                getLocationAndExecute('CLOCK_OUT');
               }
            }} disabled={isPending}>
              Clock Out
@@ -101,11 +145,11 @@ export const AttendanceControls: React.FC<AttendanceControlsProps> = ({ layout =
                   return;
               }
               if (window.confirm("Are you sure you want to end your work session?")) {
-                attendance.clockOut.mutateAsync().catch(e => alert(e.response?.data?.message || 'Error'));
+                getLocationAndExecute('CLOCK_OUT');
               }
             }}
           >
-            <Square className="mr-2" size={18} /> {isPending ? 'Processing...' : 'CLOCK OUT'}
+            <Square className="mr-2" size={18} /> {isPending ? (isLocating ? 'Verifying location...' : 'Processing...') : 'CLOCK OUT'}
           </Button>
         )}
         
@@ -133,11 +177,11 @@ export const AttendanceControls: React.FC<AttendanceControlsProps> = ({ layout =
                    return;
                }
                if (window.confirm("Are you sure you want to end your work session?")) {
-                  attendance.clockOut.mutateAsync().catch(e => alert(e.response?.data?.message || 'Error'));
+                  getLocationAndExecute('CLOCK_OUT');
                }
              }}
            >
-             {isPending ? 'Processing...' : 'CLOCK OUT'}
+             {isPending ? (isLocating ? 'Verifying location...' : 'Processing...') : 'CLOCK OUT'}
            </Button>
         )}
       </div>
@@ -152,6 +196,17 @@ export const AttendanceControls: React.FC<AttendanceControlsProps> = ({ layout =
 
   return (
     <>
+      {locationError && (
+        <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-4 text-sm border border-red-200">
+          <p className="font-bold mb-1">Clock In Not Allowed</p>
+          <p>{locationError}</p>
+          <div className="mt-3 flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => setLocationError('')}>Dismiss</Button>
+            <Button size="sm" variant="primary" onClick={() => getLocationAndExecute('CLOCK_IN')}>Try Again</Button>
+          </div>
+        </div>
+      )}
+
       {renderButtons()}
 
       {/* Break Modal */}

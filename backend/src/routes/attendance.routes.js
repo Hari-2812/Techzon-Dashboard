@@ -9,7 +9,11 @@ const {
   endBreak, 
   getMonthlyAttendance,
   getSettings,
-  requestCorrection
+  updateSettings,
+  getVerificationLogs,
+  adminCorrectAttendance,
+  requestCorrection,
+  testReset
 } = require('../controllers/attendance.controller');
 
 router.get('/today', auth, getTodayAttendance);
@@ -20,6 +24,9 @@ router.post('/break/end', auth, endBreak);
 router.post('/correction', auth, requestCorrection);
 router.get('/monthly', auth, getMonthlyAttendance);
 router.get('/settings', auth, getSettings);
-router.post('/test-reset', auth, require('../controllers/attendance.controller').testReset);
+router.put('/settings', auth, updateSettings);
+router.get('/logs', auth, getVerificationLogs);
+router.put('/admin-correct', auth, adminCorrectAttendance);
+router.post('/test-reset', auth, testReset);
 
 module.exports = router;

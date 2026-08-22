@@ -88,77 +88,133 @@ const EmployeeManagement = () => {
             </Card>
 
             <Card>
-                <TableContainer>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Employee</TableHead>
-                                <TableHead>ID & Role</TableHead>
-                                <TableHead>Department</TableHead>
-                                <TableHead>Joining Date</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredEmployees?.map((emp: any) => (
-                                <TableRow key={emp._id}>
-                                    <TableCell>
-                                        <div className="flex items-center gap-3">
-                                            {emp.profilePhoto ? (
-                                                <img src={`${import.meta.env.VITE_API_URL?.replace('/api','') || ''}${emp.profilePhoto}`} className="w-10 h-10 rounded-full object-cover border" alt={emp.name} />
-                                            ) : (
-                                                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold">
-                                                    {emp.name.charAt(0)}
-                                                </div>
-                                            )}
-                                            <div>
-                                                <p className="font-semibold text-[var(--color-text-primary)] hover:underline cursor-pointer" onClick={() => navigate(`/employees/${emp._id}`)}>{emp.name}</p>
-                                                <p className="text-xs text-gray-500">{emp.email}</p>
-                                                <p className="text-xs text-gray-400">{emp.phone}</p>
-                                            </div>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <p className="font-mono text-sm">{emp.employeeId || 'Pending'}</p>
-                                        <Badge variant="neutral" className="mt-1">{emp.role}</Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <p className="text-sm">{emp.department || '-'}</p>
-                                        <p className="text-xs text-gray-500">{emp.designation || '-'}</p>
-                                    </TableCell>
-                                    <TableCell>
-                                        {emp.joiningDate ? moment(emp.joiningDate).format('DD MMM YYYY') : '-'}
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant={emp.status === 'ACTIVE' ? 'success' : emp.status === 'INVITED' ? 'warning' : 'error'}>
-                                            {emp.status}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <div className="flex justify-end gap-2">
-                                            {emp.status === 'INVITED' && (
-                                                <button title="Resend Invitation" onClick={() => handleResend(emp._id)} className="text-orange-500 hover:text-orange-700"><Mail size={18}/></button>
-                                            )}
-                                            <button 
-                                                title={emp.status === 'ACTIVE' ? 'Suspend' : 'Activate'}
-                                                onClick={() => handleStatusToggle(emp)} 
-                                                className={emp.status === 'ACTIVE' ? 'text-red-500 hover:text-red-700' : 'text-green-500 hover:text-green-700'}
-                                            >
-                                                {emp.status === 'ACTIVE' ? <Ban size={18} /> : <CheckCircle size={18} />}
-                                            </button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                            {filteredEmployees?.length === 0 && (
+                <div className="hidden md:block">
+                    <TableContainer>
+                        <Table>
+                            <TableHeader>
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">No employees found.</TableCell>
+                                    <TableHead>Employee</TableHead>
+                                    <TableHead>ID & Role</TableHead>
+                                    <TableHead>Department</TableHead>
+                                    <TableHead>Joining Date</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
+                            </TableHeader>
+                            <TableBody>
+                                {filteredEmployees?.map((emp: any) => (
+                                    <TableRow key={emp._id}>
+                                        <TableCell>
+                                            <div className="flex items-center gap-3">
+                                                {emp.profilePhoto ? (
+                                                    <img src={`${import.meta.env.VITE_API_URL?.replace('/api','') || ''}${emp.profilePhoto}`} className="w-10 h-10 rounded-full object-cover border" alt={emp.name} />
+                                                ) : (
+                                                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold">
+                                                        {emp.name.charAt(0)}
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    <p className="font-semibold text-[var(--color-text-primary)] hover:underline cursor-pointer" onClick={() => navigate(`/employees/${emp._id}`)}>{emp.name}</p>
+                                                    <p className="text-xs text-gray-500">{emp.email}</p>
+                                                    <p className="text-xs text-gray-400">{emp.phone}</p>
+                                                </div>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <p className="font-mono text-sm">{emp.employeeId || 'Pending'}</p>
+                                            <Badge variant="neutral" className="mt-1">{emp.role}</Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            <p className="text-sm">{emp.department || '-'}</p>
+                                            <p className="text-xs text-gray-500">{emp.designation || '-'}</p>
+                                        </TableCell>
+                                        <TableCell>
+                                            {emp.joiningDate ? moment(emp.joiningDate).format('DD MMM YYYY') : '-'}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant={emp.status === 'ACTIVE' ? 'success' : emp.status === 'INVITED' ? 'warning' : 'error'}>
+                                                {emp.status}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <div className="flex justify-end gap-2">
+                                                {emp.status === 'INVITED' && (
+                                                    <button title="Resend Invitation" onClick={() => handleResend(emp._id)} className="text-orange-500 hover:text-orange-700"><Mail size={18}/></button>
+                                                )}
+                                                <button 
+                                                    title={emp.status === 'ACTIVE' ? 'Suspend' : 'Activate'}
+                                                    onClick={() => handleStatusToggle(emp)} 
+                                                    className={emp.status === 'ACTIVE' ? 'text-red-500 hover:text-red-700' : 'text-green-500 hover:text-green-700'}
+                                                >
+                                                    {emp.status === 'ACTIVE' ? <Ban size={18} /> : <CheckCircle size={18} />}
+                                                </button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                {filteredEmployees?.length === 0 && (
+                                    <TableRow>
+                                        <TableCell colSpan={6} className="text-center py-8 text-gray-500">No employees found.</TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                </div>
+
+                <div className="md:hidden divide-y divide-gray-100">
+                    {filteredEmployees?.map((emp: any) => (
+                        <div key={emp._id} className="p-4 bg-white hover:bg-gray-50">
+                            <div className="flex justify-between items-start mb-3">
+                                <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate(`/employees/${emp._id}`)}>
+                                    {emp.profilePhoto ? (
+                                        <img src={`${import.meta.env.VITE_API_URL?.replace('/api','') || ''}${emp.profilePhoto}`} className="w-12 h-12 rounded-full object-cover border" alt={emp.name} />
+                                    ) : (
+                                        <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-lg">
+                                            {emp.name.charAt(0)}
+                                        </div>
+                                    )}
+                                    <div>
+                                        <p className="font-semibold text-gray-900">{emp.name}</p>
+                                        <p className="text-xs text-gray-500">{emp.employeeId || 'Pending'}</p>
+                                    </div>
+                                </div>
+                                <Badge variant={emp.status === 'ACTIVE' ? 'success' : emp.status === 'INVITED' ? 'warning' : 'error'}>
+                                    {emp.status}
+                                </Badge>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                                <div>
+                                    <p className="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Role & Dept</p>
+                                    <p className="font-medium text-gray-800">{emp.role} • {emp.department || '-'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Joining Date</p>
+                                    <p className="font-medium text-gray-800">{emp.joiningDate ? moment(emp.joiningDate).format('DD MMM YYYY') : '-'}</p>
+                                </div>
+                            </div>
+                            <div className="flex justify-between items-center pt-3 border-t border-gray-100">
+                                <p className="text-xs text-gray-500 truncate max-w-[200px]">{emp.email}</p>
+                                <div className="flex justify-end gap-3">
+                                    {emp.status === 'INVITED' && (
+                                        <button title="Resend Invitation" onClick={() => handleResend(emp._id)} className="text-orange-500 bg-orange-50 p-1.5 rounded"><Mail size={16}/></button>
+                                    )}
+                                    <button 
+                                        title={emp.status === 'ACTIVE' ? 'Suspend' : 'Activate'}
+                                        onClick={() => handleStatusToggle(emp)} 
+                                        className={emp.status === 'ACTIVE' ? 'text-red-500 bg-red-50 p-1.5 rounded' : 'text-green-500 bg-green-50 p-1.5 rounded'}
+                                    >
+                                        {emp.status === 'ACTIVE' ? <Ban size={16} /> : <CheckCircle size={16} />}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                    {filteredEmployees?.length === 0 && (
+                        <div className="p-8 text-center text-gray-500">No employees found.</div>
+                    )}
+                </div>
             </Card>
         </div>
     );

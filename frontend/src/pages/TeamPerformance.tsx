@@ -213,7 +213,7 @@ const EmployeePerformance = () => {
       {/* 2. MAIN EMPLOYEE PERFORMANCE TABLE */}
       {!isSpecificView && (
         <Card className="overflow-hidden bg-white shadow-sm border border-[var(--color-border-subtle)]">
-          <div className="overflow-x-auto">
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left text-sm whitespace-nowrap">
               <thead className="bg-[#F8F9FA] text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)]">
                 <tr>
@@ -301,6 +301,69 @@ const EmployeePerformance = () => {
                 )}
               </tbody>
             </table>
+          </div>
+
+          <div className="md:hidden divide-y divide-gray-100">
+            {sortedList.map((row: any) => {
+              const pScore = row.performanceScore;
+              const scoreColor = pScore === 'Excellent' ? 'bg-green-100 text-green-700' 
+                               : pScore === 'Good' ? 'bg-blue-100 text-blue-700' 
+                               : 'bg-red-100 text-red-700';
+              return (
+                <div 
+                  key={row.employee._id} 
+                  className="p-4 bg-white cursor-pointer hover:bg-gray-50"
+                  onClick={() => setEmployeeId(row.employee._id)}
+                >
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-[var(--color-primary)] text-white flex items-center justify-center font-bold shadow-sm">
+                        {row.employee.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="font-bold text-gray-900">{row.employee.name}</div>
+                        <div className="text-xs text-gray-500">{row.employee.role}</div>
+                      </div>
+                    </div>
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${scoreColor}`}>
+                      {pScore}
+                    </span>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-y-3 gap-x-4 bg-gray-50 p-3 rounded-lg border border-gray-100">
+                    <div>
+                      <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Leads</p>
+                      <div className="flex gap-2 font-mono text-sm">
+                        <span className="text-gray-900" title="Assigned">{row.leadsAssigned}</span>
+                        <span className="text-gray-400">/</span>
+                        <span className="text-green-600 font-bold" title="Completed">{row.leadsCompleted}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Sales</p>
+                      <div className="flex gap-2 font-mono text-sm">
+                        <span className="text-[var(--color-accent)]" title="Assigned">{row.salesAssigned}</span>
+                        <span className="text-gray-400">/</span>
+                        <span className="text-[var(--color-primary)] font-bold" title="Converted">{row.salesConverted}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Conversion</p>
+                      <div className="font-mono text-sm font-bold">{row.conversionRate}%</div>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Revenue</p>
+                      <div className="font-mono text-sm font-bold text-green-700">₹{row.revenue.toLocaleString()}</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {sortedList.length === 0 && (
+              <div className="p-8 text-center text-gray-400">
+                No employees found matching the current filters.
+              </div>
+            )}
           </div>
         </Card>
       )}
@@ -413,7 +476,7 @@ const EmployeePerformance = () => {
               <div className="p-4 border-b border-[var(--color-border-subtle)] bg-[#F8F9FA]">
                 <h3 className="font-bold text-gray-800">Daily Performance</h3>
               </div>
-              <div className="overflow-x-auto max-h-[400px]">
+              <div className="hidden md:block overflow-x-auto max-h-[400px]">
                 <table className="w-full text-left text-sm whitespace-nowrap">
                   <thead className="bg-white text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)] sticky top-0">
                     <tr>
@@ -445,6 +508,32 @@ const EmployeePerformance = () => {
                     )}
                   </tbody>
                 </table>
+              </div>
+
+              <div className="md:hidden divide-y divide-gray-100 max-h-[400px] overflow-y-auto">
+                {history.map((row: any) => (
+                  <div key={row.date} className="p-4 bg-white">
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="font-bold text-gray-900 text-base">{moment(row.date).format('MMM DD, YYYY')}</span>
+                      <span className="font-mono font-bold text-green-700 bg-green-50 px-2 py-1 rounded">₹{row.revenue.toLocaleString()}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Leads (Done/Asg)</p>
+                        <p className="font-mono"><span className="text-green-600 font-bold">{row.leadsCompleted}</span> / {row.leadsAssigned}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Sales (Conv/Asg)</p>
+                        <p className="font-mono"><span className="text-[var(--color-primary)] font-bold">{row.salesConverted}</span> / {row.salesAssigned}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {history.length === 0 && (
+                  <div className="p-8 text-center text-gray-400 text-sm">
+                    No daily historical data available.
+                  </div>
+                )}
               </div>
             </Card>
 

@@ -54,7 +54,7 @@ const LeadDetail = () => {
           <h1 className="text-3xl font-bold text-[var(--color-text-primary)]">{lead.studentName}</h1>
           <p className="text-gray-500 mt-1">{lead.college} • {lead.department} {lead.year}</p>
         </div>
-        <div className="flex space-x-2 mt-4 md:mt-0">
+        <div className="hidden md:flex space-x-2 mt-4 md:mt-0">
           <Button onClick={() => setShowCallModal(true)} variant="primary">
             <Phone size={18} className="mr-2" /> <span>Call</span>
           </Button>
@@ -65,9 +65,25 @@ const LeadDetail = () => {
             <MessageCircle size={18} /> <span>WhatsApp</span>
           </a>
           <Button variant="outline">
-            <CalendarPlus size={18} className="mr-2" /> <span className="hidden md:inline">Follow-up</span>
+            <CalendarPlus size={18} className="mr-2" /> <span>Follow-up</span>
           </Button>
         </div>
+      </div>
+
+      {/* MOBILE STICKY BOTTOM ACTION BAR */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[var(--color-border-subtle)] p-3 flex gap-2 z-40 safe-area-bottom shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+         <Button onClick={() => setShowCallModal(true)} variant="primary" className="flex-1 py-3">
+           <Phone size={18} className="mr-2" /> Call
+         </Button>
+         <a 
+            href={`https://wa.me/${lead.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer"
+            className="flex-1 flex justify-center items-center bg-[#25D366] text-white rounded-lg font-semibold hover:bg-[#20b858]"
+          >
+            <MessageCircle size={18} className="mr-2" /> WA
+          </a>
+         <Button variant="outline" className="flex-none px-3 py-3" onClick={() => {}}>
+           <CalendarPlus size={18} />
+         </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

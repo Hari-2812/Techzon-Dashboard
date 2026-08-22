@@ -74,7 +74,7 @@ const CRDetail = () => {
           </div>
           <p className="text-gray-500 mt-1">{cr.college} • {cr.department} {cr.year}</p>
         </div>
-        <div className="flex space-x-2 mt-4 md:mt-0">
+        <div className="hidden md:flex space-x-2 mt-4 md:mt-0">
           <a href={`tel:${cr.phone}`} className="flex items-center space-x-2 bg-[var(--color-primary)] text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-700">
             <Phone size={18} /> <span>Call</span>
           </a>
@@ -91,6 +91,25 @@ const CRDetail = () => {
             <CalendarPlus size={18} className="mr-2" /> <span>Follow-up</span>
           </Button>
         </div>
+      </div>
+
+      {/* MOBILE STICKY BOTTOM ACTION BAR */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[var(--color-border-subtle)] p-3 flex gap-2 z-40 safe-area-bottom shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+         <a href={`tel:${cr.phone}`} className="flex-1 flex justify-center items-center bg-[var(--color-primary)] text-white rounded-lg font-semibold hover:bg-indigo-700 py-3">
+           <Phone size={18} className="mr-2" /> Call
+         </a>
+         <a 
+            href={`https://wa.me/${cr.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer"
+            className="flex-1 flex justify-center items-center bg-[#25D366] text-white rounded-lg font-semibold hover:bg-[#20b858]"
+          >
+            <MessageCircle size={18} className="mr-2" /> WA
+          </a>
+         <Button variant="outline" className="flex-none px-3 py-3" onClick={() => setShowStatusModal(true)}>
+           <UserCheck size={18} />
+         </Button>
+         <Button variant="outline" className="flex-none px-3 py-3" onClick={() => setShowFollowUpModal(true)}>
+           <CalendarPlus size={18} />
+         </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

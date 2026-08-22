@@ -2,7 +2,20 @@ const moment = require('moment-timezone');
 const WorkSession = require('../models/WorkSession');
 const AttendanceDaily = require('../models/AttendanceDaily');
 const AttendanceSettings = require('../models/AttendanceSettings');
+const AttendanceVerificationLog = require('../models/AttendanceVerificationLog');
 const { calculateSessionStats } = require('../services/attendance.service');
+
+function getDistanceFromLatLonInM(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Radius of the earth in km
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180); 
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * 
+    Math.sin(dLon / 2) * Math.sin(dLon / 2); 
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)); 
+  return Math.round(R * c * 1000); // Distance in meters
+}
 
 const getTodayDateString = (timezone) => moment().tz(timezone || 'Asia/Kolkata').format('YYYY-MM-DD');
 
@@ -24,13 +37,58 @@ exports.getTodayAttendance = async (req, res) => {
 
 exports.clockIn = async (req, res) => {
   try {
+    const { latitude, longitude, accuracy, isTest } = req.body;
     const settings = await AttendanceSettings.findOne() || new AttendanceSettings();
     const dateStr = getTodayDateString(settings.timezone);
     
-    const isTest = (process.env.NODE_ENV === 'development' || req.headers.host.includes('localhost')) && req.body.isTest === true;
+    const isTestMode = (process.env.NODE_ENV === 'development' || req.headers.host.includes('localhost')) && isTest === true;
+
+    // Location Verification Logic
+    let distance = null;
+    let verificationStatus = 'VERIFIED';
+    let failureReason = null;
+    let clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
+    if (settings.attendanceVerificationMode !== 'NETWORK_ONLY') {
+        if (latitude == null || longitude == null) {
+            verificationStatus = 'REJECTED';
+            failureReason = 'Location data not provided';
+        } else if (accuracy > 100 && !isTestMode) {
+            verificationStatus = 'REJECTED';
+            failureReason = 'Poor GPS accuracy (>100m)';
+        } else if (settings.officeLatitude && settings.officeLongitude) {
+            distance = getDistanceFromLatLonInM(settings.officeLatitude, settings.officeLongitude, latitude, longitude);
+            if (distance > settings.allowedRadiusMeters && !isTestMode) {
+                verificationStatus = 'REJECTED';
+                failureReason = 'Outside allowed office radius';
+            }
+        }
+    }
+
+    if (verificationStatus === 'REJECTED') {
+        await AttendanceVerificationLog.create({
+            employeeId: req.user.id,
+            action: 'CLOCK_IN',
+            timestamp: new Date(),
+            latitude, longitude, accuracy,
+            distanceFromOffice: distance,
+            verificationStatus,
+            failureReason,
+            ipAddress: clientIp,
+            userAgent: req.headers['user-agent'],
+            isTest: isTestMode
+        });
+        return res.status(400).json({ 
+            success: false, 
+            code: failureReason === 'Outside allowed office radius' ? 'OUTSIDE_OFFICE' : 'LOCATION_ERROR',
+            message: failureReason === 'Outside allowed office radius' ? 'You are outside the office attendance area.' : failureReason,
+            distance,
+            allowedRadius: settings.allowedRadiusMeters
+        });
+    }
 
     // For test sessions, we delete any existing active or completed test session for today so they can restart
-    if (isTest) {
+    if (isTestMode) {
         await WorkSession.deleteMany({ employeeId: req.user.id, date: dateStr, isTestSession: true });
         await AttendanceDaily.deleteMany({ employeeId: req.user.id, date: dateStr, isTestSession: true });
     }
@@ -57,7 +115,28 @@ exports.clockIn = async (req, res) => {
       date: dateStr,
       clockInAt: new Date(),
       status: 'ACTIVE',
-      isTestSession: isTest
+      isTestSession: isTestMode,
+      clockInVerification: {
+          method: 'GPS',
+          latitude, longitude, accuracy,
+          distanceFromOffice: distance,
+          verifiedAt: new Date(),
+          ipAddress: clientIp,
+          status: verificationStatus
+      }
+    });
+
+    await AttendanceVerificationLog.create({
+        employeeId: req.user.id,
+        action: 'CLOCK_IN',
+        timestamp: new Date(),
+        latitude, longitude, accuracy,
+        distanceFromOffice: distance,
+        verificationStatus,
+        failureReason,
+        ipAddress: clientIp,
+        userAgent: req.headers['user-agent'],
+        isTest: isTestMode
     });
 
     // Create preliminary daily record
@@ -81,6 +160,7 @@ exports.clockIn = async (req, res) => {
 
 exports.clockOut = async (req, res) => {
   try {
+    const { latitude, longitude, accuracy } = req.body;
     const settings = await AttendanceSettings.findOne() || new AttendanceSettings();
     const dateStr = getTodayDateString(settings.timezone);
     
@@ -97,9 +177,70 @@ exports.clockOut = async (req, res) => {
       }
     }
 
+    let clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    let distance = null;
+    let verificationStatus = 'VERIFIED';
+    let failureReason = null;
+
+    if (settings.requireLocationForClockOut && settings.attendanceVerificationMode !== 'NETWORK_ONLY') {
+        if (latitude == null || longitude == null) {
+            verificationStatus = 'REJECTED';
+            failureReason = 'Location data not provided';
+        } else if (settings.officeLatitude && settings.officeLongitude) {
+            distance = getDistanceFromLatLonInM(settings.officeLatitude, settings.officeLongitude, latitude, longitude);
+            if (distance > settings.allowedRadiusMeters && !session.isTestSession) {
+                verificationStatus = 'REJECTED';
+                failureReason = 'Outside allowed office radius';
+            }
+        }
+    }
+
+    if (verificationStatus === 'REJECTED') {
+        await AttendanceVerificationLog.create({
+            employeeId: req.user.id,
+            action: 'CLOCK_OUT',
+            timestamp: new Date(),
+            latitude, longitude, accuracy,
+            distanceFromOffice: distance,
+            verificationStatus,
+            failureReason,
+            ipAddress: clientIp,
+            userAgent: req.headers['user-agent'],
+            isTest: session.isTestSession
+        });
+        return res.status(400).json({ 
+            success: false, 
+            code: failureReason === 'Outside allowed office radius' ? 'OUTSIDE_OFFICE' : 'LOCATION_ERROR',
+            message: failureReason === 'Outside allowed office radius' ? 'You are outside the office attendance area. Cannot clock out.' : failureReason,
+            distance,
+            allowedRadius: settings.allowedRadiusMeters
+        });
+    }
+
     session.clockOutAt = new Date();
     session.status = 'COMPLETED';
+    session.clockOutVerification = {
+        method: 'GPS',
+        latitude, longitude, accuracy,
+        distanceFromOffice: distance,
+        verifiedAt: new Date(),
+        ipAddress: clientIp,
+        status: verificationStatus
+    };
     await session.save();
+
+    await AttendanceVerificationLog.create({
+        employeeId: req.user.id,
+        action: 'CLOCK_OUT',
+        timestamp: new Date(),
+        latitude, longitude, accuracy,
+        distanceFromOffice: distance,
+        verificationStatus,
+        failureReason,
+        ipAddress: clientIp,
+        userAgent: req.headers['user-agent'],
+        isTest: session.isTestSession
+    });
 
     // Calculate final stats
     const stats = await calculateSessionStats(session, settings);
@@ -310,6 +451,93 @@ exports.requestCorrection = async (req, res) => {
     });
 
     res.json({ success: true, data: correction });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
+exports.updateSettings = async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') return res.status(403).json({ success: false, message: 'Forbidden' });
+    let settings = await AttendanceSettings.findOne();
+    if (!settings) {
+      settings = new AttendanceSettings();
+    }
+    Object.assign(settings, req.body);
+    await settings.save();
+    res.json({ success: true, data: settings });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
+exports.getVerificationLogs = async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') return res.status(403).json({ success: false, message: 'Forbidden' });
+    const logs = await AttendanceVerificationLog.find()
+      .populate('employeeId', 'name employeeId department')
+      .sort({ timestamp: -1 })
+      .limit(200);
+    res.json({ success: true, data: logs });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
+exports.adminCorrectAttendance = async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') return res.status(403).json({ success: false, message: 'Forbidden' });
+    const { employeeId, date, type, newValue, reason } = req.body;
+    if (!employeeId || !date || !reason) {
+       return res.status(400).json({ success: false, message: 'employeeId, date, and reason are required' });
+    }
+
+    let session = await WorkSession.findOne({ employeeId, date, isTestSession: false });
+    if (!session) {
+       return res.status(404).json({ success: false, message: 'Session not found for that date' });
+    }
+
+    const AuditLog = require('../models/AuditLog');
+    let oldValue = null;
+
+    if (type === 'CLOCK_OUT') {
+       oldValue = session.clockOutAt;
+       session.clockOutAt = newValue ? new Date(newValue) : new Date();
+       session.status = 'COMPLETED';
+       session.clockOutVerification = {
+           method: 'ADMIN_CORRECTION',
+           verifiedAt: new Date(),
+           status: 'VERIFIED'
+       };
+    } else if (type === 'CLOCK_IN') {
+       oldValue = session.clockInAt;
+       session.clockInAt = new Date(newValue);
+    }
+
+    await session.save();
+
+    // Recalculate daily stats
+    const settings = await AttendanceSettings.findOne() || new AttendanceSettings();
+    const stats = await calculateSessionStats(session, settings);
+    
+    await AttendanceDaily.findOneAndUpdate(
+      { employeeId, date, isTestSession: false },
+      { ...stats },
+      { upsert: true }
+    );
+
+    await AuditLog.create({
+      actorId: req.user.id,
+      action: 'ATTENDANCE_CORRECTED',
+      entityType: 'WorkSession',
+      entityId: session._id,
+      metadata: { type, oldValue, newValue, reason, employeeId, date }
+    });
+
+    res.json({ success: true, message: 'Attendance corrected' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server Error' });

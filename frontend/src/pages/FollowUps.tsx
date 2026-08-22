@@ -117,7 +117,7 @@ const FollowUps = () => {
       </div>
 
       <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-sm text-[var(--color-text-primary)]">
             <thead className="bg-gray-50 text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)]">
               <tr>
@@ -194,6 +194,75 @@ const FollowUps = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="md:hidden divide-y divide-gray-100 bg-gray-50/50">
+          {activeData.length === 0 ? (
+            <div className="py-12 text-center text-[var(--color-text-muted)] flex flex-col items-center justify-center">
+              <Clock size={40} className="text-[var(--color-border-subtle)] mb-3" />
+              <p className="font-semibold">No follow-ups found.</p>
+            </div>
+          ) : (
+            activeData.map((f: any) => (
+              <div key={f._id} className="p-4 bg-white">
+                <div className="flex justify-between items-start mb-2">
+                   <div>
+                     <h3 className="font-bold text-[var(--color-text-primary)] text-lg">
+                       {f.crId ? f.crId.crName : (f.leadId ? f.leadId.studentName : 'Unknown')}
+                     </h3>
+                     <p className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+                       {f.crId ? 'CR' : 'Student'}
+                     </p>
+                   </div>
+                   <div className="text-right">
+                     <span className={`px-2 py-1 inline-block rounded text-[10px] font-bold ${
+                        f.priority === 'HIGH' ? 'bg-red-100 text-red-700' :
+                        f.priority === 'MEDIUM' ? 'bg-orange-100 text-orange-700' :
+                        'bg-green-100 text-green-700'
+                      }`}>
+                        {f.priority}
+                      </span>
+                   </div>
+                </div>
+                <div className="space-y-1 mb-4">
+                   <p className="text-sm text-[var(--color-text-secondary)] flex items-center gap-2">
+                     <Clock size={14} className="text-[var(--color-primary)]"/> 
+                     <span className="font-medium text-[var(--color-text-primary)]">{moment(f.dueDate).format('DD MMM, hh:mm A')}</span>
+                   </p>
+                   <p className="text-sm text-[var(--color-text-secondary)]"><strong>College:</strong> {f.crId ? f.crId.college : (f.leadId ? f.leadId.college : '')}</p>
+                   <p className="text-sm text-[var(--color-text-secondary)]"><strong>Type:</strong> {f.type}</p>
+                   {user?.role === 'ADMIN' && <p className="text-sm text-[var(--color-text-secondary)]"><strong>Assigned:</strong> {f.assignedEmployeeId?.name}</p>}
+                </div>
+                <div className="grid grid-cols-4 gap-2 mt-4 pt-4 border-t border-[var(--color-border-subtle)]">
+                   <a href={`tel:${f.crId ? f.crId.phone : (f.leadId ? f.leadId.phone : '')}`} className="flex flex-col items-center justify-center p-2 rounded-lg bg-blue-50 text-blue-600">
+                     <Phone size={18} className="mb-1" />
+                     <span className="text-[10px] font-bold">CALL</span>
+                   </a>
+                   <a href={`https://wa.me/${f.crId ? f.crId.phone : (f.leadId ? f.leadId.phone : '')}`} target="_blank" rel="noreferrer" className="flex flex-col items-center justify-center p-2 rounded-lg bg-green-50 text-green-600">
+                     <MessageCircle size={18} className="mb-1" />
+                     <span className="text-[10px] font-bold">CHAT</span>
+                   </a>
+                   {activeTab !== 'COMPLETED' ? (
+                     <>
+                        <button onClick={() => { setSelectedFollowUp(f); setIsRescheduleModalOpen(true); }} className="flex flex-col items-center justify-center p-2 rounded-lg bg-orange-50 text-orange-600">
+                           <Clock size={18} className="mb-1" />
+                           <span className="text-[10px] font-bold">DELAY</span>
+                        </button>
+                        <button onClick={() => { setSelectedFollowUp(f); setIsCompleteModalOpen(true); }} className="flex flex-col items-center justify-center p-2 rounded-lg bg-[var(--color-primary-50)] text-[var(--color-primary)]">
+                           <CheckCircle size={18} className="mb-1" />
+                           <span className="text-[10px] font-bold">DONE</span>
+                        </button>
+                     </>
+                   ) : (
+                     <div className="col-span-2 flex items-center justify-center">
+                        <span className="text-xs text-green-600 font-bold bg-green-50 px-3 py-1 rounded-full"><CheckCircle size={14} className="inline mr-1"/> Completed</span>
+                     </div>
+                   )}
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </Card>
 

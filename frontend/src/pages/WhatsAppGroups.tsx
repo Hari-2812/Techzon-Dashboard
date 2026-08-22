@@ -81,7 +81,7 @@ const WhatsAppGroups = () => {
       </div>
 
       <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-sm text-[var(--color-text-primary)]">
             <thead className="bg-gray-50 text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)]">
               <tr>
@@ -167,6 +167,92 @@ const WhatsAppGroups = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="md:hidden divide-y divide-gray-100 bg-gray-50/50">
+          {groups.length === 0 ? (
+            <div className="py-12 text-center text-[var(--color-text-muted)] flex flex-col items-center justify-center">
+              <Users size={40} className="text-[var(--color-border-subtle)] mb-3" />
+              <p className="font-semibold">No WhatsApp groups found.</p>
+            </div>
+          ) : (
+            groups.map((g: any) => {
+              const p = g.joiningPercentage || 0;
+              return (
+                <div key={g._id} className="p-4 bg-white">
+                  <div className="flex justify-between items-start mb-2">
+                     <div>
+                       <h3 className="font-bold text-[var(--color-text-primary)] text-lg">
+                         {g.groupName}
+                       </h3>
+                       <p className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+                         CR: {g.cr?.crName}
+                       </p>
+                     </div>
+                     <span className={`px-2 py-1 rounded text-[10px] font-bold ${
+                        g.status === 'Completed' ? 'bg-green-100 text-green-700' :
+                        g.status === 'Students Joining' ? 'bg-blue-100 text-blue-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {g.status}
+                      </span>
+                  </div>
+                  <div className="space-y-1 mb-4">
+                     <p className="text-sm text-[var(--color-text-secondary)]"><strong>College:</strong> {g.college}</p>
+                     <p className="text-sm text-[var(--color-text-secondary)]"><strong>Dept:</strong> {g.department} • {g.year} {g.section ? `• Sec ${g.section}` : ''}</p>
+                     {user?.role === 'ADMIN' && <p className="text-sm text-[var(--color-text-secondary)]"><strong>Assigned:</strong> {g.assignedEmployee?.name}</p>}
+                  </div>
+                  <div className="mb-4">
+                     <div className="flex justify-between text-xs mb-1 font-medium">
+                       <span>{g.joinedStudents || 0} Joined</span>
+                       <span className="text-[var(--color-text-muted)]">{g.expectedStudents || 0} Expected</span>
+                     </div>
+                     <div className="w-full bg-gray-200 rounded-full h-2 mb-1">
+                       <div className={`h-2 rounded-full ${getProgressBarColor(p)}`} style={{ width: `${Math.min(p, 100)}%` }}></div>
+                     </div>
+                     <div className="text-right text-[10px] text-gray-500">{p.toFixed(0)}% • {g.pendingStudents} Pending</div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-[var(--color-border-subtle)]">
+                     {g.cr?.phone ? (
+                       <a href={`tel:${g.cr.phone}`} className="flex flex-col items-center justify-center p-2 rounded-lg bg-blue-50 text-blue-600">
+                         <Phone size={18} className="mb-1" />
+                         <span className="text-[10px] font-bold">CALL CR</span>
+                       </a>
+                     ) : (
+                       <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-gray-50 text-gray-400">
+                         <Phone size={18} className="mb-1" />
+                         <span className="text-[10px] font-bold">CALL CR</span>
+                       </div>
+                     )}
+                     {g.groupLink ? (
+                       <a href={g.groupLink} target="_blank" rel="noreferrer" className="flex flex-col items-center justify-center p-2 rounded-lg bg-green-50 text-green-600">
+                         <MessageCircle size={18} className="mb-1" />
+                         <span className="text-[10px] font-bold">GROUP</span>
+                       </a>
+                     ) : (
+                       <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-gray-50 text-gray-400">
+                         <MessageCircle size={18} className="mb-1" />
+                         <span className="text-[10px] font-bold">GROUP</span>
+                       </div>
+                     )}
+                     <button 
+                       onClick={() => {
+                         setSelectedGroup(g);
+                         setJoinedStudents(g.joinedStudents || 0);
+                         setGroupLink(g.groupLink || '');
+                         setIsUpdateModalOpen(true);
+                       }} 
+                       className="flex flex-col items-center justify-center p-2 rounded-lg bg-gray-100 text-gray-700"
+                     >
+                        <Users size={18} className="mb-1" />
+                        <span className="text-[10px] font-bold">UPDATE</span>
+                     </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </Card>
 

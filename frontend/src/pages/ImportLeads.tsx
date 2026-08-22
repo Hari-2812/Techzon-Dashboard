@@ -138,18 +138,19 @@ export default function ImportLeads() {
         
         {[1, 2, 3, 4].map(s => (
            <div key={s} className={`flex flex-col items-center bg-[var(--color-surface-bg)] px-2 ${step >= s ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-muted)]'}`}>
-             <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold mb-2 border-2 ${step >= s ? 'bg-[var(--color-primary-50)] border-[var(--color-primary)]' : 'bg-white border-[var(--color-border-subtle)]'}`}>
-               {step > s ? <Check size={20} /> : s}
+             <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center font-bold mb-1 md:mb-2 border-2 ${step >= s ? 'bg-[var(--color-primary-50)] border-[var(--color-primary)]' : 'bg-white border-[var(--color-border-subtle)]'}`}>
+               {step > s ? <Check size={16} /> : s}
              </div>
-             <span className="text-sm font-semibold">{['Upload', 'Map Columns', 'Verify', 'Complete'][s-1]}</span>
+             <span className="hidden md:block text-sm font-semibold">{['Upload', 'Map Columns', 'Verify', 'Complete'][s-1]}</span>
+             <span className="md:hidden text-[10px] font-bold text-center leading-tight max-w-[50px]">{['Upload', 'Map Columns', 'Verify', 'Complete'][s-1]}</span>
            </div>
         ))}
       </div>
 
-      <Card className="p-8">
+      <Card className="p-4 md:p-8">
         {step === 1 && (
           <div className="text-center">
-            <div className="border-2 border-dashed border-[var(--color-border-subtle)] rounded-xl p-12 hover:bg-[var(--color-surface-light)] transition-colors">
+            <div className="border-2 border-dashed border-[var(--color-border-subtle)] rounded-xl p-8 md:p-12 hover:bg-[var(--color-surface-light)] transition-colors">
               <Upload className="mx-auto text-[var(--color-text-muted)] mb-4" size={48} />
               <h3 className="text-lg font-semibold mb-2 text-[var(--color-text-primary)]">Upload CSV or XLSX file</h3>
               <p className="text-sm text-[var(--color-text-muted)] mb-6">Ensure your file has headers like Student Name, Phone, College.</p>
@@ -160,10 +161,12 @@ export default function ImportLeads() {
               </label>
               
               {file && (
-                <div className="mt-6 flex items-center justify-center text-green-600 bg-green-50 p-3 rounded-lg inline-flex mx-auto border border-green-200">
-                  <FileText className="mr-2" />
-                  <span className="font-semibold">{file.name}</span>
-                  <span className="ml-2 text-sm text-green-700/70">({Math.round(file.size / 1024)} KB)</span>
+                <div className="mt-6 flex flex-col sm:flex-row items-center justify-center text-green-600 bg-green-50 p-3 rounded-lg sm:inline-flex mx-auto border border-green-200">
+                  <div className="flex items-center">
+                    <FileText className="mr-2" />
+                    <span className="font-semibold truncate max-w-[200px]">{file.name}</span>
+                  </div>
+                  <span className="mt-1 sm:mt-0 sm:ml-2 text-sm text-green-700/70">({Math.round(file.size / 1024)} KB)</span>
                 </div>
               )}
             </div>
@@ -173,7 +176,7 @@ export default function ImportLeads() {
                 variant="primary"
                 onClick={handleParse}
                 disabled={!file || loading} 
-                className="px-8 py-3 shadow-md"
+                className="px-8 py-3 shadow-md w-full sm:w-auto"
               >
                 {loading ? 'Processing...' : 'Continue'} <ArrowRight className="ml-2" size={18} />
               </Button>
@@ -184,45 +187,72 @@ export default function ImportLeads() {
         {step === 2 && (
            <div>
              <h2 className="text-xl font-bold mb-4 text-[var(--color-text-primary)]">Map Excel Columns</h2>
-             <p className="text-[var(--color-text-muted)] mb-6">We've attempted to auto-map your columns. Please verify and correct them below.</p>
+             <p className="text-[var(--color-text-muted)] mb-6 text-sm">We've attempted to auto-map your columns. Please verify and correct them below.</p>
              
-             <TableContainer className="mb-6">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Excel Column</TableHead>
-                      <TableHead>Maps To (CRM Field)</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                     {headers.map(header => (
-                        <TableRow key={header}>
-                           <TableCell className="font-medium text-[var(--color-text-primary)]">{header}</TableCell>
-                           <TableCell>
-                              <select 
-                                className="w-full p-2 border border-[var(--color-border-subtle)] rounded-lg text-sm focus:outline-none focus:border-[var(--color-primary)] bg-white"
-                                value={mapping[header] || ''}
-                                onChange={e => setMapping(prev => ({...prev, [header]: e.target.value}))}
-                              >
-                                 <option value="">-- Ignore Column --</option>
-                                 {EXPECTED_FIELDS.map(f => (
-                                    <option key={f.key} value={f.key}>{f.label} {f.required ? '*' : ''}</option>
-                                 ))}
-                              </select>
-                           </TableCell>
-                           <TableCell>
-                              {mapping[header] ? (
-                                 <Badge variant="success" className="flex w-fit items-center"><Check size={12} className="mr-1"/> Recognized</Badge>
-                              ) : (
-                                 <Badge variant="neutral">Ignored</Badge>
-                              )}
-                           </TableCell>
-                        </TableRow>
-                     ))}
-                  </TableBody>
-                </Table>
-             </TableContainer>
+             <div className="hidden md:block">
+               <TableContainer className="mb-6">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Excel Column</TableHead>
+                        <TableHead>Maps To (CRM Field)</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                       {headers.map(header => (
+                          <TableRow key={header}>
+                             <TableCell className="font-medium text-[var(--color-text-primary)]">{header}</TableCell>
+                             <TableCell>
+                                <select 
+                                  className="w-full p-2 border border-[var(--color-border-subtle)] rounded-lg text-sm focus:outline-none focus:border-[var(--color-primary)] bg-white"
+                                  value={mapping[header] || ''}
+                                  onChange={e => setMapping(prev => ({...prev, [header]: e.target.value}))}
+                                >
+                                   <option value="">-- Ignore Column --</option>
+                                   {EXPECTED_FIELDS.map(f => (
+                                      <option key={f.key} value={f.key}>{f.label} {f.required ? '*' : ''}</option>
+                                   ))}
+                                </select>
+                             </TableCell>
+                             <TableCell>
+                                {mapping[header] ? (
+                                   <Badge variant="success" className="flex w-fit items-center"><Check size={12} className="mr-1"/> Recognized</Badge>
+                                ) : (
+                                   <Badge variant="neutral">Ignored</Badge>
+                                )}
+                             </TableCell>
+                          </TableRow>
+                       ))}
+                    </TableBody>
+                  </Table>
+               </TableContainer>
+             </div>
+             
+             <div className="md:hidden space-y-3 mb-6 max-h-[60vh] overflow-y-auto">
+                {headers.map(header => (
+                   <div key={header} className="p-3 border border-[var(--color-border-subtle)] rounded-lg bg-[var(--color-surface-light)]">
+                      <div className="flex justify-between items-center mb-2">
+                         <span className="font-bold text-[var(--color-text-primary)]">{header}</span>
+                         {mapping[header] ? (
+                            <Badge variant="success" className="flex items-center text-[10px]"><Check size={10} className="mr-1"/> Recognized</Badge>
+                         ) : (
+                            <Badge variant="neutral" className="text-[10px]">Ignored</Badge>
+                         )}
+                      </div>
+                      <select 
+                        className="w-full p-2 border border-[var(--color-border-subtle)] rounded-lg text-sm focus:outline-none focus:border-[var(--color-primary)] bg-white"
+                        value={mapping[header] || ''}
+                        onChange={e => setMapping(prev => ({...prev, [header]: e.target.value}))}
+                      >
+                         <option value="">-- Ignore Column --</option>
+                         {EXPECTED_FIELDS.map(f => (
+                            <option key={f.key} value={f.key}>{f.label} {f.required ? '*' : ''}</option>
+                         ))}
+                      </select>
+                   </div>
+                ))}
+             </div>
              
              <div className="bg-[var(--color-surface-light)] p-4 rounded-xl border border-[var(--color-border-subtle)] mb-6 text-sm">
                 <h4 className="font-bold mb-2">Required Fields:</h4>

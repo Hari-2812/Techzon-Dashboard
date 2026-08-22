@@ -3,13 +3,15 @@ import { Search, Bell, Menu } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useAttendance } from '../../hooks/useAttendance';
 import { AttendanceControls } from '../ui/AttendanceControls';
+import logo from '../../assets/logo.jpeg';
 
 interface TopbarProps {
   isSidebarOpen: boolean;
   toggleSidebar: () => void;
+  toggleMobileMenu?: () => void;
 }
 
-const Topbar: React.FC<TopbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
+const Topbar: React.FC<TopbarProps> = ({ isSidebarOpen, toggleSidebar, toggleMobileMenu }) => {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'ADMIN';
   const attendance = useAttendance();
@@ -23,10 +25,15 @@ const Topbar: React.FC<TopbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
         {/* Mobile menu toggle - only show on small screens */}
         <button 
           className="md:hidden p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-md"
-          onClick={toggleSidebar}
+          onClick={toggleMobileMenu}
         >
           <Menu size={20} />
         </button>
+
+        {/* Mobile Logo - Center on small screens */}
+        <div className="md:hidden flex flex-1 justify-center -ml-6">
+           <img src={logo} alt="Techzon Logo" className="h-8 object-contain" />
+        </div>
 
         {/* Global Search */}
         <div className="max-w-md w-full relative hidden md:block">
@@ -42,9 +49,14 @@ const Topbar: React.FC<TopbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
       </div>
 
       <div className="flex items-center gap-4">
+        {/* Mobile Search Icon */}
+        <button className="md:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors">
+          <Search size={20} />
+        </button>
+
         {/* Attendance Quick Status */}
         {!isAdmin && !isLoading && attendance.data && (
-          <div className="hidden sm:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-4">
              <div className={`flex items-center gap-3 px-3 py-1.5 rounded-full border ${isTestSession ? 'border-orange-300 bg-orange-50' : 'border-[var(--color-border-subtle)] bg-[var(--color-surface-light)]'}`}>
                <div className="flex items-center gap-1.5">
                  <span className={`w-2 h-2 rounded-full ${isWorking ? 'bg-green-500' : isOnBreak ? 'bg-orange-500' : isClockedOut ? 'bg-blue-500' : 'bg-gray-400'}`}></span>
@@ -69,7 +81,7 @@ const Topbar: React.FC<TopbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
         )}
         
         {isAdmin && (
-           <div className="hidden sm:flex items-center gap-3 bg-[var(--color-surface-light)] px-3 py-1.5 rounded-full border border-[var(--color-border-subtle)] text-sm font-medium text-gray-600">
+           <div className="hidden md:flex items-center gap-3 bg-[var(--color-surface-light)] px-3 py-1.5 rounded-full border border-[var(--color-border-subtle)] text-sm font-medium text-gray-600">
              Admin Mode
            </div>
         )}
@@ -80,6 +92,10 @@ const Topbar: React.FC<TopbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
           <span className="absolute top-1.5 right-1.5 block w-2 h-2 rounded-full bg-[var(--color-accent)] ring-2 ring-white"></span>
         </button>
 
+        {/* Mobile Profile Avatar */}
+        <div className="md:hidden w-8 h-8 rounded-full bg-[var(--color-accent)] flex items-center justify-center text-sm font-bold text-white shadow-sm">
+          {user?.name.charAt(0) || 'U'}
+        </div>
       </div>
     </header>
   );

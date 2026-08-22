@@ -98,7 +98,7 @@ const Dashboard = () => {
             </h2>
             {isDev && (
                <button 
-                 onClick={() => attendance.clockIn.mutateAsync(true)}
+                 onClick={() => attendance.clockIn.mutateAsync({ isTest: true })}
                  className="text-xs text-[var(--color-accent)] hover:underline"
                  disabled={attendance.clockIn.isPending}
                >
@@ -158,7 +158,7 @@ const Dashboard = () => {
       {dashboardLoading ? (
         <p className="text-gray-500">Loading metrics...</p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
           <KpiCard 
             label={isAdmin ? "Total Student Leads" : "My Leads"}
             value={metrics?.totalLeads || 0} 

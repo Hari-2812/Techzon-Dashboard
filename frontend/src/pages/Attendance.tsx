@@ -142,12 +142,31 @@ const Attendance = () => {
                 {!isClockedIn && !isCompleted ? 'NOT CLOCKED IN' : isCompleted ? 'COMPLETED' : isOnBreak ? 'ON BREAK' : 'WORKING'}
               </div>
 
-              {/* Standard Timer */}
-              <div className="my-8">
-                  <span className="text-5xl font-black text-[var(--color-text-primary)] font-mono tracking-tighter">
-                    {!isClockedIn && !isCompleted ? '00h 00m' : workedHoursStr}
-                  </span>
-                  <p className="text-sm text-[var(--color-text-muted)] font-medium mt-2">Worked Time</p>
+              {/* Circular Progress Timer */}
+              <div className="my-8 relative w-48 h-48 md:w-56 md:h-56 mx-auto flex items-center justify-center">
+                 {/* Background Circle */}
+                 <svg className="absolute inset-0 w-full h-full transform -rotate-90">
+                    <circle cx="50%" cy="50%" r="45%" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-gray-100" />
+                    {/* Progress Circle */}
+                    <circle 
+                      cx="50%" cy="50%" r="45%" 
+                      stroke="currentColor" strokeWidth="8" fill="transparent" 
+                      strokeDasharray="283" // 2 * PI * 45 ≈ 282.7
+                      strokeDashoffset={283 - (283 * progressPercent) / 100}
+                      className={`transition-all duration-1000 ease-out ${
+                         !isClockedIn && !isCompleted ? 'text-gray-300' :
+                         isCompleted ? 'text-blue-500' :
+                         isOnBreak ? 'text-orange-500' :
+                         'text-[var(--color-success)]'
+                      }`} 
+                    />
+                 </svg>
+                 <div className="z-10 flex flex-col items-center">
+                    <span className="text-3xl md:text-4xl font-black text-[var(--color-text-primary)] font-mono tracking-tighter">
+                      {!isClockedIn && !isCompleted ? '00h 00m' : workedHoursStr}
+                    </span>
+                    <p className="text-xs md:text-sm text-[var(--color-text-muted)] font-medium mt-1">Worked Time</p>
+                 </div>
               </div>
 
               {/* Active Break Display */}
@@ -194,7 +213,8 @@ const Attendance = () => {
           {data?.session?.breaks && data.session.breaks.length > 0 && (
               <Card className="p-6">
                 <h3 className="text-lg font-bold text-[var(--color-text-primary)] mb-4">Today's Breaks</h3>
-                <div className="overflow-x-auto">
+                
+                <div className="hidden md:block overflow-x-auto">
                     <table className="w-full text-left text-sm">
                         <thead className="bg-[#F8F9FA] text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)]">
                             <tr>
@@ -217,6 +237,23 @@ const Attendance = () => {
                             ))}
                         </tbody>
                     </table>
+                </div>
+
+                <div className="md:hidden space-y-3">
+                  {data.session.breaks.map((b: any, idx: number) => (
+                    <div key={idx} className="bg-gray-50 border border-[var(--color-border-subtle)] p-3 rounded-lg">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                           <p className="font-bold text-[var(--color-primary)]">{b.reason || 'Break'}</p>
+                           <p className="text-xs text-gray-500">{moment(b.startAt).format('hh:mm A')} - {b.endAt ? moment(b.endAt).format('hh:mm A') : 'Ongoing'}</p>
+                        </div>
+                        <div className="text-right">
+                           <span className="font-mono font-bold text-gray-800">{b.durationMinutes != null ? `${b.durationMinutes}m` : `${moment().diff(moment(b.startAt), 'minutes')}m`}</span>
+                        </div>
+                      </div>
+                      {b.comment && <p className="text-sm text-gray-600 mt-2">"{b.comment}"</p>}
+                    </div>
+                  ))}
                 </div>
               </Card>
           )}
@@ -252,43 +289,75 @@ const Attendance = () => {
                 </div>
              </div>
              
-             <Table>
-                 <TableHeader>
-                   <TableRow>
-                     <TableHead>Date</TableHead>
-                     <TableHead>Clock In</TableHead>
-                     <TableHead>Clock Out</TableHead>
-                     <TableHead>Worked</TableHead>
-                     <TableHead>Break</TableHead>
-                     <TableHead>Status</TableHead>
-                   </TableRow>
-                 </TableHeader>
-                 <TableBody>
-                   {monthlyData.length > 0 ? monthlyData.map((d, i) => (
-                     <TableRow key={i}>
-                       <TableCell className="font-medium text-[var(--color-text-primary)]">{moment(d.date).format('DD MMM, ddd')}</TableCell>
-                       <TableCell className="text-[var(--color-text-muted)]">--:--</TableCell> 
-                       <TableCell className="text-[var(--color-text-muted)]">--:--</TableCell>
-                       <TableCell className="font-mono">{Math.floor(d.workedMinutes/60)}h {d.workedMinutes%60}m</TableCell>
-                       <TableCell className="font-mono">{Math.floor(d.breakMinutes/60)}h {d.breakMinutes%60}m</TableCell>
-                       <TableCell>
-                          <Badge variant={
-                            d.status === 'PRESENT' ? 'success' :
-                            d.status === 'LATE' ? 'warning' :
-                            d.status === 'ABSENT' ? 'error' :
-                            'neutral'
-                          }>
-                            {d.status}
-                          </Badge>
-                       </TableCell>
-                     </TableRow>
-                   )) : (
+             <div className="hidden md:block">
+               <Table>
+                   <TableHeader>
                      <TableRow>
-                       <TableCell colSpan={6} className="py-8 text-center text-[var(--color-text-muted)]">No attendance records found for this month.</TableCell>
+                       <TableHead>Date</TableHead>
+                       <TableHead>Clock In</TableHead>
+                       <TableHead>Clock Out</TableHead>
+                       <TableHead>Worked</TableHead>
+                       <TableHead>Break</TableHead>
+                       <TableHead>Status</TableHead>
                      </TableRow>
-                   )}
-                 </TableBody>
-               </Table>
+                   </TableHeader>
+                   <TableBody>
+                     {monthlyData.length > 0 ? monthlyData.map((d, i) => (
+                       <TableRow key={i}>
+                         <TableCell className="font-medium text-[var(--color-text-primary)]">{moment(d.date).format('DD MMM, ddd')}</TableCell>
+                         <TableCell className="text-[var(--color-text-muted)]">--:--</TableCell> 
+                         <TableCell className="text-[var(--color-text-muted)]">--:--</TableCell>
+                         <TableCell className="font-mono">{Math.floor(d.workedMinutes/60)}h {d.workedMinutes%60}m</TableCell>
+                         <TableCell className="font-mono">{Math.floor(d.breakMinutes/60)}h {d.breakMinutes%60}m</TableCell>
+                         <TableCell>
+                            <Badge variant={
+                              d.status === 'PRESENT' ? 'success' :
+                              d.status === 'LATE' ? 'warning' :
+                              d.status === 'ABSENT' ? 'error' :
+                              'neutral'
+                            }>
+                              {d.status}
+                            </Badge>
+                         </TableCell>
+                       </TableRow>
+                     )) : (
+                       <TableRow>
+                         <TableCell colSpan={6} className="py-8 text-center text-[var(--color-text-muted)]">No attendance records found for this month.</TableCell>
+                       </TableRow>
+                     )}
+                   </TableBody>
+                 </Table>
+             </div>
+
+             <div className="md:hidden divide-y divide-gray-100">
+               {monthlyData.length > 0 ? monthlyData.map((d, i) => (
+                 <div key={i} className="p-4 bg-white">
+                   <div className="flex justify-between items-center mb-2">
+                     <span className="font-bold text-[var(--color-text-primary)]">{moment(d.date).format('DD MMM, ddd')}</span>
+                     <Badge variant={
+                        d.status === 'PRESENT' ? 'success' :
+                        d.status === 'LATE' ? 'warning' :
+                        d.status === 'ABSENT' ? 'error' :
+                        'neutral'
+                      }>
+                        {d.status}
+                      </Badge>
+                   </div>
+                   <div className="flex justify-between text-sm">
+                     <div>
+                       <p className="text-[var(--color-text-muted)]">Worked</p>
+                       <p className="font-mono font-bold">{Math.floor(d.workedMinutes/60)}h {d.workedMinutes%60}m</p>
+                     </div>
+                     <div className="text-right">
+                       <p className="text-[var(--color-text-muted)]">Break</p>
+                       <p className="font-mono font-bold">{Math.floor(d.breakMinutes/60)}h {d.breakMinutes%60}m</p>
+                     </div>
+                   </div>
+                 </div>
+               )) : (
+                 <div className="p-8 text-center text-[var(--color-text-muted)]">No attendance records found for this month.</div>
+               )}
+             </div>
           </TableContainer>
           
         </div>

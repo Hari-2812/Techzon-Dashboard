@@ -29,7 +29,7 @@ const EmployeeProfile = () => {
                 return (
                     <Card className="p-6 space-y-4">
                         <h3 className="font-bold border-b pb-2">Personal Details</h3>
-                        <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                             <div><span className="text-gray-500 block">Date of Birth</span> <span className="font-medium">{employee.dob ? moment(employee.dob).format('DD MMM YYYY') : '-'}</span></div>
                             <div><span className="text-gray-500 block">Gender</span> <span className="font-medium">{employee.gender || '-'}</span></div>
                             <div><span className="text-gray-500 block">Emergency Contact Name</span> <span className="font-medium">{employee.emergencyContact?.name || '-'}</span></div>
@@ -41,7 +41,7 @@ const EmployeeProfile = () => {
                 return (
                     <Card className="p-6 space-y-4">
                         <h3 className="font-bold border-b pb-2">Employment Details</h3>
-                        <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                             <div><span className="text-gray-500 block">Role</span> <Badge variant="neutral">{employee.role}</Badge></div>
                             <div><span className="text-gray-500 block">Department</span> <span className="font-medium">{employee.department || '-'}</span></div>
                             <div><span className="text-gray-500 block">Designation</span> <span className="font-medium">{employee.designation || '-'}</span></div>

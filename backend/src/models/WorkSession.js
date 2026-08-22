@@ -13,6 +13,26 @@ const WorkSessionSchema = new mongoose.Schema({
         index: true
     },
     isTestSession: { type: Boolean, default: false },
+    clockInVerification: {
+        method: String,
+        latitude: Number,
+        longitude: Number,
+        accuracy: Number,
+        distanceFromOffice: Number,
+        verifiedAt: Date,
+        ipAddress: String,
+        status: String
+    },
+    clockOutVerification: {
+        method: String,
+        latitude: Number,
+        longitude: Number,
+        accuracy: Number,
+        distanceFromOffice: Number,
+        verifiedAt: Date,
+        ipAddress: String,
+        status: String
+    },
     breaks: [{
             startAt: { type: Date, required: true },
             endAt: { type: Date },
@@ -22,5 +42,8 @@ const WorkSessionSchema = new mongoose.Schema({
             durationMinutes: { type: Number, default: 0 }
         }]
 }, { timestamps: true });
+
+// Ensure one active session per day
+WorkSessionSchema.index({ employeeId: 1, date: 1, isTestSession: 1 });
 
 module.exports = mongoose.model('WorkSession', WorkSessionSchema);

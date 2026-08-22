@@ -142,76 +142,123 @@ const Leads = () => {
           </div>
         </div>
 
-        {/* Table */}
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Student</TableHead>
-              <TableHead>Phone</TableHead>
-              <TableHead>College</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>CR Status</TableHead>
-              <TableHead>Priority</TableHead>
-              {isAdmin && <TableHead>Assigned To</TableHead>}
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow><TableCell colSpan={8} className="text-center py-8">Loading leads...</TableCell></TableRow>
-            ) : data?.data?.length === 0 ? (
+        {/* Desktop Table */}
+        <div className="hidden md:block">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={8} className="py-12 text-center text-[var(--color-text-muted)]">
-                  <div className="flex flex-col items-center justify-center">
-                    <Users size={48} className="text-[var(--color-border-subtle)] mb-4" />
-                    <p className="text-lg font-semibold">{isAdmin ? 'No student leads found.' : 'You have no assigned leads right now.'}</p>
-                    <p className="text-sm mt-1">Try changing your filters or add a new lead.</p>
-                  </div>
-                </TableCell>
+                <TableHead>Student</TableHead>
+                <TableHead>Phone</TableHead>
+                <TableHead>College</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>CR Status</TableHead>
+                <TableHead>Priority</TableHead>
+                {isAdmin && <TableHead>Assigned To</TableHead>}
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            ) : (
-              data?.data?.map((lead: any) => (
-                <TableRow key={lead._id}>
-                  <TableCell>
-                    <div className="font-semibold text-[var(--color-text-primary)] cursor-pointer hover:text-[var(--color-primary)]" onClick={() => navigate(`/leads/${lead._id}`)}>
-                      {lead.studentName}
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow><TableCell colSpan={8} className="text-center py-8">Loading leads...</TableCell></TableRow>
+              ) : data?.data?.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="py-12 text-center text-[var(--color-text-muted)]">
+                    <div className="flex flex-col items-center justify-center">
+                      <Users size={48} className="text-[var(--color-border-subtle)] mb-4" />
+                      <p className="text-lg font-semibold">{isAdmin ? 'No student leads found.' : 'You have no assigned leads right now.'}</p>
+                      <p className="text-sm mt-1">Try changing your filters or add a new lead.</p>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <a href={`tel:${lead.phone}`} className="text-[var(--color-primary)] hover:underline flex items-center">
-                      <Phone size={14} className="mr-1"/> {lead.phone}
-                    </a>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-[var(--color-text-primary)] truncate max-w-[200px]" title={lead.college}>{lead.college}</div>
-                    <div className="text-xs text-[var(--color-text-muted)]">{lead.department} • {lead.year}</div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="neutral">{lead.leadStatus}</Badge>
-                  </TableCell>
-                  <TableCell className="font-medium text-xs">
-                    {lead.crStatus}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={lead.priority === 'HIGH' ? 'error' : lead.priority === 'MEDIUM' ? 'warning' : 'neutral'}>
-                      {lead.priority}
-                    </Badge>
-                  </TableCell>
-                  {isAdmin && (
-                    <TableCell>
-                      {lead.assignedEmployeeId?.name || 'Unassigned'}
-                    </TableCell>
-                  )}
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" onClick={() => navigate(`/leads/${lead._id}`)}>
-                      View
-                    </Button>
-                  </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : (
+                data?.data?.map((lead: any) => (
+                  <TableRow key={lead._id}>
+                    <TableCell>
+                      <div className="font-semibold text-[var(--color-text-primary)] cursor-pointer hover:text-[var(--color-primary)]" onClick={() => navigate(`/leads/${lead._id}`)}>
+                        {lead.studentName}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <a href={`tel:${lead.phone}`} className="text-[var(--color-primary)] hover:underline flex items-center">
+                        <Phone size={14} className="mr-1"/> {lead.phone}
+                      </a>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-[var(--color-text-primary)] truncate max-w-[200px]" title={lead.college}>{lead.college}</div>
+                      <div className="text-xs text-[var(--color-text-muted)]">{lead.department} • {lead.year}</div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="neutral">{lead.leadStatus}</Badge>
+                    </TableCell>
+                    <TableCell className="font-medium text-xs">
+                      {lead.crStatus}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={lead.priority === 'HIGH' ? 'error' : lead.priority === 'MEDIUM' ? 'warning' : 'neutral'}>
+                        {lead.priority}
+                      </Badge>
+                    </TableCell>
+                    {isAdmin && (
+                      <TableCell>
+                        {lead.assignedEmployeeId?.name || 'Unassigned'}
+                      </TableCell>
+                    )}
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm" onClick={() => navigate(`/leads/${lead._id}`)}>
+                        View
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="md:hidden divide-y divide-gray-100 bg-gray-50/50">
+          {isLoading ? (
+            <div className="text-center py-8 text-gray-500">Loading leads...</div>
+          ) : data?.data?.length === 0 ? (
+            <div className="py-12 text-center text-[var(--color-text-muted)] flex flex-col items-center justify-center">
+              <Users size={40} className="text-[var(--color-border-subtle)] mb-3" />
+              <p className="font-semibold">{isAdmin ? 'No student leads found.' : 'You have no assigned leads right now.'}</p>
+            </div>
+          ) : (
+            data?.data?.map((lead: any) => (
+              <div key={lead._id} className="p-4 bg-white">
+                <div className="flex justify-between items-start mb-2">
+                   <div>
+                     <h3 className="font-bold text-[var(--color-text-primary)] text-lg cursor-pointer" onClick={() => navigate(`/leads/${lead._id}`)}>
+                       {lead.studentName}
+                     </h3>
+                     <p className="text-xs text-gray-400">Lead #{lead.leadId || lead._id.toString().slice(-6).toUpperCase()}</p>
+                   </div>
+                   <Badge variant={lead.priority === 'HIGH' ? 'error' : lead.priority === 'MEDIUM' ? 'warning' : 'neutral'}>
+                      {lead.priority}
+                   </Badge>
+                </div>
+                <div className="space-y-1 mb-4">
+                   <p className="text-sm text-[var(--color-text-secondary)]"><strong>College:</strong> {lead.college}</p>
+                   <p className="text-sm text-[var(--color-text-secondary)]"><strong>Department:</strong> {lead.department} • {lead.year}</p>
+                   <p className="text-sm text-[var(--color-text-secondary)]"><strong>Phone:</strong> {lead.phone}</p>
+                   <p className="text-sm text-[var(--color-text-secondary)] flex items-center gap-1">
+                      <strong>Status:</strong> <Badge variant="neutral">{lead.leadStatus}</Badge>
+                   </p>
+                   {isAdmin && <p className="text-sm text-[var(--color-text-secondary)]"><strong>Assigned:</strong> {lead.assignedEmployeeId?.name || 'Unassigned'}</p>}
+                </div>
+                <div className="grid grid-cols-2 gap-2 mt-4">
+                   <Button variant="outline" size="sm" onClick={() => window.location.href = `tel:${lead.phone}`}>
+                     Call
+                   </Button>
+                   <Button variant="primary" size="sm" onClick={() => navigate(`/leads/${lead._id}`)}>
+                     View Lead
+                   </Button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
         
         {/* Pagination */}
         {data?.meta && data.meta.pages > 1 && (
