@@ -68,15 +68,13 @@ export default function ImportLeads() {
   }
 
   // --- GOOGLE SHEETS LOGIC ---
-  const handleInitiateSetup = async () => {
+  const handleInitiateSetup = () => {
     try {
       setAuthError('');
-      const url = await fetchAuthUrl.mutateAsync();
-      if (url) {
-        window.open(url, '_blank', 'width=600,height=700');
-      }
+      const authUrl = `${api.defaults.baseURL}/google-sheets/oauth/start`;
+      window.open(authUrl, '_blank', 'width=600,height=700');
     } catch (err: any) {
-      setAuthError(err.response?.data?.message || 'Could not generate authentication link. Check server configuration.');
+      setAuthError('Could not open authentication link.');
     }
   };
 

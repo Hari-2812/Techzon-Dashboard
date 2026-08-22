@@ -28,15 +28,18 @@ exports.generateAuthUrl = async (req, res) => {
     try {
         const status = await googleSheetsService.getDetailedStatus();
         if (!status.canSetupOAuth) {
-            return res.status(400).json({ success: false, message: 'Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET in environment variables.' });
+            return res.status(400).send('Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET in environment variables.');
         }
-        // We use JWT to sign the admin's ID as the state to prevent CSRF
-        const state = jwt.sign({ adminId: req.user.id }, process.env.JWT_SECRET, { expiresIn: '15m' });
+        
+        // Generate a random state string for CSRF
+        const crypto = require('crypto');
+        const state = crypto.randomBytes(16).toString('hex');
+        
         const url = googleSheetsService.generateAuthUrl(state);
-        res.json({ success: true, url });
+        res.redirect(url);
     } catch (err) {
         console.error('Error generating auth url:', err);
-        res.status(500).json({ success: false, message: 'Failed to initialize Google OAuth. Ensure credentials are set.' });
+        res.status(500).send('Failed to initialize Google OAuth. Ensure credentials are set.');
     }
 };
 
@@ -44,19 +47,14 @@ exports.handleOAuthCallback = async (req, res) => {
     try {
         const { code, state, error } = req.query;
         
-        if (error) {
-            return res.status(400).send('Google authentication failed or was denied.');
+        if (error === 'access_denied') {
+            return res.status(400).send('Google authorization was denied. Please authorize Google Sheets access and try again.');
+        } else if (error) {
+            return res.status(400).send('Google authentication failed.');
         }
 
-        if (!code || !state) {
-            return res.status(400).send('Missing code or state parameter.');
-        }
-
-        // Verify CSRF state
-        try {
-            jwt.verify(state, process.env.JWT_SECRET);
-        } catch (err) {
-            return res.status(403).send('Invalid or expired state token. Please try connecting again.');
+        if (!code) {
+            return res.status(400).send('Google OAuth callback did not receive an authorization code.');
         }
 
         const tokens = await googleSheetsService.exchangeCodeForTokens(code);

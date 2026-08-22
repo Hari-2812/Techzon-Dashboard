@@ -2,8 +2,8 @@ const jwt = require('jsonwebtoken');
 const { env } = require('../config/env');
 
 exports.auth = (req, res, next) => {
-  // Get token from header
-  const token = req.header('x-auth-token') || req.header('Authorization')?.replace('Bearer ', '');
+  // Get token from header or query
+  const token = req.header('x-auth-token') || req.header('Authorization')?.replace('Bearer ', '') || req.query.token;
 
   if (!token) {
     return res.status(401).json({ success: false, message: 'No token, authorization denied' });
