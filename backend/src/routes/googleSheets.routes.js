@@ -1,7 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { auth, restrictTo } = require('../middlewares/auth.middleware');
+const { auth, checkRole } = require('../middlewares/auth');
 const { 
+    getAuthStatus,
+    generateAuthUrl,
+    handleOAuthCallback,
     getSettings,
     updateSettings,
     connectAndGetWorksheets,
@@ -10,9 +13,15 @@ const {
     getSyncHistory
 } = require('../controllers/googleSheets.controller');
 
-// All Google Sheets APIs are Admin-only
+// Public endpoint for Google redirect (verifies state internally)
+router.get('/callback', handleOAuthCallback);
+
+// All other Google Sheets APIs are Admin-only
 router.use(auth);
-router.use(restrictTo('ADMIN'));
+router.use(checkRole('ADMIN'));
+
+router.get('/auth-status', getAuthStatus);
+router.get('/auth', generateAuthUrl);
 
 router.get('/settings', getSettings);
 router.put('/settings', updateSettings);

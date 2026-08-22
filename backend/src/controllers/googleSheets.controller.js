@@ -1,8 +1,9 @@
-const { google } = require('googleapis');
 const Lead = require('../models/Lead');
 const User = require('../models/User');
 const SyncHistory = require('../models/SyncHistory');
 const GoogleSheetsSettings = require('../models/GoogleSheetsSettings');
+const googleSheetsService = require('../services/googleSheets.service');
+const jwt = require('jsonwebtoken');
 
 // Helper to normalize phone for duplicate checking
 const normalizePhone = (phone) => {
@@ -10,62 +11,62 @@ const normalizePhone = (phone) => {
     return phone.replace(/\D/g, '').slice(-10); // Keep last 10 digits
 };
 
-// Helper to get Google Sheets Client
-const getSheetsClient = async () => {
-    if (process.env.NODE_ENV !== 'production') {
-        return null; // Mock mode
+// --- OAUTH FLOW CONTROLLERS ---
+
+exports.getAuthStatus = async (req, res) => {
+    try {
+        const settings = await GoogleSheetsSettings.findOne();
+        const isConnected = !!(settings && settings.refreshToken);
+        res.json({ success: true, isConnected });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Server error' });
     }
-
-    const clientEmail = process.env.GOOGLE_SHEETS_CLIENT_EMAIL;
-    let privateKey = process.env.GOOGLE_SHEETS_PRIVATE_KEY;
-    
-    if (!clientEmail || !privateKey) {
-        throw new Error('Google Sheets credentials not configured on the server.');
-    }
-    
-    // Replace escaped newlines if passed via environment variables
-    privateKey = privateKey.replace(/\\n/g, '\n');
-
-    const auth = new google.auth.JWT(
-        clientEmail,
-        null,
-        privateKey,
-        ['https://www.googleapis.com/auth/spreadsheets.readonly']
-    );
-
-    return google.sheets({ version: 'v4', auth });
 };
 
-// --- MOCK DATA FOR DEVELOPMENT ---
-const generateMockData = () => {
-    const data = [];
-    for (let i = 1; i <= 30; i++) {
-        data.push({
-            'Student Name': `Mock Student ${i}`,
-            'Email': `student${i}@test.com`,
-            'Phone': `9876543${String(i).padStart(3, '0')}`,
-            'College': i % 2 === 0 ? 'PSNA College' : 'Anna University',
-            'Degree / Branch': 'B.E CSE',
-            'Year': '4th Year',
-            'Course': 'Full Stack',
-            'Parent / Contact Name': `Parent ${i}`,
-            'Parent / Contact Phone': `9988776${String(i).padStart(3, '0')}`
-        });
+exports.generateAuthUrl = async (req, res) => {
+    try {
+        // We use JWT to sign the admin's ID as the state to prevent CSRF
+        const state = jwt.sign({ adminId: req.user.id }, process.env.JWT_SECRET, { expiresIn: '15m' });
+        const url = googleSheetsService.generateAuthUrl(state);
+        res.json({ success: true, url });
+    } catch (err) {
+        console.error('Error generating auth url:', err);
+        res.status(500).json({ success: false, message: 'Failed to initialize Google OAuth. Ensure credentials are set.' });
     }
-    // Add one duplicate to test duplicates
-    data.push({
-        'Student Name': `Mock Student 1 (Duplicate)`,
-        'Email': `student1@test.com`,
-        'Phone': `9876543001`,
-        'College': 'PSNA College',
-        'Degree / Branch': 'B.E CSE',
-        'Year': '4th Year',
-        'Course': 'Full Stack',
-        'Parent / Contact Name': `Parent 1`,
-        'Parent / Contact Phone': `9988776001`
-    });
-    return data;
 };
+
+exports.handleOAuthCallback = async (req, res) => {
+    try {
+        const { code, state, error } = req.query;
+        
+        if (error) {
+            return res.redirect(`${process.env.FRONTEND_URL || 'https://techzon-dashboard.vercel.app'}/import-leads?google_error=access_denied`);
+        }
+
+        if (!code || !state) {
+            return res.status(400).send('Missing code or state parameter.');
+        }
+
+        // Verify CSRF state
+        try {
+            jwt.verify(state, process.env.JWT_SECRET);
+        } catch (err) {
+            return res.status(403).send('Invalid or expired state token. Please try connecting again.');
+        }
+
+        const tokens = await googleSheetsService.exchangeCodeForTokens(code);
+        await googleSheetsService.saveTokens(tokens);
+
+        // Redirect back to CRM frontend
+        const frontendUrl = process.env.FRONTEND_URL || 'https://techzon-dashboard.vercel.app';
+        res.redirect(`${frontendUrl}/import-leads?google_success=true`);
+    } catch (err) {
+        console.error('OAuth Callback Error:', err);
+        res.status(500).send('Failed to authenticate with Google.');
+    }
+};
+
+// --- SETTINGS CONTROLLERS ---
 
 exports.getSettings = async (req, res) => {
     try {
@@ -73,7 +74,15 @@ exports.getSettings = async (req, res) => {
         if (!settings) {
             settings = await GoogleSheetsSettings.create({});
         }
-        res.json({ success: true, data: settings });
+        // Never send tokens to frontend
+        const safeSettings = {
+            spreadsheetId: settings.spreadsheetId,
+            autoSyncEnabled: settings.autoSyncEnabled,
+            syncInterval: settings.syncInterval,
+            assignmentStrategy: settings.assignmentStrategy,
+            activeEmployees: settings.activeEmployees
+        };
+        res.json({ success: true, data: safeSettings });
     } catch (err) {
         console.error(err);
         res.status(500).json({ success: false, message: 'Server error' });
@@ -96,12 +105,22 @@ exports.updateSettings = async (req, res) => {
         if (activeEmployees !== undefined) settings.activeEmployees = activeEmployees;
         
         await settings.save();
-        res.json({ success: true, data: settings });
+        
+        const safeSettings = {
+            spreadsheetId: settings.spreadsheetId,
+            autoSyncEnabled: settings.autoSyncEnabled,
+            syncInterval: settings.syncInterval,
+            assignmentStrategy: settings.assignmentStrategy,
+            activeEmployees: settings.activeEmployees
+        };
+        res.json({ success: true, data: safeSettings });
     } catch (err) {
         console.error(err);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
+
+// --- SYNC CONTROLLERS ---
 
 exports.connectAndGetWorksheets = async (req, res) => {
     try {
@@ -118,12 +137,7 @@ exports.connectAndGetWorksheets = async (req, res) => {
             });
         }
 
-        const sheets = await getSheetsClient();
-        const response = await sheets.spreadsheets.get({
-            spreadsheetId
-        });
-
-        const worksheets = response.data.sheets.map(sheet => sheet.properties.title);
+        const worksheets = await googleSheetsService.getWorksheets(spreadsheetId);
         res.json({ success: true, data: worksheets });
     } catch (err) {
         console.error('Error connecting to Google Sheets:', err);
@@ -138,31 +152,7 @@ const getSheetDataAsObjects = async (spreadsheetId, worksheetName) => {
     if (process.env.NODE_ENV !== 'production') {
         return generateMockData();
     }
-
-    const sheets = await getSheetsClient();
-    const response = await sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: `${worksheetName}!A1:Z`
-    });
-
-    const rows = response.data.values;
-    if (!rows || rows.length === 0) return [];
-
-    const headers = rows[0];
-    const data = [];
-
-    for (let i = 1; i < rows.length; i++) {
-        const row = rows[i];
-        const rowObj = {};
-        headers.forEach((header, index) => {
-            rowObj[header] = row[index] || '';
-        });
-        // Attach row index for logging
-        rowObj._rowIndex = i + 1;
-        data.push(rowObj);
-    }
-
-    return data;
+    return googleSheetsService.getSheetData(spreadsheetId, worksheetName);
 };
 
 exports.previewSync = async (req, res) => {
@@ -173,7 +163,6 @@ exports.previewSync = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Missing required parameters' });
         }
 
-        // Fetch Settings for assignment strategy
         let settings = await GoogleSheetsSettings.findOne();
         if (!settings) return res.status(400).json({ success: false, message: 'Settings not configured' });
 
@@ -186,20 +175,17 @@ exports.previewSync = async (req, res) => {
         
         const invalidDetails = [];
         
-        // Prepare active employees for simulation
         const activeUsers = await User.find({ 
             _id: { $in: settings.activeEmployees }, 
             isActive: true 
         });
         
-        // Fetch existing leads to simulate duplicate detection and assignments
         const allLeads = await Lead.find({}, 'phone email assignedEmployeeId');
         const phoneSet = new Set(allLeads.map(l => normalizePhone(l.phone)));
         
         const assignmentCounts = {};
         activeUsers.forEach(u => assignmentCounts[u._id.toString()] = { name: u.name, count: 0 });
 
-        // Calculate current loads if we need LEAST_ASSIGNED
         if (settings.assignmentStrategy === 'LEAST_ASSIGNED') {
             for (const u of activeUsers) {
                 const count = allLeads.filter(l => l.assignedEmployeeId?.toString() === u._id.toString()).length;
@@ -210,7 +196,6 @@ exports.previewSync = async (req, res) => {
         let rrIndex = 0;
 
         for (const row of rawData) {
-            // Apply mapping
             const mappedData = {};
             for (const [sheetCol, crmField] of Object.entries(mapping)) {
                 if (crmField && row[sheetCol]) {
@@ -218,7 +203,6 @@ exports.previewSync = async (req, res) => {
                 }
             }
             
-            // Validate required
             if (!mappedData.studentName || !mappedData.phone || !mappedData.college) {
                 invalidRows++;
                 if (invalidDetails.length < 100) {
@@ -229,27 +213,22 @@ exports.previewSync = async (req, res) => {
             
             validRowsCount++;
             
-            // Duplicate Check
             const normalizedPhone = normalizePhone(mappedData.phone);
             if (phoneSet.has(normalizedPhone)) {
                 duplicatesSkipped++;
                 continue;
             }
             
-            // It's a new lead
             newLeadsCount++;
-            phoneSet.add(normalizedPhone); // add to set so we catch duplicates WITHIN the sheet itself
+            phoneSet.add(normalizedPhone); 
             
-            // Simulate Assignment
             if (activeUsers.length > 0) {
                 let assignedId;
                 if (settings.assignmentStrategy === 'ROUND_ROBIN' || settings.assignmentStrategy === 'MANUAL') {
-                    // We use round robin simulation for this preview
                     assignedId = activeUsers[rrIndex % activeUsers.length]._id.toString();
                     assignmentCounts[assignedId].count++;
                     rrIndex++;
                 } else if (settings.assignmentStrategy === 'LEAST_ASSIGNED') {
-                    // Find least assigned
                     let leastId = activeUsers[0]._id.toString();
                     for (const u of activeUsers) {
                         if (assignmentCounts[u._id.toString()].count < assignmentCounts[leastId].count) {
@@ -295,13 +274,12 @@ exports.executeSync = async (req, res) => {
         let settings = await GoogleSheetsSettings.findOne();
         if (!settings) return res.status(400).json({ success: false, message: 'Settings not configured' });
 
-        // Create Sync History record
         syncRecord = await SyncHistory.create({
             adminId: req.user.id,
             spreadsheetId,
             worksheetName,
             startedAt: new Date(),
-            status: 'Failed' // Default to failed until complete
+            status: 'Failed'
         });
 
         const rawData = await getSheetDataAsObjects(spreadsheetId, worksheetName);
@@ -351,10 +329,8 @@ exports.executeSync = async (req, res) => {
                 continue;
             }
             
-            // Prevent duplicates within the same batch
             phoneMap.set(normalizedPhone, true);
             
-            // Assign
             let assignedEmployeeId = null;
             if (activeUsers.length > 0) {
                 if (settings.assignmentStrategy === 'LEAST_ASSIGNED') {
@@ -367,7 +343,6 @@ exports.executeSync = async (req, res) => {
                     assignedEmployeeId = minId;
                     employeeLoad.set(minId, employeeLoad.get(minId) + 1);
                 } else {
-                    // ROUND_ROBIN or MANUAL fallback
                     assignedEmployeeId = activeUsers[rrIndex % activeUsers.length]._id;
                     rrIndex++;
                 }
@@ -405,7 +380,6 @@ exports.executeSync = async (req, res) => {
         syncRecord.completedAt = new Date();
         await syncRecord.save();
 
-        // Broadcast to clients
         const io = req.app.get('io');
         if (io) {
             io.emit('leads:synced', { 
@@ -434,4 +408,35 @@ exports.getSyncHistory = async (req, res) => {
     } catch (err) {
         res.status(500).json({ success: false, message: 'Server error' });
     }
+};
+
+const generateMockData = () => {
+    const data = [];
+    for (let i = 1; i <= 30; i++) {
+        data.push({
+            'Student Name': `Mock Student ${i}`,
+            'Email': `student${i}@test.com`,
+            'Phone': `9876543${String(i).padStart(3, '0')}`,
+            'College': i % 2 === 0 ? 'PSNA College' : 'Anna University',
+            'Degree / Branch': 'B.E CSE',
+            'Year': '4th Year',
+            'Course': 'Full Stack',
+            'Parent / Contact Name': `Parent ${i}`,
+            'Parent / Contact Phone': `9988776${String(i).padStart(3, '0')}`,
+            '_rowIndex': i + 1
+        });
+    }
+    data.push({
+        'Student Name': `Mock Student 1 (Duplicate)`,
+        'Email': `student1@test.com`,
+        'Phone': `9876543001`,
+        'College': 'PSNA College',
+        'Degree / Branch': 'B.E CSE',
+        'Year': '4th Year',
+        'Course': 'Full Stack',
+        'Parent / Contact Name': `Parent 1`,
+        'Parent / Contact Phone': `9988776001`,
+        '_rowIndex': 32
+    });
+    return data;
 };
