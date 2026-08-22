@@ -6,8 +6,17 @@ export const useGoogleSheetsConfig = () => {
     queryKey: ['googleSheets', 'status'],
     queryFn: async () => {
       const { data } = await api.get('/google-sheets/status');
-      return data.isConnected;
+      return data;
     },
+  });
+};
+
+export const useGoogleSheetsAuthUrl = () => {
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await api.get('/google-sheets/auth');
+      return data.url;
+    }
   });
 };
 

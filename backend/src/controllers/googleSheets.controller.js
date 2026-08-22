@@ -11,12 +11,92 @@ const normalizePhone = (phone) => {
     return phone.replace(/\D/g, '').slice(-10); // Keep last 10 digits
 };
 
+const normalizeColumn = (colName) => {
+    return colName.toLowerCase().replace(/[^a-z0-9]/g, '');
+};
+
 exports.getStatus = async (req, res) => {
     try {
-        const isConnected = await googleSheetsService.checkStatus();
-        res.json({ success: true, isConnected });
+        const status = await googleSheetsService.getDetailedStatus();
+        res.json({ success: true, ...status });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+exports.generateAuthUrl = async (req, res) => {
+    try {
+        const status = await googleSheetsService.getDetailedStatus();
+        if (!status.canSetupOAuth) {
+            return res.status(400).json({ success: false, message: 'Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET in environment variables.' });
+        }
+        // We use JWT to sign the admin's ID as the state to prevent CSRF
+        const state = jwt.sign({ adminId: req.user.id }, process.env.JWT_SECRET, { expiresIn: '15m' });
+        const url = googleSheetsService.generateAuthUrl(state);
+        res.json({ success: true, url });
+    } catch (err) {
+        console.error('Error generating auth url:', err);
+        res.status(500).json({ success: false, message: 'Failed to initialize Google OAuth. Ensure credentials are set.' });
+    }
+};
+
+exports.handleOAuthCallback = async (req, res) => {
+    try {
+        const { code, state, error } = req.query;
+        
+        if (error) {
+            return res.status(400).send('Google authentication failed or was denied.');
+        }
+
+        if (!code || !state) {
+            return res.status(400).send('Missing code or state parameter.');
+        }
+
+        // Verify CSRF state
+        try {
+            jwt.verify(state, process.env.JWT_SECRET);
+        } catch (err) {
+            return res.status(403).send('Invalid or expired state token. Please try connecting again.');
+        }
+
+        const tokens = await googleSheetsService.exchangeCodeForTokens(code);
+        
+        if (!tokens.refresh_token) {
+            return res.status(400).send('No refresh token received. You may need to revoke the app permissions in your Google Account and try again to force a new refresh token.');
+        }
+
+        // Render a secure HTML page for the Admin to copy the token
+        res.send(`
+            <html>
+                <head>
+                    <title>Google Sheets Authentication Success</title>
+                    <style>
+                        body { font-family: system-ui, sans-serif; padding: 40px; background: #f0fdf4; color: #166534; text-align: center; }
+                        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+                        .token-box { background: #f8fafc; padding: 15px; border: 1px solid #e2e8f0; border-radius: 6px; word-break: break-all; font-family: monospace; font-size: 14px; color: #334155; margin: 20px 0; }
+                        h1 { font-size: 24px; margin-bottom: 10px; }
+                        p { font-size: 15px; color: #475569; line-height: 1.5; }
+                        .warning { color: #b91c1c; font-weight: bold; margin-top: 20px; }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <h1>✅ Authentication Successful</h1>
+                        <p>You have successfully authorized the CRM. Copy the refresh token below and add it to your Render environment variables as <strong>GOOGLE_REFRESH_TOKEN</strong>.</p>
+                        
+                        <div class="token-box">${tokens.refresh_token}</div>
+                        
+                        <p class="warning">Do NOT share this token with anyone. Do NOT commit it to GitHub. Close this window when finished.</p>
+                    </div>
+                </body>
+            </html>
+        `);
+    } catch (err) {
+        console.error('OAuth Callback Error:', err);
+        if (err.message && err.message.includes('redirect_uri_mismatch')) {
+            return res.status(400).send('Google authentication failed. Error: redirect_uri_mismatch. Check Google Cloud OAuth configuration.');
+        }
+        res.status(500).send('Failed to authenticate with Google.');
     }
 };
 
@@ -28,13 +108,9 @@ exports.getSettings = async (req, res) => {
         if (!settings) {
             settings = await GoogleSheetsSettings.create({});
         }
-        // Never send tokens to frontend
+        // Only settings related to Assignment exist here now
         const safeSettings = {
-            spreadsheetId: settings.spreadsheetId,
-            autoSyncEnabled: settings.autoSyncEnabled,
-            syncInterval: settings.syncInterval,
-            assignmentStrategy: settings.assignmentStrategy,
-            activeEmployees: settings.activeEmployees
+            assignmentStrategy: settings.assignmentStrategy
         };
         res.json({ success: true, data: safeSettings });
     } catch (err) {
@@ -50,24 +126,13 @@ exports.updateSettings = async (req, res) => {
             settings = new GoogleSheetsSettings();
         }
         
-        const { spreadsheetId, autoSyncEnabled, syncInterval, assignmentStrategy, activeEmployees } = req.body;
+        const { assignmentStrategy } = req.body;
         
-        if (spreadsheetId !== undefined) settings.spreadsheetId = spreadsheetId;
-        if (autoSyncEnabled !== undefined) settings.autoSyncEnabled = autoSyncEnabled;
-        if (syncInterval !== undefined) settings.syncInterval = syncInterval;
         if (assignmentStrategy !== undefined) settings.assignmentStrategy = assignmentStrategy;
-        if (activeEmployees !== undefined) settings.activeEmployees = activeEmployees;
         
         await settings.save();
         
-        const safeSettings = {
-            spreadsheetId: settings.spreadsheetId,
-            autoSyncEnabled: settings.autoSyncEnabled,
-            syncInterval: settings.syncInterval,
-            assignmentStrategy: settings.assignmentStrategy,
-            activeEmployees: settings.activeEmployees
-        };
-        res.json({ success: true, data: safeSettings });
+        res.json({ success: true, data: { assignmentStrategy: settings.assignmentStrategy } });
     } catch (err) {
         console.error(err);
         res.status(500).json({ success: false, message: 'Server error' });
@@ -76,171 +141,28 @@ exports.updateSettings = async (req, res) => {
 
 // --- SYNC CONTROLLERS ---
 
-exports.connectAndGetWorksheets = async (req, res) => {
-    try {
-        const { spreadsheetId } = req.body;
-        
-        if (!spreadsheetId) {
-            return res.status(400).json({ success: false, message: 'Spreadsheet ID is required' });
-        }
-
-        if (process.env.NODE_ENV !== 'production') {
-            return res.json({ 
-                success: true, 
-                data: ['August Leads (Mock)', 'September Leads (Mock)'] 
-            });
-        }
-
-        const worksheets = await googleSheetsService.getWorksheets(spreadsheetId);
-        res.json({ success: true, data: worksheets });
-    } catch (err) {
-        console.error('Error connecting to Google Sheets:', err);
-        res.status(500).json({ 
-            success: false, 
-            message: err.message || 'Failed to connect to Google Sheets' 
-        });
-    }
-};
-
 const getSheetDataAsObjects = async (spreadsheetId, worksheetName) => {
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.NODE_ENV !== 'production' && (!process.env.GOOGLE_CLIENT_ID && !process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL)) {
         return generateMockData();
     }
     return googleSheetsService.getSheetData(spreadsheetId, worksheetName);
 };
 
-exports.previewSync = async (req, res) => {
-    try {
-        const { spreadsheetId, worksheetName, mapping } = req.body;
-        
-        if (!spreadsheetId || !worksheetName || !mapping) {
-            return res.status(400).json({ success: false, message: 'Missing required parameters' });
-        }
-
-        let settings = await GoogleSheetsSettings.findOne();
-        if (!settings) return res.status(400).json({ success: false, message: 'Settings not configured' });
-
-        const rawData = await getSheetDataAsObjects(spreadsheetId, worksheetName);
-        
-        let validRowsCount = 0;
-        let duplicatesSkipped = 0;
-        let invalidRows = 0;
-        let newLeadsCount = 0;
-        
-        const invalidDetails = [];
-        
-        const activeUsers = await User.find({ 
-            _id: { $in: settings.activeEmployees }, 
-            isActive: true 
-        });
-        
-        const allLeads = await Lead.find({}, 'phone email assignedEmployeeId');
-        const phoneSet = new Set(allLeads.map(l => normalizePhone(l.phone)));
-        
-        const assignmentCounts = {};
-        activeUsers.forEach(u => assignmentCounts[u._id.toString()] = { name: u.name, count: 0 });
-
-        if (settings.assignmentStrategy === 'LEAST_ASSIGNED') {
-            for (const u of activeUsers) {
-                const count = allLeads.filter(l => l.assignedEmployeeId?.toString() === u._id.toString()).length;
-                assignmentCounts[u._id.toString()].count = count;
-            }
-        }
-        
-        let rrIndex = 0;
-
-        for (const row of rawData) {
-            const mappedData = {};
-            const normalizedRow = {};
-            for (const key of Object.keys(row)) {
-                if (key === '_rowIndex') {
-                    normalizedRow[key] = row[key];
-                } else {
-                    normalizedRow[normalizeColumn(key)] = row[key];
-                }
-            }
-
-            for (const [sheetCol, crmField] of Object.entries(mapping)) {
-                const normSheetCol = normalizeColumn(sheetCol);
-                if (crmField && normalizedRow[normSheetCol]) {
-                    mappedData[crmField] = normalizedRow[normSheetCol];
-                }
-            }
-            
-            if (!mappedData.studentName || !mappedData.phone || !mappedData.college) {
-                invalidRows++;
-                if (invalidDetails.length < 100) {
-                    invalidDetails.push({ row: row._rowIndex, data: mappedData, reason: 'Missing required fields (Name, Phone, or College)' });
-                }
-                continue;
-            }
-            
-            validRowsCount++;
-            
-            const normalizedPhone = normalizePhone(mappedData.phone);
-            if (phoneSet.has(normalizedPhone)) {
-                duplicatesSkipped++;
-                continue;
-            }
-            
-            newLeadsCount++;
-            phoneSet.add(normalizedPhone); 
-            
-            if (activeUsers.length > 0) {
-                let assignedId;
-                if (settings.assignmentStrategy === 'ROUND_ROBIN' || settings.assignmentStrategy === 'MANUAL') {
-                    assignedId = activeUsers[rrIndex % activeUsers.length]._id.toString();
-                    assignmentCounts[assignedId].count++;
-                    rrIndex++;
-                } else if (settings.assignmentStrategy === 'LEAST_ASSIGNED') {
-                    let leastId = activeUsers[0]._id.toString();
-                    for (const u of activeUsers) {
-                        if (assignmentCounts[u._id.toString()].count < assignmentCounts[leastId].count) {
-                            leastId = u._id.toString();
-                        }
-                    }
-                    assignedId = leastId;
-                    assignmentCounts[assignedId].count++;
-                }
-            }
-        }
-
-        const assignmentPreview = Object.values(assignmentCounts).filter(e => e.count > 0);
-
-        res.json({
-            success: true,
-            data: {
-                totalRows: rawData.length,
-                validRowsCount,
-                newLeadsCount,
-                duplicatesSkipped,
-                invalidRows,
-                invalidDetails,
-                assignmentPreview
-            }
-        });
-
-    } catch (err) {
-        console.error('Error during preview:', err);
-        res.status(500).json({ success: false, message: err.message || 'Server error' });
-    }
-};
-
-const normalizeColumn = (colName) => {
-    return colName.toLowerCase().replace(/[^a-z0-9]/g, '');
-};
-
 exports.executeSync = async (req, res) => {
     let syncRecord;
     try {
-        const { spreadsheetId, worksheetName, mapping } = req.body;
-        
-        if (!spreadsheetId || !worksheetName || !mapping) {
-            return res.status(400).json({ success: false, message: 'Missing required parameters' });
+        const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+        const worksheetName = process.env.GOOGLE_SHEETS_SHEET_NAME;
+
+        if (!spreadsheetId || !worksheetName) {
+            return res.status(400).json({ success: false, message: 'Spreadsheet ID or Sheet Name is not configured in .env' });
         }
 
         let settings = await GoogleSheetsSettings.findOne();
-        if (!settings) return res.status(400).json({ success: false, message: 'Settings not configured' });
+        if (!settings) {
+            settings = new GoogleSheetsSettings();
+            await settings.save();
+        }
 
         syncRecord = await SyncHistory.create({
             adminId: req.user.id,
@@ -253,8 +175,9 @@ exports.executeSync = async (req, res) => {
         const rawData = await getSheetDataAsObjects(spreadsheetId, worksheetName);
         syncRecord.totalRows = rawData.length;
         
+        // Active RGS/BDE users for assignment
         const activeUsers = await User.find({ 
-            _id: { $in: settings.activeEmployees }, 
+            role: { $in: ['RGS', 'BDE'] }, 
             isActive: true 
         });
         
@@ -276,6 +199,19 @@ exports.executeSync = async (req, res) => {
         const newLeadsToInsert = [];
         const existingLeadsToUpdate = [];
         
+        // Expected columns mapping
+        const mapping = {
+            'Student Name': 'studentName',
+            'Phone': 'phone',
+            'College': 'college',
+            'Email': 'email',
+            'Degree / Branch': 'department',
+            'Year': 'year',
+            'Course': 'course',
+            'Parent / Contact Name': 'parentContactName',
+            'Parent / Contact Phone': 'parentContactPhone'
+        };
+
         for (const row of rawData) {
             const mappedData = {};
             // Normalize row keys for robust matching
@@ -307,15 +243,13 @@ exports.executeSync = async (req, res) => {
             const existingLead = phoneMap.get(normalizedPhone);
 
             if (existingLead) {
-                // Determine if it's already in our map for this sync batch (duplicate in sheet)
                 if (existingLead === true) {
                     syncRecord.duplicates++;
                     continue;
                 }
-                // Update existing lead safely
-                phoneMap.set(normalizedPhone, true); // Mark as processed for this batch
                 
-                // Construct update object - DO NOT overwrite assignments, followups, or status
+                phoneMap.set(normalizedPhone, true); 
+                
                 const updateData = {
                     studentName: mappedData.studentName,
                     email: mappedData.email || existingLead.email,
@@ -331,7 +265,7 @@ exports.executeSync = async (req, res) => {
                 continue;
             }
             
-            phoneMap.set(normalizedPhone, true); // Mark as processed
+            phoneMap.set(normalizedPhone, true); 
             
             let assignedEmployeeId = null;
             if (activeUsers.length > 0) {
