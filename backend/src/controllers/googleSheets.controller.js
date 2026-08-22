@@ -62,7 +62,12 @@ exports.handleOAuthCallback = async (req, res) => {
         res.redirect(`${frontendUrl}/import-leads?google_success=true`);
     } catch (err) {
         console.error('OAuth Callback Error:', err);
-        res.status(500).send('Failed to authenticate with Google.');
+        let errorMsg = 'access_denied';
+        if (err.message && err.message.includes('redirect_uri_mismatch')) {
+            errorMsg = 'redirect_uri_mismatch';
+        }
+        const frontendUrl = process.env.FRONTEND_URL || 'https://techzon-dashboard.vercel.app';
+        res.redirect(`${frontendUrl}/import-leads?google_error=${errorMsg}`);
     }
 };
 

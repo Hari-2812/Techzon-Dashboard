@@ -29,6 +29,9 @@ class GoogleSheetsService {
 
     generateAuthUrl(state) {
         const oAuth2Client = this.getOAuthClient();
+        console.log(`\n--- GOOGLE OAUTH DEBUG ---`);
+        console.log(`Google OAuth redirect URI:\n${process.env.GOOGLE_REDIRECT_URI || 'https://techzon-dashboard.onrender.com/api/google-sheets/callback'}`);
+        console.log(`--------------------------\n`);
         return oAuth2Client.generateAuthUrl({
             access_type: 'offline',
             scope: this.SCOPES,

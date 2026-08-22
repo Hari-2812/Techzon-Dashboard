@@ -88,7 +88,12 @@ export default function ImportLeads() {
     }
     if (params.get('google_error')) {
       setActiveTab('google-sheets');
-      setAuthError('Failed to connect to Google Account.');
+      const errorType = params.get('google_error');
+      if (errorType === 'redirect_uri_mismatch') {
+          setAuthError('Google authentication failed. Error: redirect_uri_mismatch. Check Google Cloud OAuth configuration.');
+      } else {
+          setAuthError('Failed to connect to Google Account.');
+      }
       window.history.replaceState({}, '', '/import-leads');
     }
   }, [location]);
