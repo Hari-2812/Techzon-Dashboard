@@ -14,7 +14,7 @@ export const useGoogleSheetsConfig = () => {
 export const useGoogleSheetsAuthUrl = () => {
   return useMutation({
     mutationFn: async () => {
-      const { data } = await api.get('/google-sheets/auth');
+      const { data } = await api.get('/google-sheets/oauth/start');
       return data.url;
     }
   });

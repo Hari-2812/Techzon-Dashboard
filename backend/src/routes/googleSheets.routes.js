@@ -19,7 +19,7 @@ router.get('/oauth/callback', handleOAuthCallback);
 router.use(auth);
 router.use(checkRole('ADMIN'));
 
-router.get('/auth', generateAuthUrl);
+router.get('/oauth/start', generateAuthUrl);
 router.get('/status', getStatus);
 router.get('/sheets', getSheets);
 router.get('/settings', getSettings);

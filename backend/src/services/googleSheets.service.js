@@ -4,8 +4,7 @@ const { env } = require('../config/env');
 class GoogleSheetsService {
     constructor() {
         this.SCOPES = [
-            'https://www.googleapis.com/auth/spreadsheets.readonly',
-            'https://www.googleapis.com/auth/drive.readonly' // Keeping this just in case Drive is needed for other ops
+            'https://www.googleapis.com/auth/spreadsheets.readonly'
         ];
     }
 
@@ -34,7 +33,8 @@ class GoogleSheetsService {
             access_type: 'offline',
             scope: this.SCOPES,
             state: state, // CSRF protection
-            prompt: 'consent' // Force to get refresh token
+            prompt: 'consent', // Force to get refresh token
+            include_granted_scopes: true
         });
     }
 

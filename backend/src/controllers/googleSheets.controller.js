@@ -69,24 +69,22 @@ exports.handleOAuthCallback = async (req, res) => {
         res.send(`
             <html>
                 <head>
-                    <title>Google Sheets Authentication Success</title>
+                    <title>Google Sheets Authorization</title>
                     <style>
                         body { font-family: system-ui, sans-serif; padding: 40px; background: #f0fdf4; color: #166534; text-align: center; }
                         .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
                         .token-box { background: #f8fafc; padding: 15px; border: 1px solid #e2e8f0; border-radius: 6px; word-break: break-all; font-family: monospace; font-size: 14px; color: #334155; margin: 20px 0; }
-                        h1 { font-size: 24px; margin-bottom: 10px; }
-                        p { font-size: 15px; color: #475569; line-height: 1.5; }
-                        .warning { color: #b91c1c; font-weight: bold; margin-top: 20px; }
+                        p { font-size: 16px; color: #1e293b; line-height: 1.6; font-weight: 500; }
+                        .warning { color: #b91c1c; font-weight: bold; margin-top: 20px; font-size: 14px; }
                     </style>
                 </head>
                 <body>
                     <div class="container">
-                        <h1>✅ Authentication Successful</h1>
-                        <p>You have successfully authorized the CRM. Copy the refresh token below and add it to your Render environment variables as <strong>GOOGLE_REFRESH_TOKEN</strong>.</p>
+                        <p>Google Sheets authorization successful.<br/>Refresh token generated.<br/>Add the token to Render as GOOGLE_REFRESH_TOKEN.</p>
                         
                         <div class="token-box">${tokens.refresh_token}</div>
                         
-                        <p class="warning">Do NOT share this token with anyone. Do NOT commit it to GitHub. Close this window when finished.</p>
+                        <p class="warning">Close this window when finished.</p>
                     </div>
                 </body>
             </html>
