@@ -36,7 +36,11 @@ const LeadSchema = new mongoose.Schema({
         default: 'MEDIUM',
         index: true
     },
-    nextFollowUp: { type: Date, index: true }
+    nextFollowUp: { type: Date, index: true },
+    source: { type: String, enum: ['MANUAL', 'CSV', 'GOOGLE_SHEETS'], default: 'MANUAL', index: true },
+    sourceSpreadsheetId: { type: String },
+    sourceWorksheet: { type: String },
+    sourceRowId: { type: String }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Lead', LeadSchema);

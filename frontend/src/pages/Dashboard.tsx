@@ -11,11 +11,14 @@ import { AttendanceControls } from '../components/ui/AttendanceControls';
 import { HolidayPopup } from '../components/ui/HolidayPopup';
 import { useHolidays } from '../hooks/useHolidays';
 import { useDailyUpdates } from '../hooks/useDailyUpdates';
+import socket from '../services/socket';
+import { useQueryClient } from '@tanstack/react-query';
 
 const Dashboard = () => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const isAdmin = user?.role === 'ADMIN';
+  const queryClient = useQueryClient();
 
   const { data: metrics, isLoading: dashboardLoading } = useDashboard(user?.role);
   
@@ -30,9 +33,18 @@ const Dashboard = () => {
   const isDev = import.meta.env.MODE === 'development';
 
   useEffect(() => {
-    // Only Admin needs to fetch attendance summary manually for dashboard,
-    // Employees use the shared useAttendance hook which fetches automatically.
-  }, [isAdmin]);
+    const handleLeadsSynced = (data: any) => {
+        // Just invalidate queries for real-time update
+        queryClient.invalidateQueries({ queryKey: ['leads'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    };
+
+    socket.on('leads:synced', handleLeadsSynced);
+
+    return () => {
+      socket.off('leads:synced', handleLeadsSynced);
+    };
+  }, [queryClient]);
 
   const { data: attData, isLoading: attLoading, isClockedIn, isOnBreak, isCompleted, isTestSession, getLiveTimer, testReset } = attendance;
 
