@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { openWhatsApp } from '../utils/whatsapp';
 import { useFollowUps, useCompleteFollowUp, useRescheduleFollowUp } from '../hooks/useFollowUps';
 import { Phone, MessageCircle, CheckCircle, Clock } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
@@ -162,9 +164,9 @@ const FollowUps = () => {
                       <a href={`tel:${f.crId ? f.crId.phone : (f.leadId ? f.leadId.phone : '')}`} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded" title="Call">
                         <Phone size={16} />
                       </a>
-                      <a href={`https://wa.me/${f.crId ? f.crId.phone : (f.leadId ? f.leadId.phone : '')}`} target="_blank" rel="noreferrer" className="p-1.5 text-green-600 hover:bg-green-50 rounded" title="WhatsApp">
+                      <button onClick={() => openWhatsApp(f.crId ? f.crId.phone : (f.leadId ? f.leadId.phone : ''))} className="p-1.5 text-green-600 hover:bg-green-50 rounded" title="WhatsApp Web opens in a new tab. Your WhatsApp login is managed by WhatsApp.">
                         <MessageCircle size={16} />
-                      </a>
+                      </button>
                       {activeTab !== 'COMPLETED' && (
                         <>
                           <button 
@@ -239,10 +241,10 @@ const FollowUps = () => {
                      <Phone size={18} className="mb-1" />
                      <span className="text-[10px] font-bold">CALL</span>
                    </a>
-                   <a href={`https://wa.me/${f.crId ? f.crId.phone : (f.leadId ? f.leadId.phone : '')}`} target="_blank" rel="noreferrer" className="flex flex-col items-center justify-center p-2 rounded-lg bg-green-50 text-green-600">
+                   <button onClick={() => openWhatsApp(f.crId ? f.crId.phone : (f.leadId ? f.leadId.phone : ''))} className="flex flex-col items-center justify-center p-2 rounded-lg bg-green-50 text-green-600" title="WhatsApp Web opens in a new tab. Your WhatsApp login is managed by WhatsApp.">
                      <MessageCircle size={18} className="mb-1" />
                      <span className="text-[10px] font-bold">CHAT</span>
-                   </a>
+                   </button>
                    {activeTab !== 'COMPLETED' ? (
                      <>
                         <button onClick={() => { setSelectedFollowUp(f); setIsRescheduleModalOpen(true); }} className="flex flex-col items-center justify-center p-2 rounded-lg bg-orange-50 text-orange-600">

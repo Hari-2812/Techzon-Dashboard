@@ -5,6 +5,7 @@ import { useLead, useLeadActivities, useRecordCall, useVerifyCRYes, useVerifyCRN
 import { Phone, MessageCircle, CalendarPlus, UserCheck, AlertCircle, Clock, CheckCircle2, UserX, ClipboardList } from 'lucide-react';
 import clsx from 'clsx';
 import { Button } from '../components/ui/Button';
+import { openWhatsApp } from '../utils/whatsapp';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Modal } from '../components/ui/Modal';
@@ -63,12 +64,13 @@ const LeadDetail = () => {
           <Button onClick={() => setShowCallModal(true)} variant="outline">
             <Phone size={18} className="mr-2" /> <span>Quick Call</span>
           </Button>
-          <a 
-            href={`https://wa.me/${lead.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer"
+          <button 
+            onClick={() => openWhatsApp(lead.phone)}
             className="flex items-center space-x-2 bg-[#25D366] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#20b858]"
+            title="WhatsApp Web opens in a new tab. Your WhatsApp login is managed by WhatsApp."
           >
             <MessageCircle size={18} /> <span>WhatsApp</span>
-          </a>
+          </button>
         </div>
       </div>
 
@@ -77,12 +79,13 @@ const LeadDetail = () => {
          <Button onClick={() => setShowCallModal(true)} variant="primary" className="flex-1 py-3">
            <Phone size={18} className="mr-2" /> Call
          </Button>
-         <a 
-            href={`https://wa.me/${lead.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer"
+         <button 
+            onClick={() => openWhatsApp(lead.phone)}
             className="flex-1 flex justify-center items-center bg-[#25D366] text-white rounded-lg font-semibold hover:bg-[#20b858]"
+            title="WhatsApp Web opens in a new tab. Your WhatsApp login is managed by WhatsApp."
           >
             <MessageCircle size={18} className="mr-2" /> WA
-          </a>
+          </button>
          <Button variant="outline" className="flex-none px-3 py-3" onClick={() => {}}>
            <CalendarPlus size={18} />
          </Button>

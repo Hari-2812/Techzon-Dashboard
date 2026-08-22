@@ -5,6 +5,7 @@ import { useCR, useCRActivities, useCRSourceStudents, useUpdateCRStatus, useCrea
 import { Phone, MessageCircle, CalendarPlus, UserCheck, AlertCircle, Clock, CheckCircle2, UserX, Users } from 'lucide-react';
 import clsx from 'clsx';
 import { Button } from '../components/ui/Button';
+import { openWhatsApp } from '../utils/whatsapp';
 import { Card, CardContent } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Modal } from '../components/ui/Modal';
@@ -78,12 +79,13 @@ const CRDetail = () => {
           <a href={`tel:${cr.phone}`} className="flex items-center space-x-2 bg-[var(--color-primary)] text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-700">
             <Phone size={18} /> <span>Call</span>
           </a>
-          <a 
-            href={`https://wa.me/${cr.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer"
+          <button 
+            onClick={() => openWhatsApp(cr.phone)}
             className="flex items-center space-x-2 bg-[#25D366] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#20b858]"
+            title="WhatsApp Web opens in a new tab. Your WhatsApp login is managed by WhatsApp."
           >
             <MessageCircle size={18} /> <span>WhatsApp</span>
-          </a>
+          </button>
           <Button variant="outline" onClick={() => setShowStatusModal(true)}>
              Change Status
           </Button>
@@ -98,12 +100,13 @@ const CRDetail = () => {
          <a href={`tel:${cr.phone}`} className="flex-1 flex justify-center items-center bg-[var(--color-primary)] text-white rounded-lg font-semibold hover:bg-indigo-700 py-3">
            <Phone size={18} className="mr-2" /> Call
          </a>
-         <a 
-            href={`https://wa.me/${cr.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer"
+         <button 
+            onClick={() => openWhatsApp(cr.phone)}
             className="flex-1 flex justify-center items-center bg-[#25D366] text-white rounded-lg font-semibold hover:bg-[#20b858]"
+            title="WhatsApp Web opens in a new tab. Your WhatsApp login is managed by WhatsApp."
           >
             <MessageCircle size={18} className="mr-2" /> WA
-          </a>
+          </button>
          <Button variant="outline" className="flex-none px-3 py-3" onClick={() => setShowStatusModal(true)}>
            <UserCheck size={18} />
          </Button>
