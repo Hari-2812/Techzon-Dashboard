@@ -57,6 +57,7 @@ app.use('/api/follow-ups', require('./routes/followup.routes'));
 app.use('/api/crs', require('./routes/cr.routes'));
 app.use('/api/whatsapp-groups', require('./routes/whatsappGroup.routes'));
 app.use('/api/attendance', require('./routes/attendance.routes'));
+app.use('/api/daily-updates', require('./routes/dailyUpdates.routes'));
 app.use('/api/attendance-management', require('./routes/admin-attendance.routes'));
 app.use('/api/sales', require('./routes/sale.routes'));
 app.use('/api/performance', require('./routes/performance.routes'));

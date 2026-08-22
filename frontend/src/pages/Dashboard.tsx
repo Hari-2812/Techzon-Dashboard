@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { useDashboard } from '../hooks/useDashboard';
-import { Users, UserCheck, MessageCircle, TrendingUp, Clock, AlertCircle } from 'lucide-react';
+import { Users, UserCheck, MessageCircle, TrendingUp, Clock, AlertCircle, ClipboardList } from 'lucide-react';
 import { KpiCard } from '../components/ui/KpiCard';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -10,6 +10,7 @@ import { useAttendance } from '../hooks/useAttendance';
 import { AttendanceControls } from '../components/ui/AttendanceControls';
 import { HolidayPopup } from '../components/ui/HolidayPopup';
 import { useHolidays } from '../hooks/useHolidays';
+import { useDailyUpdates } from '../hooks/useDailyUpdates';
 
 const Dashboard = () => {
   const { user } = useAuthStore();
@@ -17,6 +18,11 @@ const Dashboard = () => {
   const isAdmin = user?.role === 'ADMIN';
 
   const { data: metrics, isLoading: dashboardLoading } = useDashboard(user?.role);
+  
+  // Daily Updates
+  const { getAnalytics } = useDailyUpdates();
+  const { data: updatesAnalytics } = getAnalytics();
+  const summary = updatesAnalytics?.summary || {};
   
   // Attendance State
   const attendance = useAttendance();
@@ -188,6 +194,12 @@ const Dashboard = () => {
             value={metrics?.followupsDue || 0} 
             icon={<TrendingUp size={24} />} 
             color="error"
+          />
+          <KpiCard 
+            label="Updates Today" 
+            value={summary?.totalUpdates || summary?.updatedLeads || 0} 
+            icon={<ClipboardList size={24} />} 
+            color="success"
           />
         </div>
       )}

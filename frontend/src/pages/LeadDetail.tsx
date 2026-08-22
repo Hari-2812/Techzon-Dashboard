@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { useLead, useLeadActivities, useRecordCall, useVerifyCRYes, useVerifyCRNo, useScheduleFollowUp } from '../hooks/useLeads';
-import { Phone, MessageCircle, CalendarPlus, UserCheck, AlertCircle, Clock, CheckCircle2, UserX } from 'lucide-react';
+import { Phone, MessageCircle, CalendarPlus, UserCheck, AlertCircle, Clock, CheckCircle2, UserX, ClipboardList } from 'lucide-react';
 import clsx from 'clsx';
 import { Button } from '../components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Modal } from '../components/ui/Modal';
 import { Input } from '../components/ui/Input';
+import UpdateLeadDrawer from '../components/ui/UpdateLeadDrawer';
 
 const LeadDetail = () => {
   const { id } = useParams();
@@ -27,6 +28,7 @@ const LeadDetail = () => {
   const [activeTab, setActiveTab] = useState('timeline');
   const [showCallModal, setShowCallModal] = useState(false);
   const [showCRForm, setShowCRForm] = useState(false);
+  const [showUpdateDrawer, setShowUpdateDrawer] = useState(false);
   const [crDetails, setCRDetails] = useState({ crName: '', phone: '', section: '' });
 
   if (leadLoading) return <div className="p-6">Loading lead...</div>;
@@ -55,8 +57,11 @@ const LeadDetail = () => {
           <p className="text-gray-500 mt-1">{lead.college} • {lead.department} {lead.year}</p>
         </div>
         <div className="hidden md:flex space-x-2 mt-4 md:mt-0">
-          <Button onClick={() => setShowCallModal(true)} variant="primary">
-            <Phone size={18} className="mr-2" /> <span>Call</span>
+          <Button onClick={() => setShowUpdateDrawer(true)} variant="primary">
+            <ClipboardList size={18} className="mr-2" /> <span>Daily Update</span>
+          </Button>
+          <Button onClick={() => setShowCallModal(true)} variant="outline">
+            <Phone size={18} className="mr-2" /> <span>Quick Call</span>
           </Button>
           <a 
             href={`https://wa.me/${lead.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer"
@@ -64,9 +69,6 @@ const LeadDetail = () => {
           >
             <MessageCircle size={18} /> <span>WhatsApp</span>
           </a>
-          <Button variant="outline">
-            <CalendarPlus size={18} className="mr-2" /> <span>Follow-up</span>
-          </Button>
         </div>
       </div>
 
@@ -229,6 +231,14 @@ const LeadDetail = () => {
           <Button fullWidth variant="ghost" onClick={() => setShowCallModal(false)}>Cancel</Button>
         </div>
       </Modal>
+
+      {showUpdateDrawer && (
+        <UpdateLeadDrawer
+          lead={lead}
+          isOpen={showUpdateDrawer}
+          onClose={() => setShowUpdateDrawer(false)}
+        />
+      )}
     </div>
   );
 };

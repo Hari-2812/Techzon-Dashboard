@@ -18,7 +18,8 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
-  Wallet
+  Wallet,
+  ClipboardList
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -37,6 +38,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, isMobileOpen = fal
   const commonNavItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Leads', path: '/leads', icon: Users },
+    { name: 'Daily Updates', path: '/daily-updates', icon: ClipboardList },
     { name: 'CR Management', path: '/crs', icon: UserSquare2 },
     { name: 'Follow-ups', path: '/follow-ups', icon: CalendarClock },
   ];
