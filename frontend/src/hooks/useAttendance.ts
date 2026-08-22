@@ -20,6 +20,16 @@ export const useAttendance = () => {
     enabled: !!user && !isAdmin,
   });
 
+  // 1.5 Fetch Pending Requests for this user
+  const { data: pendingRequestsData, refetch: refetchPending } = useQuery({
+    queryKey: ['myPendingRequests'],
+    queryFn: async () => {
+      const res = await api.get('/attendance/requests/my-pending');
+      return res.data.data;
+    },
+    enabled: !!user && !isAdmin,
+  });
+
   // 2. Socket.IO Listener for real-time invalidation
   useEffect(() => {
     if (!user || isAdmin) return;
@@ -28,6 +38,7 @@ export const useAttendance = () => {
       if (eventData.employeeId === user.id) {
         queryClient.invalidateQueries({ queryKey: ['attendanceToday'] });
         queryClient.invalidateQueries({ queryKey: ['attendanceMonthly'] });
+        queryClient.invalidateQueries({ queryKey: ['myPendingRequests'] });
       }
     };
 
@@ -35,12 +46,20 @@ export const useAttendance = () => {
     socket.on('employee:clocked-out', handleSocketEvent);
     socket.on('employee:on-break', handleSocketEvent);
     socket.on('employee:resumed', handleSocketEvent);
+    socket.on('attendance:clock-in-approved', handleSocketEvent);
+    socket.on('attendance:clock-in-rejected', handleSocketEvent);
+    socket.on('attendance:clock-out-approved', handleSocketEvent);
+    socket.on('attendance:clock-out-rejected', handleSocketEvent);
 
     return () => {
       socket.off('employee:clocked-in', handleSocketEvent);
       socket.off('employee:clocked-out', handleSocketEvent);
       socket.off('employee:on-break', handleSocketEvent);
       socket.off('employee:resumed', handleSocketEvent);
+      socket.off('attendance:clock-in-approved', handleSocketEvent);
+      socket.off('attendance:clock-in-rejected', handleSocketEvent);
+      socket.off('attendance:clock-out-approved', handleSocketEvent);
+      socket.off('attendance:clock-out-rejected', handleSocketEvent);
     };
   }, [user, isAdmin, queryClient]);
 
@@ -52,6 +71,7 @@ export const useAttendance = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendanceToday'] });
+      queryClient.invalidateQueries({ queryKey: ['myPendingRequests'] });
     },
   });
 
@@ -62,6 +82,7 @@ export const useAttendance = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendanceToday'] });
+      queryClient.invalidateQueries({ queryKey: ['myPendingRequests'] });
     },
   });
 
@@ -92,11 +113,19 @@ export const useAttendance = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendanceToday'] });
+      queryClient.invalidateQueries({ queryKey: ['myPendingRequests'] });
     },
   });
 
   // 4. Derived State
   const session = data?.session;
+  
+  const pendingClockInReq = pendingRequestsData?.find((r: any) => r.requestType === 'CLOCK_IN');
+  const pendingClockOutReq = pendingRequestsData?.find((r: any) => r.requestType === 'CLOCK_OUT');
+
+  const isPendingClockIn = !!pendingClockInReq;
+  const isPendingClockOut = !!pendingClockOutReq;
+
   const isClockedIn = !!session && !session.clockOutAt;
   const isOnBreak = session?.breaks?.length > 0 && !session.breaks[session.breaks.length - 1].endAt;
   const activeBreak = isOnBreak ? session.breaks[session.breaks.length - 1] : null;
@@ -140,6 +169,8 @@ export const useAttendance = () => {
     isCompleted,
     isWorking,
     isTestSession,
+    isPendingClockIn,
+    isPendingClockOut,
     getLiveTimer,
     clockIn,
     clockOut,

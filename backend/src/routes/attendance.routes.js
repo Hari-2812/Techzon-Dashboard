@@ -16,9 +16,24 @@ const {
   testReset
 } = require('../controllers/attendance.controller');
 
+const {
+  getPendingRequests,
+  getMyPendingRequests,
+  approveRequest,
+  rejectRequest,
+  createManualAttendance
+} = require('../controllers/attendanceApproval.controller');
+
 router.get('/today', auth, getTodayAttendance);
-router.post('/clock-in', auth, clockIn);
-router.post('/clock-out', auth, clockOut);
+router.post('/clock-in', auth, clockIn); // This is now clock-in request
+router.post('/clock-out', auth, clockOut); // This is now clock-out request
+
+router.get('/requests/pending', auth, getPendingRequests);
+router.get('/requests/my-pending', auth, getMyPendingRequests);
+router.post('/requests/:requestId/approve', auth, approveRequest);
+router.post('/requests/:requestId/reject', auth, rejectRequest);
+router.post('/manual', auth, createManualAttendance);
+
 router.post('/break/start', auth, startBreak);
 router.post('/break/end', auth, endBreak);
 router.post('/correction', auth, requestCorrection);

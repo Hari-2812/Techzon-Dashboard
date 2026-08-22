@@ -41,117 +41,66 @@ exports.clockIn = async (req, res) => {
     const settings = await AttendanceSettings.findOne() || new AttendanceSettings();
     const dateStr = getTodayDateString(settings.timezone);
     
-    const isTestMode = (process.env.NODE_ENV === 'development' || req.headers.host.includes('localhost')) && isTest === true;
+    const isTestMode = (process.env.NODE_ENV === 'development' || req.headers.host?.includes('localhost')) && isTest === true;
 
-    // Location Verification Logic
-    let distance = null;
-    let verificationStatus = 'VERIFIED';
-    let failureReason = null;
-    let clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-
-    if (settings.attendanceVerificationMode !== 'NETWORK_ONLY') {
-        if (latitude == null || longitude == null) {
-            verificationStatus = 'REJECTED';
-            failureReason = 'Location data not provided';
-        } else if (accuracy > 100 && !isTestMode) {
-            verificationStatus = 'REJECTED';
-            failureReason = 'Poor GPS accuracy (>100m)';
-        } else if (settings.officeLatitude && settings.officeLongitude) {
-            distance = getDistanceFromLatLonInM(settings.officeLatitude, settings.officeLongitude, latitude, longitude);
-            if (distance > settings.allowedRadiusMeters && !isTestMode) {
-                verificationStatus = 'REJECTED';
-                failureReason = 'Outside allowed office radius';
-            }
-        }
+    // Check if they already have a pending request
+    const AttendanceRequest = require('../models/AttendanceRequest');
+    const existingReq = await AttendanceRequest.findOne({ employeeId: req.user.id, date: dateStr, requestType: 'CLOCK_IN', status: 'PENDING', isTestSession: isTestMode });
+    if (existingReq) {
+      return res.status(400).json({ success: false, message: 'You already have a pending Clock-In request.' });
     }
 
-    if (verificationStatus === 'REJECTED') {
-        await AttendanceVerificationLog.create({
-            employeeId: req.user.id,
-            action: 'CLOCK_IN',
-            timestamp: new Date(),
-            latitude, longitude, accuracy,
-            distanceFromOffice: distance,
-            verificationStatus,
-            failureReason,
-            ipAddress: clientIp,
-            userAgent: req.headers['user-agent'],
-            isTest: isTestMode
-        });
-        return res.status(400).json({ 
-            success: false, 
-            code: failureReason === 'Outside allowed office radius' ? 'OUTSIDE_OFFICE' : 'LOCATION_ERROR',
-            message: failureReason === 'Outside allowed office radius' ? 'You are outside the office attendance area.' : failureReason,
-            distance,
-            allowedRadius: settings.allowedRadiusMeters
-        });
-    }
-
-    // For test sessions, we delete any existing active or completed test session for today so they can restart
-    if (isTestMode) {
-        await WorkSession.deleteMany({ employeeId: req.user.id, date: dateStr, isTestSession: true });
-        await AttendanceDaily.deleteMany({ employeeId: req.user.id, date: dateStr, isTestSession: true });
-    }
-
-    let session = await WorkSession.findOne({ employeeId: req.user.id, date: dateStr, isTestSession: isTest });
+    // Check if they are already clocked in
+    const session = await WorkSession.findOne({ employeeId: req.user.id, date: dateStr, isTestSession: isTestMode });
     if (session) {
       return res.status(400).json({ success: false, message: 'Already clocked in today' });
     }
 
-    // Check if today is an approved holiday
-    const Holiday = require('../models/Holiday');
-    const HolidayResponse = require('../models/HolidayResponse');
-    
-    const holiday = await Holiday.findOne({ date: dateStr, isActive: true });
-    if (holiday) {
-        const response = await HolidayResponse.findOne({ employeeId: req.user.id, holidayId: holiday._id });
-        if (response && response.response === 'TAKE_LEAVE' && response.status === 'APPROVED') {
-             return res.status(400).json({ success: false, message: 'Your holiday leave is approved for today. You cannot clock in.' });
+    // Location Verification Logic
+    let distance = null;
+    let insideOfficeRadius = true;
+
+    if (settings.officeLatitude && settings.officeLongitude && latitude && longitude) {
+        distance = getDistanceFromLatLonInM(settings.officeLatitude, settings.officeLongitude, latitude, longitude);
+        if (distance > settings.allowedRadiusMeters && !isTestMode) {
+            insideOfficeRadius = false;
         }
+    } else if (!isTestMode && (!latitude || !longitude)) {
+        insideOfficeRadius = false;
     }
 
-    session = await WorkSession.create({
-      employeeId: req.user.id,
-      date: dateStr,
-      clockInAt: new Date(),
-      status: 'ACTIVE',
-      isTestSession: isTestMode,
-      clockInVerification: {
-          method: 'GPS',
-          latitude, longitude, accuracy,
-          distanceFromOffice: distance,
-          verifiedAt: new Date(),
-          ipAddress: clientIp,
-          status: verificationStatus
-      }
-    });
-
-    await AttendanceVerificationLog.create({
+    // Create the Request
+    const request = await AttendanceRequest.create({
         employeeId: req.user.id,
-        action: 'CLOCK_IN',
-        timestamp: new Date(),
-        latitude, longitude, accuracy,
-        distanceFromOffice: distance,
-        verificationStatus,
-        failureReason,
-        ipAddress: clientIp,
-        userAgent: req.headers['user-agent'],
-        isTest: isTestMode
+        date: dateStr,
+        requestType: 'CLOCK_IN',
+        status: 'PENDING',
+        requestedTime: new Date(),
+        location: {
+            latitude,
+            longitude,
+            accuracy,
+            distanceFromOffice: distance,
+            insideOfficeRadius,
+            capturedAt: new Date()
+        },
+        isTestSession: isTestMode
     });
 
-    // Create preliminary daily record
-    await AttendanceDaily.create({
-      employeeId: req.user.id,
-      date: dateStr,
-      status: 'PRESENT',
-      isTestSession: isTest
-    });
-
-    // Emit socket event to admin
+    // Notify Admin Realtime
     const io = require('../server').io;
-    if (io) io.emit('employee:clocked-in', { employeeId: req.user.id, session });
+    const User = require('../models/User');
+    const emp = await User.findById(req.user.id);
+    if (io) {
+      io.emit('attendance:clock-in-request', { 
+        requestId: request._id,
+        employeeName: emp ? emp.name : 'Unknown',
+        time: request.requestedTime,
+        location: request.location 
+      });
+    }
 
-    res.json({ success: true, data: session });
+    res.json({ success: true, data: request, message: 'Clock-in request sent for approval' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server Error' });
@@ -160,11 +109,20 @@ exports.clockIn = async (req, res) => {
 
 exports.clockOut = async (req, res) => {
   try {
-    const { latitude, longitude, accuracy } = req.body;
+    const { latitude, longitude, accuracy, isTest } = req.body;
     const settings = await AttendanceSettings.findOne() || new AttendanceSettings();
     const dateStr = getTodayDateString(settings.timezone);
     
-    let session = await WorkSession.findOne({ employeeId: req.user.id, date: dateStr }).sort({ createdAt: -1 });
+    const isTestMode = (process.env.NODE_ENV === 'development' || req.headers.host?.includes('localhost')) && isTest === true;
+
+    // Check if they already have a pending request
+    const AttendanceRequest = require('../models/AttendanceRequest');
+    const existingReq = await AttendanceRequest.findOne({ employeeId: req.user.id, date: dateStr, requestType: 'CLOCK_OUT', status: 'PENDING', isTestSession: isTestMode });
+    if (existingReq) {
+      return res.status(400).json({ success: false, message: 'You already have a pending Clock-Out request.' });
+    }
+
+    let session = await WorkSession.findOne({ employeeId: req.user.id, date: dateStr, isTestSession: isTestMode }).sort({ createdAt: -1 });
     if (!session || session.clockOutAt) {
       return res.status(400).json({ success: false, message: 'Not actively clocked in' });
     }
@@ -177,93 +135,52 @@ exports.clockOut = async (req, res) => {
       }
     }
 
-    let clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     let distance = null;
-    let verificationStatus = 'VERIFIED';
-    let failureReason = null;
+    let insideOfficeRadius = true;
 
-    if (settings.requireLocationForClockOut && settings.attendanceVerificationMode !== 'NETWORK_ONLY') {
-        if (latitude == null || longitude == null) {
-            verificationStatus = 'REJECTED';
-            failureReason = 'Location data not provided';
-        } else if (settings.officeLatitude && settings.officeLongitude) {
+    if (settings.requireLocationForClockOut) {
+        if (settings.officeLatitude && settings.officeLongitude && latitude && longitude) {
             distance = getDistanceFromLatLonInM(settings.officeLatitude, settings.officeLongitude, latitude, longitude);
-            if (distance > settings.allowedRadiusMeters && !session.isTestSession) {
-                verificationStatus = 'REJECTED';
-                failureReason = 'Outside allowed office radius';
+            if (distance > settings.allowedRadiusMeters && !isTestMode) {
+                insideOfficeRadius = false;
             }
+        } else if (!isTestMode && (!latitude || !longitude)) {
+            insideOfficeRadius = false;
         }
     }
 
-    if (verificationStatus === 'REJECTED') {
-        await AttendanceVerificationLog.create({
-            employeeId: req.user.id,
-            action: 'CLOCK_OUT',
-            timestamp: new Date(),
-            latitude, longitude, accuracy,
-            distanceFromOffice: distance,
-            verificationStatus,
-            failureReason,
-            ipAddress: clientIp,
-            userAgent: req.headers['user-agent'],
-            isTest: session.isTestSession
-        });
-        return res.status(400).json({ 
-            success: false, 
-            code: failureReason === 'Outside allowed office radius' ? 'OUTSIDE_OFFICE' : 'LOCATION_ERROR',
-            message: failureReason === 'Outside allowed office radius' ? 'You are outside the office attendance area. Cannot clock out.' : failureReason,
-            distance,
-            allowedRadius: settings.allowedRadiusMeters
-        });
-    }
-
-    session.clockOutAt = new Date();
-    session.status = 'COMPLETED';
-    session.clockOutVerification = {
-        method: 'GPS',
-        latitude, longitude, accuracy,
-        distanceFromOffice: distance,
-        verifiedAt: new Date(),
-        ipAddress: clientIp,
-        status: verificationStatus
-    };
-    await session.save();
-
-    await AttendanceVerificationLog.create({
+    // Create the Request
+    const request = await AttendanceRequest.create({
         employeeId: req.user.id,
-        action: 'CLOCK_OUT',
-        timestamp: new Date(),
-        latitude, longitude, accuracy,
-        distanceFromOffice: distance,
-        verificationStatus,
-        failureReason,
-        ipAddress: clientIp,
-        userAgent: req.headers['user-agent'],
-        isTest: session.isTestSession
+        date: dateStr,
+        requestType: 'CLOCK_OUT',
+        status: 'PENDING',
+        requestedTime: new Date(),
+        location: {
+            latitude,
+            longitude,
+            accuracy,
+            distanceFromOffice: distance,
+            insideOfficeRadius,
+            capturedAt: new Date()
+        },
+        isTestSession: isTestMode
     });
 
-    // Calculate final stats
-    const stats = await calculateSessionStats(session, settings);
-    
-    // Check if holiday worked
-    const Holiday = require('../models/Holiday');
-    const holiday = await Holiday.findOne({ date: dateStr, isActive: true });
-    if (holiday) {
-       stats.status = 'HOLIDAY_WORKED';
+    // Notify Admin Realtime
+    const io = require('../server').io;
+    const User = require('../models/User');
+    const emp = await User.findById(req.user.id);
+    if (io) {
+      io.emit('attendance:clock-out-request', { 
+        requestId: request._id,
+        employeeName: emp ? emp.name : 'Unknown',
+        time: request.requestedTime,
+        location: request.location 
+      });
     }
 
-    // Update daily record
-    let daily = await AttendanceDaily.findOneAndUpdate(
-      { employeeId: req.user.id, date: dateStr, isTestSession: session.isTestSession },
-      { ...stats, workedOnHoliday: !!holiday },
-      { returnDocument: 'after', upsert: true }
-    );
-
-    // Emit socket event to admin
-    const io = require('../server').io;
-    if (io) io.emit('employee:clocked-out', { employeeId: req.user.id, session, daily });
-
-    res.json({ success: true, data: { session, daily } });
+    res.json({ success: true, data: request, message: 'Clock-out request sent for approval' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server Error' });

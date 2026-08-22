@@ -9,6 +9,7 @@ import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { Drawer } from '../components/ui/Drawer';
+import { Modal } from '../components/ui/Modal';
 
 const COLORS = ['#15803D', '#F57C20', '#DC2626', '#31206B']; // Present, Break, Absent, Leave
 
@@ -48,19 +49,27 @@ const AttendanceManagement = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
+  
+  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+  const [selectedRequest, setSelectedRequest] = useState<any>(null);
+  const [requestAction, setRequestAction] = useState<'APPROVE' | 'REJECT' | null>(null);
+  const [editedTime, setEditedTime] = useState('');
+  const [adminComment, setAdminComment] = useState('');
+  const [rejectionReason, setRejectionReason] = useState('');
 
   const fetchAdminAttendance = async () => {
     try {
       const token = localStorage.getItem('token') || '';
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-      const res = await fetch(`${apiUrl}/attendance-management/today`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });const result = await res.json();
-      if (result.success) {
-        setData(result.data);
-      }
+      const [res, reqRes] = await Promise.all([
+         fetch(`${apiUrl}/attendance-management/today`, { headers: { 'Authorization': `Bearer ${token}` } }),
+         fetch(`${apiUrl}/attendance/requests/pending`, { headers: { 'Authorization': `Bearer ${token}` } })
+      ]);
+      const result = await res.json();
+      const reqResult = await reqRes.json();
+
+      if (result.success) setData(result.data);
+      if (reqResult.success) setPendingRequests(reqResult.data);
     } catch (err) {
       console.error(err);
     } finally {
@@ -81,6 +90,8 @@ const AttendanceManagement = () => {
     socket.on('employee:clocked-out', fetchAdminAttendance);
     socket.on('employee:on-break', fetchAdminAttendance);
     socket.on('employee:resumed', fetchAdminAttendance);
+    socket.on('attendance:clock-in-request', fetchAdminAttendance);
+    socket.on('attendance:clock-out-request', fetchAdminAttendance);
 
     return () => {
       socket.disconnect();
@@ -172,6 +183,66 @@ const AttendanceManagement = () => {
           <p className="text-2xl font-black text-purple-600">{data?.summary?.onLeave || 0}</p>
         </Card>
       </div>
+
+      {pendingRequests.length > 0 && (
+        <Card className="border-orange-200 shadow-sm overflow-hidden">
+           <div className="bg-orange-50 p-4 border-b border-orange-200 flex justify-between items-center">
+             <div className="flex items-center gap-2">
+               <AlertCircle className="text-orange-600" size={20} />
+               <h2 className="text-lg font-bold text-orange-900">Pending Requests ({pendingRequests.length})</h2>
+             </div>
+           </div>
+           <TableContainer>
+             <Table>
+               <TableHeader>
+                 <TableRow>
+                   <TableHead>Employee</TableHead>
+                   <TableHead>Request Type</TableHead>
+                   <TableHead>Requested Time</TableHead>
+                   <TableHead>Location</TableHead>
+                   <TableHead className="text-right">Actions</TableHead>
+                 </TableRow>
+               </TableHeader>
+               <TableBody>
+                 {pendingRequests.map(req => (
+                   <TableRow key={req._id}>
+                     <TableCell>
+                       <p className="font-bold text-[var(--color-text-primary)]">{req.employeeId?.name}</p>
+                       <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{req.employeeId?.employeeId}</p>
+                     </TableCell>
+                     <TableCell>
+                       <Badge variant={req.requestType === 'CLOCK_IN' ? 'success' : 'neutral'}>{req.requestType.replace('_', ' ')}</Badge>
+                     </TableCell>
+                     <TableCell className="font-semibold text-[var(--color-text-primary)]">
+                       {moment(req.requestedTime).format('hh:mm A')}
+                     </TableCell>
+                     <TableCell>
+                       {req.location?.insideOfficeRadius ? (
+                         <span className="text-xs text-green-700 bg-green-50 px-2 py-1 rounded-md border border-green-200">Inside Office</span>
+                       ) : req.location?.latitude ? (
+                         <span className="text-xs text-red-700 bg-red-50 px-2 py-1 rounded-md border border-red-200">
+                           Outside ({req.location.distanceFromOffice}m)
+                         </span>
+                       ) : (
+                         <span className="text-xs text-gray-700 bg-gray-50 px-2 py-1 rounded-md border border-gray-200">No GPS</span>
+                       )}
+                       <div className="text-[10px] text-[var(--color-text-muted)] mt-1">Acc: ±{Math.round(req.location?.accuracy || 0)}m</div>
+                     </TableCell>
+                     <TableCell className="text-right">
+                       <Button size="sm" variant="outline" className="mr-2 border-red-200 text-red-600 hover:bg-red-50" onClick={() => { setSelectedRequest(req); setRequestAction('REJECT'); }}>Reject</Button>
+                       <Button size="sm" variant="primary" onClick={() => { 
+                         setSelectedRequest(req); 
+                         setRequestAction('APPROVE'); 
+                         setEditedTime(moment(req.requestedTime).format('YYYY-MM-DDTHH:mm'));
+                       }}>Approve</Button>
+                     </TableCell>
+                   </TableRow>
+                 ))}
+               </TableBody>
+             </Table>
+           </TableContainer>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         
@@ -442,6 +513,75 @@ const AttendanceManagement = () => {
             </div>
         )}
       </Drawer>
+
+      <Modal isOpen={!!selectedRequest && requestAction === 'APPROVE'} onClose={() => setSelectedRequest(null)} title="Approve Request">
+         <div className="space-y-4">
+            <div>
+               <label className="block text-sm font-medium text-gray-700 mb-1">Requested Time</label>
+               <input 
+                  type="datetime-local" 
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-[var(--color-primary)] outline-none"
+                  value={editedTime}
+                  onChange={e => setEditedTime(e.target.value)}
+               />
+               <p className="text-xs text-gray-500 mt-1">You can edit the exact clock-in/out time before approving.</p>
+            </div>
+            <div>
+               <label className="block text-sm font-medium text-gray-700 mb-1">Comment (Optional)</label>
+               <input 
+                  type="text" 
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-[var(--color-primary)] outline-none"
+                  value={adminComment}
+                  onChange={e => setAdminComment(e.target.value)}
+               />
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+                <Button variant="outline" onClick={() => setSelectedRequest(null)}>Cancel</Button>
+                <Button variant="primary" onClick={async () => {
+                   try {
+                     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+                     await fetch(`${apiUrl}/attendance/requests/${selectedRequest._id}/approve`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ editedTime, adminComment })
+                     });
+                     setSelectedRequest(null);
+                     fetchAdminAttendance();
+                   } catch(e) { console.error(e); }
+                }}>Approve</Button>
+            </div>
+         </div>
+      </Modal>
+
+      <Modal isOpen={!!selectedRequest && requestAction === 'REJECT'} onClose={() => setSelectedRequest(null)} title="Reject Request">
+         <div className="space-y-4">
+            <div>
+               <label className="block text-sm font-medium text-gray-700 mb-1">Rejection Reason</label>
+               <input 
+                  type="text" 
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-[var(--color-primary)] outline-none"
+                  value={rejectionReason}
+                  onChange={e => setRejectionReason(e.target.value)}
+                  placeholder="e.g. Too far from office"
+               />
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+                <Button variant="outline" onClick={() => setSelectedRequest(null)}>Cancel</Button>
+                <Button variant="danger" onClick={async () => {
+                   try {
+                     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+                     await fetch(`${apiUrl}/attendance/requests/${selectedRequest._id}/reject`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ rejectionReason })
+                     });
+                     setSelectedRequest(null);
+                     fetchAdminAttendance();
+                   } catch(e) { console.error(e); }
+                }}>Reject</Button>
+            </div>
+         </div>
+      </Modal>
 
     </div>
   );
