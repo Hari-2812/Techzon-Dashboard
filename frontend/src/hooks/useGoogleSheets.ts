@@ -43,20 +43,31 @@ export const useUpdateGoogleSheetsSettings = () => {
   });
 };
 
+export const useGoogleSheetsList = () => {
+  return useQuery({
+    queryKey: ['googleSheets', 'list'],
+    queryFn: async () => {
+      const { data } = await api.get('/google-sheets/sheets');
+      return data.sheets;
+    },
+    // Only fetch if it's likely configured, usually enabled conditionally in the component
+  });
+};
+
 export const useConnectGoogleSheets = () => {
   return useMutation({
-    mutationFn: async ({ spreadsheetId }: { spreadsheetId: string }) => {
-      const res = await api.post('/google-sheets/connect', { spreadsheetId });
-      return res.data.data; // returns array of worksheets
+    mutationFn: async (config: { spreadsheetId: string }) => {
+      const { data } = await api.post('/google-sheets/connect', config);
+      return data.worksheets;
     }
   });
 };
 
 export const usePreviewGoogleSheetsSync = () => {
   return useMutation({
-    mutationFn: async (payload: { spreadsheetId: string, worksheetName: string, mapping: any }) => {
-      const res = await api.post('/google-sheets/preview', payload);
-      return res.data.data;
+    mutationFn: async (config: { spreadsheetId: string, worksheetName: string, mapping: Record<string, string> }) => {
+      const { data } = await api.post('/google-sheets/preview', config);
+      return data.preview;
     }
   });
 };
@@ -64,9 +75,9 @@ export const usePreviewGoogleSheetsSync = () => {
 export const useExecuteGoogleSheetsSync = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: { spreadsheetId: string, worksheetName: string, mapping: any }) => {
-      const res = await api.post('/google-sheets/sync', payload);
-      return res.data.data;
+    mutationFn: async (config: { worksheets: string[] }) => {
+      const { data } = await api.post('/google-sheets/sync', config);
+      return data.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leads'] });

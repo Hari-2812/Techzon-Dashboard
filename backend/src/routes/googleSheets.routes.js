@@ -5,6 +5,7 @@ const {
     getStatus,
     generateAuthUrl,
     handleOAuthCallback,
+    getSheets,
     getSettings,
     updateSettings,
     executeSync,
@@ -20,6 +21,7 @@ router.use(checkRole('ADMIN'));
 
 router.get('/auth', generateAuthUrl);
 router.get('/status', getStatus);
+router.get('/sheets', getSheets);
 router.get('/settings', getSettings);
 router.put('/settings', updateSettings);
 router.post('/sync', executeSync);

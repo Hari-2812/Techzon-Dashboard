@@ -91,18 +91,22 @@ class GoogleSheetsService {
             status.spreadsheetConfigured = true;
         }
 
-        if (!process.env.GOOGLE_SHEETS_SHEET_NAME) {
-            status.missingVariables.push({ name: 'GOOGLE_SHEETS_SHEET_NAME', error: 'Google Sheet name is not configured.' });
-            status.sheetConfigured = false;
-        } else {
-            status.sheetConfigured = true;
-        }
-
         if (status.missingVariables.length === 0) {
             status.configured = true;
         }
 
         return status;
+    }
+
+    async getWorksheets(spreadsheetId) {
+        const auth = await this.getAuthenticatedClient();
+        const sheets = google.sheets({ version: 'v4', auth });
+        
+        const response = await sheets.spreadsheets.get({
+            spreadsheetId
+        });
+
+        return response.data.sheets.map(sheet => sheet.properties.title);
     }
 
     async getSheetData(spreadsheetId, worksheetName) {

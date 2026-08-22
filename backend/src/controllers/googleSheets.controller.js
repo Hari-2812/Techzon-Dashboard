@@ -102,6 +102,28 @@ exports.handleOAuthCallback = async (req, res) => {
 
 // --- SETTINGS CONTROLLERS ---
 
+exports.getSheets = async (req, res) => {
+    try {
+        const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+        if (!spreadsheetId) {
+            return res.status(400).json({ success: false, message: 'Google Spreadsheet ID is not configured.' });
+        }
+        
+        const sheetsList = await googleSheetsService.getWorksheets(spreadsheetId);
+        
+        // Format to the expected response shape
+        const formattedSheets = sheetsList.map((title, index) => ({
+            title: title,
+            sheetId: index // Mock sheetId for frontend if actual isn't retrieved, but title is what matters
+        }));
+        
+        res.json({ success: true, sheets: formattedSheets });
+    } catch (err) {
+        console.error('Error fetching sheets:', err);
+        res.status(500).json({ success: false, message: 'Failed to fetch sheets from Google.' });
+    }
+};
+
 exports.getSettings = async (req, res) => {
     try {
         let settings = await GoogleSheetsSettings.findOne();
@@ -152,10 +174,14 @@ exports.executeSync = async (req, res) => {
     let syncRecord;
     try {
         const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
-        const worksheetName = process.env.GOOGLE_SHEETS_SHEET_NAME;
+        const { worksheets } = req.body;
 
-        if (!spreadsheetId || !worksheetName) {
-            return res.status(400).json({ success: false, message: 'Spreadsheet ID or Sheet Name is not configured in .env' });
+        if (!spreadsheetId) {
+            return res.status(400).json({ success: false, message: 'Spreadsheet ID is not configured in .env' });
+        }
+        
+        if (!worksheets || !Array.isArray(worksheets) || worksheets.length === 0) {
+            return res.status(400).json({ success: false, message: 'No sheets selected for sync.' });
         }
 
         let settings = await GoogleSheetsSettings.findOne();
@@ -167,13 +193,26 @@ exports.executeSync = async (req, res) => {
         syncRecord = await SyncHistory.create({
             adminId: req.user.id,
             spreadsheetId,
-            worksheetName,
+            worksheetName: worksheets.join(', '), // Save all names in history
             startedAt: new Date(),
-            status: 'Failed'
+            status: 'Failed',
+            errors: []
         });
 
-        const rawData = await getSheetDataAsObjects(spreadsheetId, worksheetName);
-        syncRecord.totalRows = rawData.length;
+        // Collect all data from all selected sheets
+        let allRawData = [];
+        for (const sheet of worksheets) {
+            try {
+                const data = await getSheetDataAsObjects(spreadsheetId, sheet);
+                // Attach the source sheet name directly to each row object
+                const dataWithSource = data.map(row => ({ ...row, _sourceSheetName: sheet }));
+                allRawData = allRawData.concat(dataWithSource);
+            } catch (err) {
+                syncRecord.errors.push(`Failed to read sheet ${sheet}: ${err.message}`);
+            }
+        }
+
+        syncRecord.totalRows = allRawData.length;
         
         // Active RGS/BDE users for assignment
         const activeUsers = await User.find({ 
@@ -212,12 +251,11 @@ exports.executeSync = async (req, res) => {
             'Parent / Contact Phone': 'parentContactPhone'
         };
 
-        for (const row of rawData) {
+        for (const row of allRawData) {
             const mappedData = {};
-            // Normalize row keys for robust matching
             const normalizedRow = {};
             for (const key of Object.keys(row)) {
-                if (key === '_rowIndex') {
+                if (key === '_rowIndex' || key === '_sourceSheetName') {
                     normalizedRow[key] = row[key];
                 } else {
                     normalizedRow[normalizeColumn(key)] = row[key];
@@ -234,7 +272,7 @@ exports.executeSync = async (req, res) => {
             if (!mappedData.studentName || !mappedData.phone || !mappedData.college) {
                 syncRecord.invalidRows++;
                 if (syncRecord.errors.length < 50) {
-                    syncRecord.errors.push(`Row ${row._rowIndex}: Missing Name, Phone, or College`);
+                    syncRecord.errors.push(`Row ${row._rowIndex} in ${row._sourceSheetName}: Missing Name, Phone, or College`);
                 }
                 continue;
             }
@@ -245,7 +283,7 @@ exports.executeSync = async (req, res) => {
             if (existingLead) {
                 if (existingLead === true) {
                     syncRecord.duplicates++;
-                    continue;
+                    continue; // Skip duplicate inside the current sync batch
                 }
                 
                 phoneMap.set(normalizedPhone, true); 
@@ -259,6 +297,7 @@ exports.executeSync = async (req, res) => {
                     course: mappedData.course || existingLead.course,
                     parentContactName: mappedData.parentContactName || existingLead.parentContactName,
                     parentContactPhone: mappedData.parentContactPhone || existingLead.parentContactPhone,
+                    sourceWorksheet: row._sourceSheetName // Overwrite or preserve the source
                 };
                 
                 existingLeadsToUpdate.push({ id: existingLead._id, update: updateData });
@@ -298,7 +337,7 @@ exports.executeSync = async (req, res) => {
                 leadStatus: 'New',
                 source: 'GOOGLE_SHEETS',
                 sourceSpreadsheetId: spreadsheetId,
-                sourceWorksheet: worksheetName,
+                sourceWorksheet: row._sourceSheetName,
                 sourceRowId: row._rowIndex.toString()
             };
             
@@ -321,6 +360,10 @@ exports.executeSync = async (req, res) => {
 
         syncRecord.status = 'Success';
         syncRecord.completedAt = new Date();
+        // Return number of sheets processed in the result for the frontend
+        const resultData = syncRecord.toObject();
+        resultData.sheetsSynced = worksheets.length;
+
         await syncRecord.save();
 
         const io = req.app.get('io');
@@ -332,7 +375,7 @@ exports.executeSync = async (req, res) => {
             });
         }
 
-        res.json({ success: true, data: syncRecord });
+        res.json({ success: true, data: resultData });
     } catch (err) {
         console.error('Error during execution:', err);
         if (syncRecord) {

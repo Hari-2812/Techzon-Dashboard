@@ -5,7 +5,8 @@ import api from '../services/api';
 import { 
   Upload, FileText, CheckCircle, ArrowRight, ArrowLeft, 
   Check, AlertCircle, Database, RefreshCw, Settings, 
-  Table2, Activity, Play, StopCircle, Clock, Users, Link as LinkIcon
+  Table2, Activity, Play, StopCircle, Clock, Users, Link as LinkIcon,
+  CheckSquare, Square
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Card } from '../components/ui/Card';
@@ -18,7 +19,8 @@ import {
   useExecuteGoogleSheetsSync,
   useGoogleSheetsHistory,
   useGoogleSheetsConfig,
-  useGoogleSheetsAuthUrl
+  useGoogleSheetsAuthUrl,
+  useGoogleSheetsList
 } from '../hooks/useGoogleSheets';
 
 export default function ImportLeads() {
@@ -32,10 +34,15 @@ export default function ImportLeads() {
   const { data: settingsData } = useGoogleSheetsSettings();
   const { data: historyData } = useGoogleSheetsHistory();
   const { data: configStatus, isLoading: authStatusLoading } = useGoogleSheetsConfig();
+  
+  // Only fetch sheets if configured
+  const { data: sheetsList, isLoading: sheetsLoading, refetch: refetchSheets } = useGoogleSheetsList();
+  
   const updateSettings = useUpdateGoogleSheetsSettings();
   const executeSync = useExecuteGoogleSheetsSync();
   const fetchAuthUrl = useGoogleSheetsAuthUrl();
 
+  const [selectedSheets, setSelectedSheets] = useState<string[]>([]);
   const [gsResults, setGsResults] = useState<any>(null);
   const [authError, setAuthError] = useState('');
 
@@ -49,6 +56,13 @@ export default function ImportLeads() {
     }
   }, [settingsData]);
 
+  // Auto-select all sheets on load
+  useEffect(() => {
+      if (sheetsList && sheetsList.length > 0 && selectedSheets.length === 0) {
+          setSelectedSheets(sheetsList.map((s: any) => s.title));
+      }
+  }, [sheetsList]);
+
   if (!isAdmin) {
     return <div className="p-6">You do not have permission to import leads.</div>;
   }
@@ -59,7 +73,6 @@ export default function ImportLeads() {
       setAuthError('');
       const url = await fetchAuthUrl.mutateAsync();
       if (url) {
-        // Open the Google consent screen in a new window/tab for the admin to copy the token
         window.open(url, '_blank', 'width=600,height=700');
       }
     } catch (err: any) {
@@ -68,18 +81,39 @@ export default function ImportLeads() {
   };
 
   const handleGsConfirm = async () => {
+    if (selectedSheets.length === 0) {
+        return setAuthError('Please select at least one sheet to sync.');
+    }
+    
     try {
       setAuthError('');
       const res = await executeSync.mutateAsync({ 
-        spreadsheetId: 'env', // Handled entirely in backend now
-        worksheetName: 'env', // Handled entirely in backend now
-        mapping: {} // Pre-configured in backend
+        worksheets: selectedSheets
       });
       setGsResults(res);
       queryClient.invalidateQueries({ queryKey: ['googleSheetsHistory'] });
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
     } catch (err: any) {
       setAuthError(err.response?.data?.message || 'Failed to execute sync');
     }
+  };
+
+  const toggleSheetSelection = (title: string) => {
+      if (selectedSheets.includes(title)) {
+          setSelectedSheets(selectedSheets.filter(s => s !== title));
+      } else {
+          setSelectedSheets([...selectedSheets, title]);
+      }
+  };
+
+  const toggleAllSheets = () => {
+      if (!sheetsList) return;
+      if (selectedSheets.length === sheetsList.length) {
+          setSelectedSheets([]); // Deselect all
+      } else {
+          setSelectedSheets(sheetsList.map((s: any) => s.title)); // Select all
+      }
   };
 
   return (
@@ -194,24 +228,66 @@ export default function ImportLeads() {
                              )}
                         </div>
                      ) : !gsResults ? (
-                         <div className="text-center py-12">
-                            <div className="mx-auto bg-green-100 w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-sm">
-                                <CheckCircle size={32} className="text-green-600" />
+                         <div className="py-4">
+                            <div className="flex items-center justify-between mb-4 border-b border-[var(--color-border-subtle)] pb-2">
+                                <h3 className="text-lg font-bold text-[var(--color-text-primary)]">Google Spreadsheet</h3>
+                                <Button variant="outline" size="sm" onClick={() => refetchSheets()} disabled={sheetsLoading}>
+                                    <RefreshCw size={14} className={`mr-2 ${sheetsLoading ? 'animate-spin' : ''}`} /> Refresh Sheets
+                                </Button>
                             </div>
-                            <h3 className="text-2xl font-black text-[var(--color-text-primary)] mb-3">Ready to Sync</h3>
-                            <p className="text-gray-500 mb-8 max-w-md mx-auto">Google Sheets integration is fully configured and ready. Click below to synchronize your leads.</p>
                             
-                            <Button 
-                                onClick={handleGsConfirm} 
-                                disabled={executeSync.isPending}
-                                className="bg-green-600 hover:bg-green-700 shadow-md h-14 px-8 text-lg w-full max-w-xs mx-auto"
-                            >
-                                {executeSync.isPending ? (
-                                    <><RefreshCw className="animate-spin mr-2" size={20} /> Syncing...</>
-                                ) : (
-                                    <><RefreshCw size={20} className="mr-2" /> Sync Google Sheet</>
-                                )}
-                            </Button>
+                            {sheetsLoading ? (
+                                <div className="flex justify-center py-8">
+                                    <RefreshCw className="animate-spin text-green-600" size={24} />
+                                </div>
+                            ) : sheetsList && sheetsList.length > 0 ? (
+                                <>
+                                    <div className="mb-3 flex justify-between items-center">
+                                        <span className="text-sm font-semibold text-gray-700">Available Sheets:</span>
+                                        <button 
+                                            onClick={toggleAllSheets}
+                                            className="text-sm text-[var(--color-primary)] font-medium hover:underline flex items-center gap-1"
+                                        >
+                                            {selectedSheets.length === sheetsList.length ? <CheckSquare size={16}/> : <Square size={16}/>}
+                                            {selectedSheets.length === sheetsList.length ? 'Deselect All' : 'Select All'}
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="bg-gray-50 border border-gray-200 rounded-lg max-h-48 overflow-y-auto mb-6 p-2">
+                                        {sheetsList.map((sheet: any) => {
+                                            const isSelected = selectedSheets.includes(sheet.title);
+                                            return (
+                                                <div 
+                                                    key={sheet.title}
+                                                    onClick={() => toggleSheetSelection(sheet.title)}
+                                                    className={`flex items-center justify-between p-3 cursor-pointer rounded-md transition-colors ${isSelected ? 'bg-green-50 border border-green-100' : 'hover:bg-gray-100 border border-transparent'} mb-1 last:mb-0`}
+                                                >
+                                                    <span className={`font-medium ${isSelected ? 'text-green-800' : 'text-gray-700'}`}>{sheet.title}</span>
+                                                    {isSelected ? <CheckSquare size={18} className="text-green-600" /> : <Square size={18} className="text-gray-400" />}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    <div className="text-center pt-2">
+                                        <Button 
+                                            onClick={handleGsConfirm} 
+                                            disabled={executeSync.isPending || selectedSheets.length === 0}
+                                            className="bg-green-600 hover:bg-green-700 shadow-md h-12 px-8 w-full max-w-sm mx-auto"
+                                        >
+                                            {executeSync.isPending ? (
+                                                <><RefreshCw className="animate-spin mr-2" size={18} /> Syncing {selectedSheets.length} sheets...</>
+                                            ) : (
+                                                <><Play size={18} className="mr-2" /> Sync {selectedSheets.length} Selected Sheets</>
+                                            )}
+                                        </Button>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="text-center py-8 text-gray-500 border border-dashed rounded-lg bg-gray-50">
+                                    No sheets found in this spreadsheet.
+                                </div>
+                            )}
                          </div>
                      ) : (
                          <div className="text-center py-4 animate-fade-in">
@@ -219,24 +295,32 @@ export default function ImportLeads() {
                                 <CheckCircle className="text-green-600" size={32} />
                             </div>
                             <h2 className="text-xl font-black text-[var(--color-text-primary)] mb-1">Sync Completed</h2>
-                            <p className="text-gray-500 text-sm mb-6">Successfully imported and assigned leads.</p>
+                            <p className="text-gray-500 text-sm mb-6">Successfully processed {gsResults.sheetsSynced} sheets.</p>
                             
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-                                <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                                    <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Total Found</p>
-                                    <p className="text-2xl font-black">{gsResults.totalRows}</p>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 mb-8">
+                                <div className="bg-gray-50 p-2 rounded-lg border border-gray-100">
+                                    <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Sheets</p>
+                                    <p className="text-xl font-black">{gsResults.sheetsSynced || 0}</p>
                                 </div>
-                                <div className="bg-green-50 p-3 rounded-lg border border-green-100">
-                                    <p className="text-[10px] text-green-700 font-bold uppercase mb-1">New Leads</p>
-                                    <p className="text-2xl font-black text-green-600">{gsResults.newLeads}</p>
+                                <div className="bg-gray-50 p-2 rounded-lg border border-gray-100">
+                                    <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Rows</p>
+                                    <p className="text-xl font-black">{gsResults.totalRows}</p>
                                 </div>
-                                <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                                <div className="bg-green-50 p-2 rounded-lg border border-green-100">
+                                    <p className="text-[10px] text-green-700 font-bold uppercase mb-1">New</p>
+                                    <p className="text-xl font-black text-green-600">{gsResults.newLeads}</p>
+                                </div>
+                                <div className="bg-blue-50 p-2 rounded-lg border border-blue-100">
                                     <p className="text-[10px] text-blue-700 font-bold uppercase mb-1">Updated</p>
-                                    <p className="text-2xl font-black text-blue-600">{gsResults.updatedLeads || 0}</p>
+                                    <p className="text-xl font-black text-blue-600">{gsResults.updatedLeads || 0}</p>
                                 </div>
-                                <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-100">
+                                <div className="bg-orange-50 p-2 rounded-lg border border-orange-100">
+                                    <p className="text-[10px] text-orange-700 font-bold uppercase mb-1">Duplicates</p>
+                                    <p className="text-xl font-black text-orange-600">{gsResults.duplicates}</p>
+                                </div>
+                                <div className="bg-indigo-50 p-2 rounded-lg border border-indigo-100">
                                     <p className="text-[10px] text-indigo-700 font-bold uppercase mb-1">Assigned</p>
-                                    <p className="text-2xl font-black text-indigo-600">{gsResults.assignedLeads}</p>
+                                    <p className="text-xl font-black text-indigo-600">{gsResults.assignedLeads}</p>
                                 </div>
                             </div>
 
@@ -282,7 +366,7 @@ export default function ImportLeads() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Date & Time</TableHead>
-                                <TableHead>Worksheet</TableHead>
+                                <TableHead>Worksheets</TableHead>
                                 <TableHead>Total Rows</TableHead>
                                 <TableHead className="text-green-700">New</TableHead>
                                 <TableHead className="text-blue-700">Updated</TableHead>
@@ -295,7 +379,7 @@ export default function ImportLeads() {
                             {historyData?.map((h: any) => (
                                 <TableRow key={h._id}>
                                     <TableCell className="whitespace-nowrap font-medium">{new Date(h.createdAt).toLocaleString()}</TableCell>
-                                    <TableCell>{h.worksheetName}</TableCell>
+                                    <TableCell className="max-w-[200px] truncate" title={h.worksheetName}>{h.worksheetName}</TableCell>
                                     <TableCell className="font-mono">{h.totalRows}</TableCell>
                                     <TableCell className="font-mono text-green-600 font-bold">{h.newLeads}</TableCell>
                                     <TableCell className="font-mono text-blue-600 font-bold">{h.updatedLeads || 0}</TableCell>
