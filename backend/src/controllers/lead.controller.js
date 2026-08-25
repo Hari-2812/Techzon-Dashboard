@@ -198,6 +198,12 @@ exports.verifyCRYes = async (req, res) => {
         res.json({ success: true, data: result });
     } catch (err) {
         console.error(err);
+        if (err.code === 'MISSING_CR_FIELDS') {
+            return res.status(400).json({ success: false, code: err.code, message: err.message });
+        }
+        if (err.name === 'ValidationError') {
+            return res.status(400).json({ success: false, message: 'Validation Error', error: err.message });
+        }
         res.status(500).json({ success: false, message: err.message });
     }
 };
@@ -213,6 +219,12 @@ exports.verifyCRNo = async (req, res) => {
         res.json({ success: true, data: result });
     } catch (err) {
         console.error(err);
+        if (err.code === 'MISSING_CR_FIELDS') {
+            return res.status(400).json({ success: false, code: err.code, message: err.message });
+        }
+        if (err.name === 'ValidationError') {
+            return res.status(400).json({ success: false, message: 'Validation Error', error: err.message });
+        }
         res.status(500).json({ success: false, message: err.message });
     }
 };
@@ -324,9 +336,28 @@ exports.importPreview = async (req, res) => {
                     if (val !== null && val !== undefined) {
                         val = String(val).trim();
                     }
-                    rawData[crmField] = val;
+                    if (val !== '') {
+                        rawData[crmField] = val;
+                    }
                 }
             }
+            
+            // Handle alternative column names if mapping was missed or auto-detected poorly
+            const detectAlt = (keys, target) => {
+                if (!rawData[target]) {
+                    const match = Object.keys(row).find(k => keys.includes(k.toLowerCase().trim()));
+                    if (match && row[match]) {
+                        rawData[target] = String(row[match]).trim();
+                    }
+                }
+            };
+            
+            detectAlt(['name', 'student name', 'studentname'], 'studentName');
+            detectAlt(['phone', 'phone number', 'phonenumber', 'contact'], 'phone');
+            detectAlt(['college', 'university', 'institution'], 'college');
+            detectAlt(['department', 'branch', 'degreebranch', 'degree branch'], 'department');
+            detectAlt(['year', 'batch'], 'year');
+            detectAlt(['domain', 'interested domain', 'course'], 'interestedDomain');
             
             rawData.priority = rawData.priority || 'MEDIUM';
 

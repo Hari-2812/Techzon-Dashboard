@@ -30,7 +30,9 @@ const LeadDetail = () => {
   const [showCallModal, setShowCallModal] = useState(false);
   const [showCRForm, setShowCRForm] = useState(false);
   const [showUpdateDrawer, setShowUpdateDrawer] = useState(false);
+  const [showMissingInfoModal, setShowMissingInfoModal] = useState(false);
   const [crDetails, setCRDetails] = useState({ crName: '', phone: '', section: '' });
+  const [missingCRInfo, setMissingCRInfo] = useState({ college: '', department: '', year: '' });
 
   if (leadLoading) return <div className="p-6">Loading lead...</div>;
   if (!leadData?.data) return <div className="p-6">Lead not found.</div>;
@@ -41,6 +43,35 @@ const LeadDetail = () => {
   const handleCallOutcome = async (outcome: string) => {
     await recordCall.mutateAsync({ leadId: id!, outcome, notes: '' });
     setShowCallModal(false);
+  };
+
+  const handleVerifyCRYes = () => {
+    verifyCRYes.mutate({ leadId: id! }, {
+      onError: (error: any) => {
+        if (error?.response?.data?.code === 'MISSING_CR_FIELDS' || error?.response?.data?.message?.includes('required')) {
+          setMissingCRInfo({
+            college: lead.college || '',
+            department: lead.department || '',
+            year: lead.year || ''
+          });
+          setShowMissingInfoModal(true);
+        } else {
+          alert(error?.response?.data?.message || 'Failed to verify CR');
+        }
+      }
+    });
+  };
+
+  const submitMissingCRInfo = (e: React.FormEvent) => {
+    e.preventDefault();
+    verifyCRYes.mutate({ leadId: id!, details: missingCRInfo }, {
+      onSuccess: () => {
+        setShowMissingInfoModal(false);
+      },
+      onError: (error: any) => {
+        alert(error?.response?.data?.message || 'Failed to verify CR');
+      }
+    });
   };
 
   const handleCRSubmit = async (e: any) => {
@@ -105,7 +136,7 @@ const LeadDetail = () => {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <button 
-                  onClick={() => verifyCRYes.mutate({ leadId: id! })}
+                  onClick={handleVerifyCRYes}
                   disabled={verifyCRYes.isPending}
                   className="bg-[#ECFDF5] text-[#047857] border-2 border-[#A7F3D0] p-4 rounded-[var(--radius-xl)] font-bold hover:bg-[#D1FAE5] transition-colors flex flex-col items-center justify-center"
                 >
@@ -233,6 +264,29 @@ const LeadDetail = () => {
         <div className="mt-6">
           <Button fullWidth variant="ghost" onClick={() => setShowCallModal(false)}>Cancel</Button>
         </div>
+      </Modal>
+
+      {/* MISSING CR INFO MODAL */}
+      <Modal isOpen={showMissingInfoModal} onClose={() => setShowMissingInfoModal(false)} title="Missing CR Information">
+        <p className="text-sm text-gray-500 mb-4">College, Department, and Year are required to verify this lead as a Class Representative. Please provide them below.</p>
+        <form onSubmit={submitMissingCRInfo} className="space-y-4">
+            <div>
+                <label className="block text-sm font-medium mb-1">College *</label>
+                <Input type="text" required value={missingCRInfo.college} onChange={e => setMissingCRInfo({...missingCRInfo, college: e.target.value})} placeholder="e.g. SRM Institute" />
+            </div>
+            <div>
+                <label className="block text-sm font-medium mb-1">Department *</label>
+                <Input type="text" required value={missingCRInfo.department} onChange={e => setMissingCRInfo({...missingCRInfo, department: e.target.value})} placeholder="e.g. Computer Science" />
+            </div>
+            <div>
+                <label className="block text-sm font-medium mb-1">Year *</label>
+                <Input type="text" required value={missingCRInfo.year} onChange={e => setMissingCRInfo({...missingCRInfo, year: e.target.value})} placeholder="e.g. 3rd Year" />
+            </div>
+            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-100">
+                <Button type="button" variant="ghost" onClick={() => setShowMissingInfoModal(false)}>Cancel</Button>
+                <Button type="submit" variant="primary" disabled={verifyCRYes.isPending}>Save & Verify CR</Button>
+            </div>
+        </form>
       </Modal>
 
       {showUpdateDrawer && (

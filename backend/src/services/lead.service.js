@@ -53,20 +53,50 @@ exports.verifyCR = async (leadId, employeeId, isCR, crDetails) => {
         crDetails = {
             crName: lead.studentName,
             phone: lead.phone,
-            college: lead.college,
-            department: lead.department,
-            year: lead.year,
-            section: crDetails?.section || ''
+            college: lead.college || crDetails?.college,
+            department: lead.department || crDetails?.department,
+            year: lead.year || crDetails?.year,
+            section: lead.section || crDetails?.section || ''
         };
+    }
+
+    // Validate required fields if we are creating or updating a CR profile
+    const missingFields = [];
+    if (!crDetails.college) missingFields.push('college');
+    if (!crDetails.department) missingFields.push('department');
+    if (!crDetails.year) missingFields.push('year');
+
+    if (missingFields.length > 0) {
+        const err = new Error(`Missing required fields: ${missingFields.join(', ')}`);
+        err.code = 'MISSING_CR_FIELDS';
+        throw err;
     }
 
     const { normalizePhone } = require('../validations/lead.validation');
     crDetails.phone = normalizePhone(crDetails.phone);
 
-    // Check if CR phone already exists to prevent duplicates
+    // Check if CR phone already exists
     crProfile = await CRProfile.findOne({ phone: crDetails.phone });
     
-    if (!crProfile) {
+    if (crProfile) {
+        // Update missing/new information in the existing CR Profile
+        let updated = false;
+        if (!crProfile.college && crDetails.college) { crProfile.college = crDetails.college; updated = true; }
+        if (!crProfile.department && crDetails.department) { crProfile.department = crDetails.department; updated = true; }
+        if (!crProfile.year && crDetails.year) { crProfile.year = crDetails.year; updated = true; }
+        if (!crProfile.section && crDetails.section) { crProfile.section = crDetails.section; updated = true; }
+        
+        if (updated) {
+            await crProfile.save();
+            await CRActivity.create({
+                crId: crProfile._id,
+                employeeId,
+                activityType: 'CR_UPDATED',
+                description: 'CR Profile updated during lead verification'
+            });
+        }
+    } else {
+        // Create new CR Profile
         crProfile = await CRProfile.create({
             ...crDetails,
             assignedEmployeeId: lead.assignedEmployeeId // CR inherits lead owner
@@ -80,16 +110,25 @@ exports.verifyCR = async (leadId, employeeId, isCR, crDetails) => {
         });
     }
 
-    // Create relationship
-    await StudentCRRelationship.create({
-        studentId: lead._id,
-        crId: crProfile._id,
-        source: relationshipSource
-    });
+    // Create relationship if it doesn't exist
+    const existingRel = await StudentCRRelationship.findOne({ studentId: lead._id, crId: crProfile._id });
+    if (!existingRel) {
+        await StudentCRRelationship.create({
+            studentId: lead._id,
+            crId: crProfile._id,
+            source: relationshipSource
+        });
+    }
 
     // Update lead status
     lead.crStatus = isCR ? 'Student Is CR' : 'CR Details Received';
     lead.leadStatus = 'CR Identified';
+    
+    // Also save the provided college/department/year back to the lead if it was missing
+    if (!lead.college && crDetails.college) lead.college = crDetails.college;
+    if (!lead.department && crDetails.department) lead.department = crDetails.department;
+    if (!lead.year && crDetails.year) lead.year = crDetails.year;
+
     await lead.save();
 
     // Activities

@@ -86,7 +86,7 @@ export const AddCRModal = ({ isOpen, onClose }: AddCRModalProps) => {
         </div>
         <div className="flex justify-end space-x-2 pt-4">
           <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-          <Button type="submit" isLoading={mutation.isPending}>Add CR</Button>
+          <Button type="submit" disabled={mutation.isPending}>Add CR</Button>
         </div>
       </form>
     </Modal>
