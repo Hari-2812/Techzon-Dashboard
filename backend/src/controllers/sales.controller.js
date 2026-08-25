@@ -3,57 +3,48 @@ const FollowUp = require('../models/FollowUp');
 const Sale = require('../models/Sale');
 const LeadActivity = require('../models/LeadActivity');
 const User = require('../models/User');
-const mongoose = require('mongoose');
 
-// Helper to check access
 const buildAccessQuery = (req) => {
-    return req.user.role === 'Admin' ? {} : { assignedEmployeeId: req.user._id };
+    return req.user.role === 'ADMIN' ? {} : { assignedEmployeeId: req.user._id };
 };
 
 exports.getDashboard = async (req, res) => {
     try {
         const query = {
-            ...buildAccessQuery(req),
-            salesStatus: { $nin: ['Not Contacted'] }
+            ...buildAccessQuery(req)
         };
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
+        const todayEndOfDay = new Date();
+        todayEndOfDay.setHours(23, 59, 59, 999);
 
         const [
             totalSalesLeads,
-            newResponsesToday,
+            notContacted,
+            contactedStudents,
             interestedStudents,
-            callsPending,
+            followUpsDue,
             convertedStudents
         ] = await Promise.all([
-            Lead.countDocuments(query),
-            Lead.countDocuments({ ...query, lastContactedAt: { $gte: today } }),
+            Lead.countDocuments({ ...query }),
+            Lead.countDocuments({ ...query, salesStatus: 'NOT_CONTACTED' }),
+            Lead.countDocuments({ ...query, salesStatus: 'CONTACTED' }),
             Lead.countDocuments({ ...query, salesStatus: 'INTERESTED' }),
-            Lead.countDocuments({ ...query, salesStatus: { $in: ['SALES QUEUE', 'CALL PENDING'] } }),
+            Lead.countDocuments({ 
+                ...query, 
+                nextFollowUp: { $lte: todayEndOfDay },
+                salesStatus: { $nin: ['CONVERTED', 'NOT_INTERESTED', 'NO_RESPONSE'] } 
+            }),
             Lead.countDocuments({ ...query, salesStatus: 'CONVERTED' })
         ]);
 
-        const callsCompletedToday = await LeadActivity.countDocuments({
-            activityType: 'Sales Call',
-            timestamp: { $gte: today },
-            ...(req.user.role === 'Admin' ? {} : { employeeId: req.user._id })
-        });
-
-        const followUpsDueToday = await FollowUp.countDocuments({
-            type: 'Sales Follow-up',
-            status: 'Pending',
-            dueDate: { $gte: today, $lt: new Date(today.getTime() + 86400000) },
-            ...(req.user.role === 'Admin' ? {} : { assignedEmployeeId: req.user._id })
-        });
-
         const conversionRate = totalSalesLeads > 0 ? ((convertedStudents / totalSalesLeads) * 100).toFixed(2) : 0;
 
-        // Performance per employee
         let performance = [];
-        if (req.user.role === 'Admin') {
-            performance = await User.aggregate([
-                { $match: { role: { $ne: 'Admin' } } },
+        if (req.user.role === 'ADMIN') {
+            const users = await User.aggregate([
+                { $match: { role: { $ne: 'ADMIN' }, isActive: true } },
                 {
                     $lookup: {
                         from: 'leads',
@@ -61,34 +52,31 @@ exports.getDashboard = async (req, res) => {
                         foreignField: 'assignedEmployeeId',
                         as: 'leads'
                     }
-                },
-                {
-                    $project: {
-                        name: 1,
-                        totalLeads: {
-                            $size: {
-                                $filter: { input: '$leads', as: 'l', cond: { $ne: ['$$l.salesStatus', 'Not Contacted'] } }
-                            }
-                        },
-                        conversions: {
-                            $size: {
-                                $filter: { input: '$leads', as: 'l', cond: { $eq: ['$$l.salesStatus', 'CONVERTED'] } }
-                            }
-                        }
-                    }
                 }
             ]);
+
+            performance = users.map(user => {
+                const employeeLeads = user.leads || [];
+                return {
+                    _id: user._id,
+                    name: user.name,
+                    totalLeads: employeeLeads.length,
+                    contacted: employeeLeads.filter(l => ['CONTACTED', 'INTERESTED', 'FOLLOW_UP', 'CONVERTED', 'CALL_BACK'].includes(l.salesStatus)).length,
+                    interested: employeeLeads.filter(l => l.salesStatus === 'INTERESTED').length,
+                    followUp: employeeLeads.filter(l => l.nextFollowUp && new Date(l.nextFollowUp) <= todayEndOfDay).length,
+                    conversions: employeeLeads.filter(l => l.salesStatus === 'CONVERTED').length
+                };
+            });
         }
 
         res.json({
             success: true,
             kpis: {
                 totalSalesLeads,
-                newResponsesToday,
+                notContacted,
+                contactedStudents,
                 interestedStudents,
-                callsPending,
-                callsCompletedToday,
-                followUpsDueToday,
+                followUpsDue,
                 convertedStudents,
                 conversionRate
             },
@@ -104,8 +92,7 @@ exports.getSales = async (req, res) => {
     try {
         const { search, priority, status, employeeId, page = 1, limit = 50 } = req.query;
         let query = {
-            ...buildAccessQuery(req),
-            salesStatus: { $ne: 'Not Contacted' }
+            ...buildAccessQuery(req)
         };
 
         if (search) {
@@ -117,7 +104,7 @@ exports.getSales = async (req, res) => {
         }
         if (priority) query.priority = priority;
         if (status) query.salesStatus = status;
-        if (employeeId && req.user.role === 'Admin') query.assignedEmployeeId = employeeId;
+        if (employeeId && req.user.role === 'ADMIN') query.assignedEmployeeId = employeeId;
 
         const leads = await Lead.find(query)
             .populate('assignedEmployeeId', 'name')
@@ -137,24 +124,53 @@ exports.getCallQueue = async (req, res) => {
     try {
         const query = {
             ...buildAccessQuery(req),
-            salesStatus: { $in: ['SALES QUEUE', 'CALL PENDING'] }
+            salesStatus: { $nin: ['CONVERTED', 'NOT_INTERESTED', 'NO_RESPONSE'] }
         };
 
         const leads = await Lead.find(query)
             .populate('assignedEmployeeId', 'name')
-            .sort({ priority: 1, nextFollowUp: 1, updatedAt: 1 })
-            .limit(100);
+            .lean();
 
-        // Sort HIGH first
+        const todayEndOfDay = new Date();
+        todayEndOfDay.setHours(23, 59, 59, 999);
+
+        // Sorting Logic:
+        // 1. Follow-up due (Overdue or Today)
+        // 2. High priority
+        // 3. Oldest uncontacted (salesStatus === 'NOT_CONTACTED')
+        // 4. Newly added leads
+        
         leads.sort((a, b) => {
-            const pMap = { HIGH: 1, MEDIUM: 2, LOW: 3 };
-            const pA = pMap[a.priority] || 4;
-            const pB = pMap[b.priority] || 4;
-            return pA - pB;
+            const isAFollowUpDue = a.nextFollowUp && new Date(a.nextFollowUp) <= todayEndOfDay;
+            const isBFollowUpDue = b.nextFollowUp && new Date(b.nextFollowUp) <= todayEndOfDay;
+
+            if (isAFollowUpDue && !isBFollowUpDue) return -1;
+            if (!isAFollowUpDue && isBFollowUpDue) return 1;
+
+            if (a.priority === 'HIGH' && b.priority !== 'HIGH') return -1;
+            if (a.priority !== 'HIGH' && b.priority === 'HIGH') return 1;
+
+            const isAUncontacted = a.salesStatus === 'NOT_CONTACTED';
+            const isBUncontacted = b.salesStatus === 'NOT_CONTACTED';
+
+            if (isAUncontacted && isBUncontacted) {
+                return new Date(a.createdAt) - new Date(b.createdAt); // Oldest first
+            }
+            if (isAUncontacted) return -1;
+            if (isBUncontacted) return 1;
+
+            return new Date(b.createdAt) - new Date(a.createdAt); // Newest first fallback
         });
 
-        res.json({ success: true, queue: leads });
+        // Paginate manually after sorting
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 100;
+        const start = (page - 1) * limit;
+        const paginatedQueue = leads.slice(start, start + limit);
+
+        res.json({ success: true, queue: paginatedQueue, total: leads.length });
     } catch (error) {
+        console.error('Error in getCallQueue', error);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
@@ -192,7 +208,7 @@ exports.addResponse = async (req, res) => {
         lead.interestLevel = interestLevel || lead.interestLevel;
         lead.studentResponse = studentResponse || lead.studentResponse;
         lead.priority = priority || lead.priority;
-        lead.salesStatus = 'SALES QUEUE';
+        lead.salesStatus = 'FOLLOW_UP';
         lead.lastContactedAt = new Date();
         
         if (nextFollowUp) lead.nextFollowUp = new Date(nextFollowUp);
@@ -220,7 +236,7 @@ exports.logCall = async (req, res) => {
         const lead = await Lead.findOne({ _id: req.params.id, ...buildAccessQuery(req) });
         if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
 
-        lead.salesStatus = 'CALLED';
+        lead.salesStatus = 'CONTACTED';
         lead.lastContactedAt = new Date();
         if (nextFollowUp) {
             lead.nextFollowUp = new Date(nextFollowUp);
@@ -258,16 +274,15 @@ exports.convertSale = async (req, res) => {
 
         lead.salesStatus = 'CONVERTED';
         lead.course = course || lead.course;
+        
         await lead.save();
 
         const sale = await Sale.create({
-            employeeId: lead.assignedEmployeeId || req.user._id,
             leadId: lead._id,
-            studentName: lead.studentName,
-            course,
+            employeeId: req.user._id,
+            course: course || lead.course,
             amount,
-            paymentStatus: paymentStatus || 'Pending',
-            status: 'Converted',
+            paymentStatus,
             remarks,
             conversionDate: conversionDate ? new Date(conversionDate) : new Date()
         });
@@ -275,107 +290,13 @@ exports.convertSale = async (req, res) => {
         await LeadActivity.create({
             leadId: lead._id,
             employeeId: req.user._id,
-            activityType: 'Conversion',
-            description: 'Converted student to sale',
-            metadata: { course, amount, paymentStatus }
+            activityType: 'Sales Conversion',
+            description: `Converted sale for ${course}`,
+            metadata: { saleId: sale._id }
         });
 
         req.app.get('io').emit('sales:updated', { leadId: lead._id });
         res.json({ success: true, lead, sale });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-};
-
-exports.updateStatus = async (req, res) => {
-    try {
-        const { salesStatus, lostReason } = req.body;
-        const lead = await Lead.findOne({ _id: req.params.id, ...buildAccessQuery(req) });
-        if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
-
-        lead.salesStatus = salesStatus;
-        if (salesStatus === 'Lost' && lostReason) {
-            lead.lostReason = lostReason;
-        }
-        await lead.save();
-
-        await LeadActivity.create({
-            leadId: lead._id,
-            employeeId: req.user._id,
-            activityType: 'Sales Status Change',
-            description: `Changed status to ${salesStatus}${lostReason ? ` - Reason: ${lostReason}` : ''}`
-        });
-
-        req.app.get('io').emit('sales:updated', { leadId: lead._id });
-        res.json({ success: true, lead });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-};
-
-exports.moveLeadToSales = async (req, res) => {
-    try {
-        const { leadId } = req.body;
-        const lead = await Lead.findById(leadId);
-        
-        if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
-        
-        // If it's already in sales pipeline (not 'New Lead' and not 'Not Contacted' etc)
-        // But for simplicity, let's just make sure it gets added to Sales
-        lead.salesStatus = 'New Lead';
-        await lead.save();
-        
-        await LeadActivity.create({
-            leadId: lead._id,
-            employeeId: req.user._id,
-            activityType: 'Moved to Sales',
-            description: 'Lead was moved to the Sales Pipeline'
-        });
-        
-        req.app.get('io').emit('sales:updated', { leadId: lead._id });
-        res.json({ success: true, lead });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-};
-
-exports.updatePriority = async (req, res) => {
-    try {
-        const { priority } = req.body;
-        const lead = await Lead.findOne({ _id: req.params.id, ...buildAccessQuery(req) });
-        if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
-
-        lead.priority = priority;
-        await lead.save();
-
-        await LeadActivity.create({
-            leadId: lead._id,
-            employeeId: req.user._id,
-            activityType: 'Sales Priority Change',
-            description: `Changed priority to ${priority}`
-        });
-
-        req.app.get('io').emit('sales:updated', { leadId: lead._id });
-        res.json({ success: true, lead });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-};
-
-exports.bulkUpdate = async (req, res) => {
-    try {
-        if (req.user.role !== 'Admin') return res.status(403).json({ success: false, message: 'Admin only' });
-        const { leadIds, assignedEmployeeId, salesStatus, priority } = req.body;
-
-        const updateData = {};
-        if (assignedEmployeeId) updateData.assignedEmployeeId = assignedEmployeeId;
-        if (salesStatus) updateData.salesStatus = salesStatus;
-        if (priority) updateData.priority = priority;
-
-        await Lead.updateMany({ _id: { $in: leadIds } }, { $set: updateData });
-
-        req.app.get('io').emit('sales:updated', { bulk: true });
-        res.json({ success: true, message: 'Bulk update applied' });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Server error' });
     }

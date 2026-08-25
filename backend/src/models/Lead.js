@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const { Schema } = mongoose;
+const { CANONICAL_SALES_STATUSES, normalizeSalesStatus } = require('../utils/statusNormalizer');
 
 const LeadSchema = new mongoose.Schema({
     studentName: { type: String, required: true },
@@ -31,8 +32,8 @@ const LeadSchema = new mongoose.Schema({
     },
     salesStatus: {
         type: String,
-        enum: ['New Lead', 'Contacted', 'Interested', 'Follow-up', 'Counseling', 'Course Discussion', 'Payment Pending', 'Converted', 'Lost'],
-        default: 'New Lead',
+        enum: CANONICAL_SALES_STATUSES,
+        default: 'NOT_CONTACTED',
         index: true
     },
     lostReason: { type: String, required: false },
@@ -48,5 +49,24 @@ const LeadSchema = new mongoose.Schema({
     sourceWorksheet: { type: String },
     sourceRowId: { type: String }
 }, { timestamps: true });
+
+// Pre-validate hook to normalize data before creation or full save
+LeadSchema.pre('validate', function (next) {
+    if (this.isModified('salesStatus') || this.isNew) {
+        this.salesStatus = normalizeSalesStatus(this.salesStatus);
+    }
+    next();
+});
+
+// Pre-findOneAndUpdate hook to normalize data during updates
+LeadSchema.pre('findOneAndUpdate', function (next) {
+    const update = this.getUpdate();
+    if (update.salesStatus) {
+        update.salesStatus = normalizeSalesStatus(update.salesStatus);
+    } else if (update.$set && update.$set.salesStatus) {
+        update.$set.salesStatus = normalizeSalesStatus(update.$set.salesStatus);
+    }
+    next();
+});
 
 module.exports = mongoose.model('Lead', LeadSchema);

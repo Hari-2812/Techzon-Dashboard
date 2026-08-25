@@ -7,9 +7,9 @@ import { Badge } from '../ui/Badge';
 import { useNavigate } from 'react-router-dom';
 
 const PIPELINE_STAGES = [
-    'New Lead', 'Contacted', 'Interested', 'Follow-up', 'Counseling', 'Course Discussion', 'Payment Pending'
+    'Not Contacted', 'Contacted', 'Interested', 'Follow Up', 'Demo Scheduled', 'Demo Completed', 'Payment Pending'
 ]; 
-const ALL_STAGES = [...PIPELINE_STAGES, 'Converted', 'Lost'];
+const ALL_STAGES = [...PIPELINE_STAGES, 'Converted', 'Not Interested', 'Lost'];
 
 export const SalesKanban = ({ leads }: { leads: any[] }) => {
     const navigate = useNavigate();
@@ -24,10 +24,10 @@ export const SalesKanban = ({ leads }: { leads: any[] }) => {
             newCols[stage] = leads?.filter(l => l.salesStatus === stage) || [];
         });
         
-        // Group remaining leads into 'New Lead' if they have an old status
+        // Group remaining leads into 'Not Contacted' if they have an old status
         leads?.forEach(l => {
             if (!ALL_STAGES.includes(l.salesStatus)) {
-                newCols['New Lead'] = [...(newCols['New Lead'] || []), l];
+                newCols['Not Contacted'] = [...(newCols['Not Contacted'] || []), l];
             }
         });
         setColumns(newCols);

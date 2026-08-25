@@ -3,6 +3,7 @@ const Lead = require('../models/Lead');
 const FollowUp = require('../models/FollowUp');
 const LeadActivity = require('../models/LeadActivity');
 const User = require('../models/User');
+const { normalizeSalesStatus } = require('../utils/statusNormalizer');
 
 exports.createUpdate = async (req, res) => {
     try {
@@ -21,6 +22,9 @@ exports.createUpdate = async (req, res) => {
 
         let finalLeadId = leadId;
         let lead = null;
+        
+        // Pre-normalize the incoming sales status so we don't trip validation
+        const safeSalesStatus = normalizeSalesStatus(salesStatus);
 
         // Determine if we need to fetch an existing lead or create a new one
         if (entryType === 'existing' && leadId) {
@@ -80,7 +84,7 @@ exports.createUpdate = async (req, res) => {
             crYear,
             crSection,
 
-            salesStatus,
+            salesStatus: safeSalesStatus,
             expectedConversionDate,
 
             followUpRequired,
@@ -98,17 +102,18 @@ exports.createUpdate = async (req, res) => {
             let newLeadStatus = lead.leadStatus;
             if (callOutcome === 'Connected' && lead.leadStatus === 'New') newLeadStatus = 'Contacted';
             if (studentResponse === 'Interested') newLeadStatus = 'Follow-up';
-            if (salesStatus === 'Converted') newLeadStatus = 'Converted';
+            if (safeSalesStatus === 'Converted') newLeadStatus = 'Converted';
             if (crStatus === 'Student Is CR' || crStatus === 'CR Confirmed') newLeadStatus = 'CR Identified';
             
             // Manual override if provided explicitly in the body
             if (leadStatus) newLeadStatus = leadStatus;
 
             lead.leadStatus = newLeadStatus;
+            lead.salesStatus = safeSalesStatus;
 
             if (crStatus) lead.crStatus = crStatus;
             if (courseInterested) lead.course = courseInterested;
-            if (salesStatus === 'Converted') {
+            if (safeSalesStatus === 'Converted') {
                 // Logic to not double-count sales could go here if needed
                 lead.leadStatus = 'Completed'; 
             }
@@ -155,7 +160,7 @@ exports.createUpdate = async (req, res) => {
                     dailyUpdateId: dailyUpdate._id,
                     callOutcome,
                     studentResponse,
-                    salesStatus,
+                    salesStatus: safeSalesStatus,
                     crStatus,
                     followUpRequired,
                     followUpDate
@@ -171,6 +176,13 @@ exports.createUpdate = async (req, res) => {
         res.status(201).json({ success: true, data: dailyUpdate });
     } catch (error) {
         console.error('Error in createUpdate:', error);
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Validation failed. Please check the required fields.',
+                errors: Object.keys(error.errors).map(key => error.errors[key].message)
+            });
+        }
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };

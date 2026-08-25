@@ -48,23 +48,25 @@ exports.verifyCR = async (leadId, employeeId, isCR, crDetails) => {
     let crProfile;
     let relationshipSource = 'STUDENT_PROVIDED';
 
+    crDetails = crDetails || {};
+
     if (isCR) {
         relationshipSource = 'STUDENT_IS_CR';
         crDetails = {
             crName: lead.studentName,
             phone: lead.phone,
-            college: lead.college || crDetails?.college,
-            department: lead.department || crDetails?.department,
-            year: lead.year || crDetails?.year,
-            section: lead.section || crDetails?.section || ''
+            college: lead.college || crDetails.college,
+            department: lead.department || crDetails.department,
+            year: lead.year || crDetails.year,
+            section: lead.section || crDetails.section || ''
         };
     }
 
     // Validate required fields if we are creating or updating a CR profile
     const missingFields = [];
-    if (!crDetails.college) missingFields.push('college');
-    if (!crDetails.department) missingFields.push('department');
-    if (!crDetails.year) missingFields.push('year');
+    if (!crDetails.college || !String(crDetails.college).trim()) missingFields.push('college');
+    if (!crDetails.department || !String(crDetails.department).trim()) missingFields.push('department');
+    if (!crDetails.year || !String(crDetails.year).trim()) missingFields.push('year');
 
     if (missingFields.length > 0) {
         const err = new Error(`Missing required fields: ${missingFields.join(', ')}`);

@@ -1,8 +1,8 @@
 const Lead = require('../models/Lead');
 const LeadActivity = require('../models/LeadActivity');
-const StudentCRRelationship = require('../models/StudentCRRelationship');
 const AuditLog = require('../models/AuditLog');
 const leadService = require('../services/lead.service');
+const { normalizeSalesStatus } = require('../utils/statusNormalizer');
 
 // @route   GET /api/leads
 exports.getLeads = async (req, res) => {
@@ -243,7 +243,6 @@ const importPreviewCache = new Map();
 // @route POST /api/leads/import/parse
 exports.importParse = async (req, res) => {
     try {
-        if (req.user.role !== 'ADMIN') return res.status(403).json({ success: false, message: 'Admin only' });
         if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
 
         const results = [];
@@ -301,8 +300,6 @@ exports.importParse = async (req, res) => {
 // @route POST /api/leads/import/preview
 exports.importPreview = async (req, res) => {
     try {
-        if (req.user.role !== 'ADMIN') return res.status(403).json({ success: false, message: 'Admin only' });
-        
         const { rawId, mapping } = req.body;
         
         if (!rawId || !importRawCache.has(rawId)) {
@@ -357,7 +354,7 @@ exports.importPreview = async (req, res) => {
             detectAlt(['college', 'university', 'institution'], 'college');
             detectAlt(['department', 'branch', 'degreebranch', 'degree branch'], 'department');
             detectAlt(['year', 'batch'], 'year');
-            detectAlt(['domain', 'interested domain', 'course'], 'interestedDomain');
+            detectAlt(['salesstatus', 'sales status', 'sales_status', 'status'], 'salesStatus');
             
             rawData.priority = rawData.priority || 'MEDIUM';
 
@@ -385,13 +382,22 @@ exports.importPreview = async (req, res) => {
                  continue;
             }
 
+            // Normalize salesStatus specifically
+            if (rawData.salesStatus) {
+                data.salesStatus = normalizeSalesStatus(rawData.salesStatus);
+            }
+
             const existing = await Lead.findOne({ phone: data.phone });
             if (existing) {
                 duplicates++;
+                data._id = existing._id;
+                data.isUpdate = true;
+                data.existingLead = existing; // Store for merge logic
+                validRows.push(data);
                 continue;
             }
 
-            if (validRows.some(l => l.phone === data.phone)) {
+            if (validRows.some(l => l.phone === data.phone && !l.isUpdate)) {
                 duplicates++;
                 continue;
             }
@@ -399,13 +405,24 @@ exports.importPreview = async (req, res) => {
             data.leadStatus = 'New';
             data.crStatus = 'Not Verified'; // Note: using 'Not Verified' matching schema enum exactly
 
-            // Auto Assignment (Round Robin)
-            if (!data.assignedEmployeeId && activeEmployees.length > 0) {
-                const emp = activeEmployees[rrIndex % activeEmployees.length];
-                data.assignedEmployeeId = emp._id.toString();
-                employeeStats[emp._id.toString()].count++;
-                rrIndex++;
-            } else if (data.assignedEmployeeId && employeeStats[data.assignedEmployeeId]) {
+            // Auto Assignment for new leads only
+            if (!data.isUpdate && !data.assignedEmployeeId) {
+                if (req.user.role !== 'ADMIN') {
+                    // Employee imports their own leads
+                    data.assignedEmployeeId = req.user.id;
+                    if (employeeStats[req.user.id]) {
+                        employeeStats[req.user.id].count++;
+                    } else {
+                        employeeStats[req.user.id] = { name: req.user.name || 'Current User', count: 1 };
+                    }
+                } else if (activeEmployees.length > 0) {
+                    // Admin imports: Round Robin
+                    const emp = activeEmployees[rrIndex % activeEmployees.length];
+                    data.assignedEmployeeId = emp._id.toString();
+                    employeeStats[emp._id.toString()].count++;
+                    rrIndex++;
+                }
+            } else if (!data.isUpdate && data.assignedEmployeeId && employeeStats[data.assignedEmployeeId]) {
                 employeeStats[data.assignedEmployeeId].count++;
             }
 
@@ -440,9 +457,7 @@ exports.importPreview = async (req, res) => {
 // @route POST /api/leads/import/confirm
 exports.importConfirm = async (req, res) => {
     try {
-        if (req.user.role !== 'ADMIN') return res.status(403).json({ success: false, message: 'Admin only' });
-        
-        const { previewId } = req.body;
+        const { previewId, duplicateAction = 'merge' } = req.body; // 'merge', 'skip', 'overwrite'
         if (!previewId || !importPreviewCache.has(previewId)) {
             return res.status(400).json({ success: false, message: 'Invalid or expired preview session' });
         }
@@ -452,31 +467,71 @@ exports.importConfirm = async (req, res) => {
         
         const importBatchId = `IMP-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
         
-        validRows.forEach(row => {
-            row.metadata = { ...row.metadata, importBatchId };
-        });
+        const newLeads = [];
+        const updatedLeads = [];
+        const logs = [];
 
-        if (validRows.length > 0) {
-            const createdLeads = await Lead.insertMany(validRows);
-            
-            const logs = createdLeads.map(l => ({
-                actorId: req.user.id,
-                action: 'LEAD_CREATED',
-                entityType: 'Lead',
-                entityId: l._id,
-                metadata: { source: 'bulk_import', importBatchId }
-            }));
-            await AuditLog.insertMany(logs);
-            
-            const io = require('../server').io;
-            if (io) {
-                 io.emit('leads:imported', { count: validRows.length, importBatchId });
+        for (const row of validRows) {
+            row.metadata = { ...row.metadata, importBatchId };
+
+            if (row.isUpdate) {
+                if (duplicateAction === 'skip') continue;
+
+                let updateObj = {};
+                if (duplicateAction === 'merge') {
+                    // Update missing info only
+                    for (const [key, val] of Object.entries(row)) {
+                        if (['isUpdate', 'existingLead', '_id', 'metadata'].includes(key)) continue;
+                        if (val && !row.existingLead[key]) {
+                            updateObj[key] = val;
+                        }
+                    }
+                } else if (duplicateAction === 'overwrite') {
+                    for (const [key, val] of Object.entries(row)) {
+                        if (['isUpdate', 'existingLead', '_id', 'metadata'].includes(key)) continue;
+                        updateObj[key] = val;
+                    }
+                }
+
+                if (Object.keys(updateObj).length > 0) {
+                    await Lead.findByIdAndUpdate(row._id, { $set: updateObj });
+                    updatedLeads.push(row._id);
+                    logs.push({
+                        actorId: req.user.id,
+                        action: 'LEAD_UPDATED',
+                        entityType: 'Lead',
+                        entityId: row._id,
+                        metadata: { source: 'bulk_import_merge', importBatchId }
+                    });
+                }
+            } else {
+                newLeads.push(row);
             }
+        }
+
+        if (newLeads.length > 0) {
+            const createdLeads = await Lead.insertMany(newLeads);
+            createdLeads.forEach(l => {
+                logs.push({
+                    actorId: req.user.id,
+                    action: 'LEAD_CREATED',
+                    entityType: 'Lead',
+                    entityId: l._id,
+                    metadata: { source: 'bulk_import', importBatchId }
+                });
+            });
+        }
+
+        if (logs.length > 0) await AuditLog.insertMany(logs);
+        
+        const io = require('../server').io;
+        if (io && (newLeads.length > 0 || updatedLeads.length > 0)) {
+             io.emit('leads:imported', { count: newLeads.length, updatedCount: updatedLeads.length, importBatchId });
         }
 
         // Calculate final distribution for response
         const employeeStats = {};
-        for(const row of validRows) {
+        for(const row of newLeads) {
            if(row.assignedEmployeeId) {
                employeeStats[row.assignedEmployeeId] = (employeeStats[row.assignedEmployeeId] || 0) + 1;
            }
@@ -485,7 +540,8 @@ exports.importConfirm = async (req, res) => {
         res.json({
             success: true,
             data: {
-                successfullyImported: validRows.length,
+                successfullyImported: newLeads.length,
+                successfullyUpdated: updatedLeads.length,
                 importBatchId,
                 distribution: employeeStats
             }

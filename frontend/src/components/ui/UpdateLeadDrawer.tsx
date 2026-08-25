@@ -315,12 +315,14 @@ const UpdateLeadDrawer: React.FC<UpdateLeadDrawerProps> = ({ lead, isOpen, onClo
                     <div>
                         <label className="block text-sm font-medium text-green-900 mb-1">Sales Status</label>
                         <select name="salesStatus" value={formData.salesStatus} onChange={handleChange} className="input w-full border-green-200">
-                        <option value="Not Contacted">Not Contacted</option>
-                        <option value="Interested">Interested</option>
-                        <option value="Follow-up">Follow-up</option>
-                        <option value="Converted">Converted</option>
-                        <option value="Not Interested">Not Interested</option>
-                        <option value="Lost">Lost</option>
+                        <option value="NOT_CONTACTED">Not Contacted</option>
+                        <option value="CONTACTED">Contacted</option>
+                        <option value="INTERESTED">Interested</option>
+                        <option value="FOLLOW_UP">Follow Up</option>
+                        <option value="NOT_INTERESTED">Not Interested</option>
+                        <option value="CONVERTED">Converted</option>
+                        <option value="CALL_BACK">Call Back</option>
+                        <option value="NO_RESPONSE">No Response</option>
                         </select>
                     </div>
                     <div>

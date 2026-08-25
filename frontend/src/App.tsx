@@ -26,6 +26,7 @@ import MyPerformance from './pages/MyPerformance';
 import TeamPerformance from './pages/TeamPerformance';
 import Analytics from './pages/Analytics';
 import ImportLeads from './pages/ImportLeads';
+import SalesImport from './pages/SalesImport';
 import Notifications from './pages/Notifications';
 import AuditLogs from './pages/AuditLogs';
 import Settings from './pages/Settings';
@@ -92,6 +93,7 @@ function App() {
             <Route path="leads/:id" element={<LeadDetail />} />
             <Route path="sales" element={<SalesDashboard />} />
             <Route path="sales/:id" element={<SalesDetail />} />
+            <Route path="sales-import" element={<SalesImport />} />
             <Route path="daily-updates" element={<DailyUpdates />} />
             <Route path="crs" element={<CRManagement />} />
             <Route path="crs/:id" element={<CRDetail />} />

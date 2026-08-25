@@ -25,7 +25,14 @@ const SalesDashboard = () => {
     return (
         <div className="p-6 max-w-7xl mx-auto pb-24">
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-[var(--color-text-primary)]">Sales Management</h1>
+                <div className="flex items-center gap-4">
+                    <h1 className="text-3xl font-bold text-[var(--color-text-primary)]">Sales Management</h1>
+                    {user?.role === 'ADMIN' && (
+                        <Button variant="outline" size="sm" onClick={() => navigate('/sales-import')}>
+                            Import Sales Contacts
+                        </Button>
+                    )}
+                </div>
                 <div className="flex space-x-2 bg-white rounded-lg p-1 border border-gray-200">
                     {['DASHBOARD', 'PIPELINE', 'CALL_QUEUE'].map(tab => (
                         <button
@@ -41,22 +48,30 @@ const SalesDashboard = () => {
 
             {activeTab === 'DASHBOARD' && (
                 <>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                    <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
                         <Card className="p-4 border-l-4 border-l-indigo-500">
-                            <p className="text-sm text-gray-500 font-medium">Total Sales Leads</p>
-                            <p className="text-2xl font-bold mt-1">{kpis?.totalSalesLeads || 0}</p>
+                            <p className="text-xs text-gray-500 font-medium">Total Contacts</p>
+                            <p className="text-xl font-bold mt-1">{kpis?.totalSalesLeads || 0}</p>
                         </Card>
-                        <Card className="p-4 border-l-4 border-l-green-500">
-                            <p className="text-sm text-gray-500 font-medium">New Responses Today</p>
-                            <p className="text-2xl font-bold mt-1">{kpis?.newResponsesToday || 0}</p>
+                        <Card className="p-4 border-l-4 border-l-gray-400">
+                            <p className="text-xs text-gray-500 font-medium">Not Contacted</p>
+                            <p className="text-xl font-bold mt-1">{kpis?.notContacted || 0}</p>
+                        </Card>
+                        <Card className="p-4 border-l-4 border-l-blue-500">
+                            <p className="text-xs text-gray-500 font-medium">Contacted</p>
+                            <p className="text-xl font-bold mt-1">{kpis?.contactedStudents || 0}</p>
                         </Card>
                         <Card className="p-4 border-l-4 border-l-orange-500">
-                            <p className="text-sm text-gray-500 font-medium">Calls Pending</p>
-                            <p className="text-2xl font-bold mt-1">{kpis?.callsPending || 0}</p>
+                            <p className="text-xs text-gray-500 font-medium">Interested</p>
+                            <p className="text-xl font-bold mt-1">{kpis?.interestedStudents || 0}</p>
                         </Card>
-                        <Card className="p-4 border-l-4 border-l-purple-500">
-                            <p className="text-sm text-gray-500 font-medium">Converted</p>
-                            <p className="text-2xl font-bold mt-1">{kpis?.convertedStudents || 0}</p>
+                        <Card className="p-4 border-l-4 border-l-red-500">
+                            <p className="text-xs text-gray-500 font-medium">Follow-up Due</p>
+                            <p className="text-xl font-bold mt-1 text-red-600">{kpis?.followUpsDue || 0}</p>
+                        </Card>
+                        <Card className="p-4 border-l-4 border-l-green-500">
+                            <p className="text-xs text-gray-500 font-medium">Converted</p>
+                            <p className="text-xl font-bold mt-1 text-green-600">{kpis?.convertedStudents || 0}</p>
                         </Card>
                     </div>
 
@@ -71,8 +86,10 @@ const SalesDashboard = () => {
                                         <tr>
                                             <th className="px-4 py-3">Employee</th>
                                             <th className="px-4 py-3">Total Leads</th>
-                                            <th className="px-4 py-3">Conversions</th>
-                                            <th className="px-4 py-3">Conv %</th>
+                                            <th className="px-4 py-3">Contacted</th>
+                                            <th className="px-4 py-3">Interested</th>
+                                            <th className="px-4 py-3">Follow-Up</th>
+                                            <th className="px-4 py-3">Converted</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -80,10 +97,10 @@ const SalesDashboard = () => {
                                             <tr key={p._id} className="border-b">
                                                 <td className="px-4 py-3 font-semibold">{p.name}</td>
                                                 <td className="px-4 py-3">{p.totalLeads}</td>
-                                                <td className="px-4 py-3">{p.conversions}</td>
-                                                <td className="px-4 py-3">
-                                                    {p.totalLeads > 0 ? ((p.conversions / p.totalLeads) * 100).toFixed(1) : 0}%
-                                                </td>
+                                                <td className="px-4 py-3">{p.contacted}</td>
+                                                <td className="px-4 py-3">{p.interested}</td>
+                                                <td className="px-4 py-3 text-red-500 font-medium">{p.followUp}</td>
+                                                <td className="px-4 py-3 text-green-600 font-bold">{p.conversions}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -109,8 +126,14 @@ const SalesDashboard = () => {
                                 <div className="flex items-center space-x-4">
                                     <div className="text-gray-400 font-bold text-lg w-6">#{idx + 1}</div>
                                     <div>
-                                        <p className="font-bold text-[var(--color-text-primary)]">{lead.studentName}</p>
+                                        <div className="flex items-center gap-2">
+                                            <p className="font-bold text-[var(--color-text-primary)]">{lead.studentName}</p>
+                                            {lead.nextFollowUp && new Date(lead.nextFollowUp) < new Date() && (
+                                                <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">OVERDUE</span>
+                                            )}
+                                        </div>
                                         <p className="text-sm text-gray-500">{lead.phone} • {lead.interestedDomain || lead.department || 'N/A'}</p>
+                                        <p className="text-xs text-gray-400 mt-0.5">Status: {lead.salesStatus}</p>
                                     </div>
                                     <Badge variant={lead.priority === 'HIGH' ? 'error' : lead.priority === 'MEDIUM' ? 'warning' : 'neutral'}>
                                         {lead.priority}
