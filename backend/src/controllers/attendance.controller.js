@@ -51,8 +51,8 @@ exports.clockIn = async (req, res) => {
     }
 
     // Check if they are already clocked in
-    const session = await WorkSession.findOne({ employeeId: req.user.id, date: dateStr, isTestSession: isTestMode });
-    if (session) {
+    const existingSession = await WorkSession.findOne({ employeeId: req.user.id, date: dateStr, isTestSession: isTestMode });
+    if (existingSession) {
       return res.status(400).json({ success: false, message: 'Already clocked in today' });
     }
 
@@ -70,7 +70,7 @@ exports.clockIn = async (req, res) => {
     }
 
     // Create the WorkSession directly
-    const session = await WorkSession.create({
+    const session = new WorkSession({
         employeeId: req.user.id,
         date: dateStr,
         clockInAt: new Date(),
@@ -88,13 +88,21 @@ exports.clockIn = async (req, res) => {
         }
     });
     
-    // Also initialize the AttendanceDaily record
-    const daily = await AttendanceDaily.create({
-        employeeId: req.user.id,
-        date: dateStr,
-        status: 'WORKING',
-        isTestSession: isTestMode
-    });
+    await session.save();
+
+    let daily;
+    try {
+        // Also initialize the AttendanceDaily record
+        daily = await AttendanceDaily.create({
+            employeeId: req.user.id,
+            date: dateStr,
+            status: 'WORKING',
+            isTestSession: isTestMode
+        });
+    } catch (error) {
+        await WorkSession.deleteOne({ _id: session._id });
+        throw error;
+    }
 
     // Notify Admin Realtime
     const io = require('../server').io;
