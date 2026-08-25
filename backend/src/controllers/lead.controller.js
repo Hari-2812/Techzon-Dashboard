@@ -386,6 +386,8 @@ exports.importPreview = async (req, res) => {
             // Normalize salesStatus specifically
             if (rawData.salesStatus) {
                 data.salesStatus = normalizeSalesStatus(rawData.salesStatus);
+            } else {
+                data.salesStatus = 'Not Contacted';
             }
 
             const existing = await Lead.findOne({ phone: data.phone });

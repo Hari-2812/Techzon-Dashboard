@@ -87,7 +87,7 @@ const SalesDetail = () => {
                                     value={lead.salesStatus}
                                     onChange={handleStatusChange}
                                 >
-                                    {['GROUP MEMBER', 'RESPONDED', 'INTERESTED', 'SALES QUEUE', 'CALL PENDING', 'CALLED', 'FOLLOW-UP', 'CONVERTED', 'NOT INTERESTED', 'NO RESPONSE', 'NOT REACHABLE', 'LOST'].map(s => (
+                                    {['Not Contacted', 'Contacted', 'Interested', 'Follow-up', 'Not Interested', 'Converted', 'Closed'].map(s => (
                                         <option key={s} value={s}>{s}</option>
                                     ))}
                                 </select>

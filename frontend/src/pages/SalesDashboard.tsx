@@ -8,11 +8,12 @@ import { Wallet, Phone, MessageCircle, BarChart3, Users, CheckCircle } from 'luc
 import { useAuthStore } from '../store/authStore';
 import { openWhatsApp } from '../utils/whatsapp';
 import { SalesKanban } from '../components/sales/SalesKanban';
+import SalesImport from './SalesImport';
 
 const SalesDashboard = () => {
     const { user } = useAuthStore();
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState('DASHBOARD');
+    const [activeTab, setActiveTab] = useState(user?.role === 'ADMIN' ? 'DASHBOARD' : 'MY_CONTACTS');
     
     const { data: dashboard, isLoading: dashLoading } = useSalesDashboard();
     const { data: queue, isLoading: queueLoading } = useCallQueue();
@@ -26,15 +27,12 @@ const SalesDashboard = () => {
         <div className="p-6 max-w-7xl mx-auto pb-24">
             <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-4">
-                    <h1 className="text-3xl font-bold text-[var(--color-text-primary)]">Sales Management</h1>
-                    {user?.role === 'ADMIN' && (
-                        <Button variant="outline" size="sm" onClick={() => navigate('/sales-import')}>
-                            Import Sales Contacts
-                        </Button>
-                    )}
+                    <h1 className="text-3xl font-bold text-[var(--color-text-primary)]">
+                        {user?.role === 'ADMIN' ? 'Sales Management' : 'Sales Contacts'}
+                    </h1>
                 </div>
                 <div className="flex space-x-2 bg-white rounded-lg p-1 border border-gray-200">
-                    {['DASHBOARD', 'PIPELINE', 'CALL_QUEUE'].map(tab => (
+                    {(user?.role === 'ADMIN' ? ['DASHBOARD', 'PIPELINE', 'CALL_QUEUE'] : ['MY_CONTACTS', 'PASTE_CONTACTS']).map(tab => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
@@ -46,7 +44,7 @@ const SalesDashboard = () => {
                 </div>
             </div>
 
-            {activeTab === 'DASHBOARD' && (
+            {user?.role === 'ADMIN' && activeTab === 'DASHBOARD' && (
                 <>
                     <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
                         <Card className="p-4 border-l-4 border-l-indigo-500">
@@ -75,7 +73,7 @@ const SalesDashboard = () => {
                         </Card>
                     </div>
 
-                    {user?.role === 'ADMIN' && performance && performance.length > 0 && (
+                    {performance && performance.length > 0 && (
                         <Card className="mb-8">
                             <div className="p-4 border-b border-gray-200">
                                 <h2 className="text-lg font-bold">Employee Performance</h2>
@@ -111,11 +109,11 @@ const SalesDashboard = () => {
                 </>
             )}
 
-            {activeTab === 'PIPELINE' && (
+            {user?.role === 'ADMIN' && activeTab === 'PIPELINE' && (
                 <SalesKanban leads={sales?.leads || []} />
             )}
 
-            {activeTab === 'CALL_QUEUE' && (
+            {user?.role === 'ADMIN' && activeTab === 'CALL_QUEUE' && (
                 <Card>
                     <div className="p-4 border-b border-gray-200 bg-orange-50">
                         <h2 className="text-lg font-bold text-orange-800 flex items-center"><Phone className="mr-2" /> Today's Call Queue</h2>
@@ -155,6 +153,51 @@ const SalesDashboard = () => {
                         )}
                     </div>
                 </Card>
+            )}
+
+            {user?.role !== 'ADMIN' && activeTab === 'MY_CONTACTS' && (
+                <Card>
+                    <div className="p-4 border-b border-gray-200">
+                        <h2 className="text-lg font-bold">My Submitted Contacts</h2>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-gray-50 text-gray-500 uppercase">
+                                <tr>
+                                    <th className="px-4 py-3">Student</th>
+                                    <th className="px-4 py-3">Phone</th>
+                                    <th className="px-4 py-3">Domain</th>
+                                    <th className="px-4 py-3">Submitted Date</th>
+                                    <th className="px-4 py-3">Sales Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {sales?.leads?.map((lead: any) => (
+                                    <tr key={lead._id} className="border-b hover:bg-gray-50">
+                                        <td className="px-4 py-3 font-semibold">{lead.studentName}</td>
+                                        <td className="px-4 py-3">{lead.phone}</td>
+                                        <td className="px-4 py-3">{lead.interestedDomain || lead.department || 'N/A'}</td>
+                                        <td className="px-4 py-3">{new Date(lead.createdAt).toLocaleDateString()}</td>
+                                        <td className="px-4 py-3">
+                                            <Badge variant={lead.salesStatus === 'Converted' ? 'success' : lead.salesStatus === 'Not Contacted' ? 'neutral' : 'info'}>
+                                                {lead.salesStatus}
+                                            </Badge>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {(!sales?.leads || sales.leads.length === 0) && (
+                                    <tr>
+                                        <td colSpan={5} className="px-4 py-8 text-center text-gray-500">No contacts submitted yet.</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </Card>
+            )}
+
+            {user?.role !== 'ADMIN' && activeTab === 'PASTE_CONTACTS' && (
+                <SalesImport />
             )}
         </div>
     );
