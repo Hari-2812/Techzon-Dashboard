@@ -94,24 +94,6 @@ export const AttendanceControls: React.FC<AttendanceControlsProps> = ({ layout =
 
   // Render logic based on layout
   const renderButtons = () => {
-    const { isPendingClockIn, isPendingClockOut } = attendance;
-
-    if (isPendingClockIn) {
-      return (
-        <div className="w-full bg-blue-50 text-blue-700 p-4 rounded-lg text-center font-medium border border-blue-200">
-          Waiting for admin approval (Clock In)
-        </div>
-      );
-    }
-
-    if (isPendingClockOut) {
-      return (
-        <div className="w-full bg-blue-50 text-blue-700 p-4 rounded-lg text-center font-medium border border-blue-200">
-          Waiting for admin approval (Clock Out)
-        </div>
-      );
-    }
-
     if (!isClockedIn && !isCompleted) {
       return (
         <Button 

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import api from '../services/api';
 import socket from '../services/socket';
 import { useAuthStore } from '../store/authStore';
@@ -121,8 +121,11 @@ export const useAttendance = () => {
   const session = data?.session;
   
   // Calculate server time offset to fix timezone/clock drift issues
-  const serverTimeMs = data?.serverTime ? new Date(data.serverTime).getTime() : new Date().getTime();
-  const timeOffset = serverTimeMs - new Date().getTime();
+  // We only want to calculate this once when the data arrives, not on every render.
+  const timeOffset = useMemo(() => {
+      if (!data?.serverTime) return 0;
+      return new Date(data.serverTime).getTime() - new Date().getTime();
+  }, [data?.serverTime]);
   
   const pendingClockInReq = pendingRequestsData?.find((r: any) => r.requestType === 'CLOCK_IN');
   const pendingClockOutReq = pendingRequestsData?.find((r: any) => r.requestType === 'CLOCK_OUT');

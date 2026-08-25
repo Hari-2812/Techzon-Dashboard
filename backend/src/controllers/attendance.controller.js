@@ -69,21 +69,30 @@ exports.clockIn = async (req, res) => {
         insideOfficeRadius = false;
     }
 
-    // Create the Request
-    const request = await AttendanceRequest.create({
+    // Create the WorkSession directly
+    const session = await WorkSession.create({
         employeeId: req.user.id,
         date: dateStr,
-        requestType: 'CLOCK_IN',
-        status: 'PENDING',
-        requestedTime: new Date(),
-        location: {
+        clockInAt: new Date(),
+        status: 'ACTIVE',
+        isTestSession: isTestMode,
+        clockInVerification: {
+            method: 'GPS',
             latitude,
             longitude,
             accuracy,
             distanceFromOffice: distance,
             insideOfficeRadius,
-            capturedAt: new Date()
-        },
+            verifiedAt: new Date(),
+            status: insideOfficeRadius ? 'VERIFIED' : 'OUTSIDE_RADIUS'
+        }
+    });
+    
+    // Also initialize the AttendanceDaily record
+    const daily = await AttendanceDaily.create({
+        employeeId: req.user.id,
+        date: dateStr,
+        status: 'WORKING',
         isTestSession: isTestMode
     });
 
@@ -92,15 +101,15 @@ exports.clockIn = async (req, res) => {
     const User = require('../models/User');
     const emp = await User.findById(req.user.id);
     if (io) {
-      io.emit('attendance:clock-in-request', { 
-        requestId: request._id,
+      io.emit('employee:clocked-in', { 
+        employeeId: req.user.id,
         employeeName: emp ? emp.name : 'Unknown',
-        time: request.requestedTime,
-        location: request.location 
+        time: session.clockInAt,
+        session
       });
     }
 
-    res.json({ success: true, data: request, message: 'Clock-in request sent for approval' });
+    res.json({ success: true, data: session, message: 'Clocked in successfully' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server Error' });
@@ -149,38 +158,44 @@ exports.clockOut = async (req, res) => {
         }
     }
 
-    // Create the Request
-    const request = await AttendanceRequest.create({
-        employeeId: req.user.id,
-        date: dateStr,
-        requestType: 'CLOCK_OUT',
-        status: 'PENDING',
-        requestedTime: new Date(),
-        location: {
-            latitude,
-            longitude,
-            accuracy,
-            distanceFromOffice: distance,
-            insideOfficeRadius,
-            capturedAt: new Date()
-        },
-        isTestSession: isTestMode
-    });
+    // Direct Clock Out
+    session.clockOutAt = new Date();
+    session.status = 'COMPLETED';
+    session.clockOutVerification = {
+        method: 'GPS',
+        latitude,
+        longitude,
+        accuracy,
+        distanceFromOffice: distance,
+        insideOfficeRadius,
+        verifiedAt: new Date(),
+        status: insideOfficeRadius ? 'VERIFIED' : 'OUTSIDE_RADIUS'
+    };
+    await session.save();
+
+    // Recalculate daily stats and update AttendanceDaily
+    const stats = await calculateSessionStats(session, settings);
+    const daily = await AttendanceDaily.findOneAndUpdate(
+      { employeeId: req.user.id, date: dateStr, isTestSession: isTestMode },
+      { ...stats, status: 'COMPLETED' },
+      { new: true }
+    );
 
     // Notify Admin Realtime
     const io = require('../server').io;
     const User = require('../models/User');
     const emp = await User.findById(req.user.id);
     if (io) {
-      io.emit('attendance:clock-out-request', { 
-        requestId: request._id,
+      io.emit('employee:clocked-out', { 
+        employeeId: req.user.id,
         employeeName: emp ? emp.name : 'Unknown',
-        time: request.requestedTime,
-        location: request.location 
+        time: session.clockOutAt,
+        session,
+        daily
       });
     }
 
-    res.json({ success: true, data: request, message: 'Clock-out request sent for approval' });
+    res.json({ success: true, data: session, message: 'Clocked out successfully' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server Error' });
