@@ -120,6 +120,10 @@ export const useAttendance = () => {
   // 4. Derived State
   const session = data?.session;
   
+  // Calculate server time offset to fix timezone/clock drift issues
+  const serverTimeMs = data?.serverTime ? new Date(data.serverTime).getTime() : new Date().getTime();
+  const timeOffset = serverTimeMs - new Date().getTime();
+  
   const pendingClockInReq = pendingRequestsData?.find((r: any) => r.requestType === 'CLOCK_IN');
   const pendingClockOutReq = pendingRequestsData?.find((r: any) => r.requestType === 'CLOCK_OUT');
 
@@ -136,8 +140,12 @@ export const useAttendance = () => {
   // Calculate live working timer logic wrapper
   const getLiveTimer = (currentTimeMs: number) => {
     if (!session || !session.clockInAt) return '00h 00m';
+    
+    // Adjust current local time to server time to prevent '00h 00m' if local clock is behind
+    const serverAdjustedTimeMs = currentTimeMs + timeOffset;
+    
     const start = new Date(session.clockInAt).getTime();
-    const end = session.clockOutAt ? new Date(session.clockOutAt).getTime() : currentTimeMs;
+    const end = session.clockOutAt ? new Date(session.clockOutAt).getTime() : serverAdjustedTimeMs;
     
     let totalBreakMs = 0;
     if (session.breaks) {

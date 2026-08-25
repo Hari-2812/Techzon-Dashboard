@@ -28,7 +28,7 @@ exports.getTodayAttendance = async (req, res) => {
     let session = await WorkSession.findOne({ employeeId: req.user.id, date: dateStr }).sort({ createdAt: -1 });
     let daily = await AttendanceDaily.findOne({ employeeId: req.user.id, date: dateStr }).sort({ createdAt: -1 });
     
-    res.json({ success: true, data: { session, daily, settings } });
+    res.json({ success: true, data: { session, daily, settings, serverTime: new Date() } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server Error' });
