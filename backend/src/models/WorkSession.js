@@ -13,26 +13,8 @@ const WorkSessionSchema = new mongoose.Schema({
         index: true
     },
     isTestSession: { type: Boolean, default: false },
-    clockInVerification: {
-        method: String,
-        latitude: Number,
-        longitude: Number,
-        accuracy: Number,
-        distanceFromOffice: Number,
-        verifiedAt: Date,
-        ipAddress: String,
-        status: String
-    },
-    clockOutVerification: {
-        method: String,
-        latitude: Number,
-        longitude: Number,
-        accuracy: Number,
-        distanceFromOffice: Number,
-        verifiedAt: Date,
-        ipAddress: String,
-        status: String
-    },
+    clockInVerification: { type: mongoose.Schema.Types.Mixed },
+    clockOutVerification: { type: mongoose.Schema.Types.Mixed },
     breaks: [{
             startAt: { type: Date, required: true },
             endAt: { type: Date },

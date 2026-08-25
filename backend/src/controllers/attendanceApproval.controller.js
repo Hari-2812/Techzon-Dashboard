@@ -74,23 +74,13 @@ exports.approveRequest = async (req, res) => {
                 date: request.date,
                 clockInAt: approvedTime,
                 status: 'ACTIVE',
-                isTestSession: request.isTestSession,
-                clockInVerification: {
-                    method: 'GPS',
-                    latitude: request.location?.latitude,
-                    longitude: request.location?.longitude,
-                    accuracy: request.location?.accuracy,
-                    distanceFromOffice: request.location?.distanceFromOffice,
-                    verifiedAt: new Date(),
-                    ipAddress: clientIp,
-                    status: 'VERIFIED_BY_ADMIN'
-                }
+                isTestSession: request.isTestSession
             });
 
             await AttendanceDaily.create({
                 employeeId: request.employeeId,
                 date: request.date,
-                status: 'PRESENT',
+                status: 'WORKING',
                 isTestSession: request.isTestSession
             });
 
@@ -112,16 +102,6 @@ exports.approveRequest = async (req, res) => {
             const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
             session.clockOutAt = approvedTime;
             session.status = 'COMPLETED';
-            session.clockOutVerification = {
-                method: 'GPS',
-                latitude: request.location?.latitude,
-                longitude: request.location?.longitude,
-                accuracy: request.location?.accuracy,
-                distanceFromOffice: request.location?.distanceFromOffice,
-                verifiedAt: new Date(),
-                ipAddress: clientIp,
-                status: 'VERIFIED_BY_ADMIN'
-            };
             await session.save();
 
             const stats = await calculateSessionStats(session, settings);
@@ -217,16 +197,6 @@ exports.createManualAttendance = async (req, res) => {
             clockOutAt: clockOutAt ? new Date(clockOutAt) : null,
             status: clockOutAt ? 'COMPLETED' : 'ACTIVE',
             isTestSession: false,
-            clockInVerification: {
-                method: 'MANUAL_ENTRY',
-                verifiedAt: new Date(),
-                status: 'VERIFIED_BY_ADMIN'
-            },
-            clockOutVerification: clockOutAt ? {
-                method: 'MANUAL_ENTRY',
-                verifiedAt: new Date(),
-                status: 'VERIFIED_BY_ADMIN'
-            } : null,
             breaks: breaks || []
         });
 

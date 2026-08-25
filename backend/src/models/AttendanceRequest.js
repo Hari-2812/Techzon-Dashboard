@@ -18,14 +18,7 @@ const AttendanceRequestSchema = new mongoose.Schema({
     requestedTime: { type: Date, required: true },
     reviewedAt: { type: Date },
     reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    location: {
-        latitude: { type: Number },
-        longitude: { type: Number },
-        accuracy: { type: Number },
-        distanceFromOffice: { type: Number },
-        insideOfficeRadius: { type: Boolean },
-        capturedAt: { type: Date }
-    },
+    location: { type: mongoose.Schema.Types.Mixed },
     adminComment: { type: String },
     rejectionReason: { type: String },
     isTestSession: { type: Boolean, default: false }

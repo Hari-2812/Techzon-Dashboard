@@ -12,7 +12,7 @@ const AttendanceDailySchema = new mongoose.Schema({
     overtimeMinutes: { type: Number, default: 0 },
     status: {
         type: String,
-        enum: ['PRESENT', 'LATE', 'HALF_DAY', 'ABSENT', 'PAID_LEAVE', 'HOLIDAY', 'WEEK_OFF', 'EARLY_LEAVE', 'OVERTIME', 'REQUIRES_REVIEW'],
+        enum: ['WORKING', 'COMPLETED', 'PRESENT', 'LATE', 'HALF_DAY', 'ABSENT', 'PAID_LEAVE', 'HOLIDAY', 'WEEK_OFF', 'EARLY_LEAVE', 'OVERTIME', 'REQUIRES_REVIEW'],
         required: true,
         index: true
     },

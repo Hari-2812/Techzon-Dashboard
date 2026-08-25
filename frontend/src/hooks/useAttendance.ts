@@ -65,8 +65,8 @@ export const useAttendance = () => {
 
   // 3. Mutations
   const clockIn = useMutation({
-    mutationFn: async (payload: { latitude?: number; longitude?: number; accuracy?: number; isTest?: boolean }) => {
-      const res = await api.post('/attendance/clock-in', payload);
+    mutationFn: async () => {
+      const res = await api.post('/attendance/clock-in', {});
       return res.data;
     },
     onSuccess: () => {
@@ -76,8 +76,8 @@ export const useAttendance = () => {
   });
 
   const clockOut = useMutation({
-    mutationFn: async (payload?: { latitude?: number; longitude?: number; accuracy?: number }) => {
-      const res = await api.post('/attendance/clock-out', payload || {});
+    mutationFn: async () => {
+      const res = await api.post('/attendance/clock-out', {});
       return res.data;
     },
     onSuccess: () => {
