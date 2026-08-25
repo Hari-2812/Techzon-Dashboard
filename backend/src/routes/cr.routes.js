@@ -9,7 +9,10 @@ const {
   getSourceStudents, 
   createFollowUp, 
   createWhatsAppGroup,
-  updateWhatsAppGroup
+  updateWhatsAppGroup,
+  createCR,
+  updateCR,
+  deleteCR
 } = require('../controllers/cr.controller');
 const { auth } = require('../middlewares/auth');
 
@@ -24,5 +27,8 @@ router.get('/:id/source-students', getSourceStudents);
 router.post('/:id/follow-ups', createFollowUp);
 router.post('/:id/whatsapp-groups', createWhatsAppGroup);
 router.patch('/:id/whatsapp-groups', updateWhatsAppGroup);
+router.post('/', createCR);
+router.put('/:id', updateCR);
+router.delete('/:id', deleteCR);
 
 module.exports = router;

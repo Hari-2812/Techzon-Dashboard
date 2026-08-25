@@ -31,10 +31,11 @@ const LeadSchema = new mongoose.Schema({
     },
     salesStatus: {
         type: String,
-        enum: ['Not Contacted', 'GROUP MEMBER', 'RESPONDED', 'INTERESTED', 'SALES QUEUE', 'CALL PENDING', 'CALLED', 'FOLLOW-UP', 'CONVERTED', 'NOT INTERESTED', 'NO RESPONSE', 'NOT REACHABLE', 'LOST'],
-        default: 'Not Contacted',
+        enum: ['New Lead', 'Contacted', 'Interested', 'Follow-up', 'Counseling', 'Course Discussion', 'Payment Pending', 'Converted', 'Lost'],
+        default: 'New Lead',
         index: true
     },
+    lostReason: { type: String, required: false },
     priority: {
         type: String,
         enum: ['HIGH', 'MEDIUM', 'LOW'],

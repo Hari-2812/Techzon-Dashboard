@@ -10,6 +10,7 @@ import { KpiCard } from '../components/ui/KpiCard';
 import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell, TableContainer } from '../components/ui/Table';
+import { AddCRModal } from '../components/cr/AddCRModal';
 
 export default function CRManagement() {
   const { user } = useAuthStore();
@@ -19,6 +20,7 @@ export default function CRManagement() {
 
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const [debouncedSearch, setDebouncedSearch] = useState(search);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedSearch(search), 500);
@@ -71,6 +73,9 @@ export default function CRManagement() {
           <h1 className="text-3xl font-bold text-[var(--color-text-primary)]">CR Management</h1>
           <p className="text-[var(--color-text-muted)] mt-1">Manage Class Representatives and their connected WhatsApp groups.</p>
         </div>
+        {isAdmin && (
+          <Button onClick={() => setIsAddModalOpen(true)}>Add CR</Button>
+        )}
       </div>
 
       {/* KPI CARDS */}
@@ -215,6 +220,7 @@ export default function CRManagement() {
           )}
         </div>
       </TableContainer>
+      <AddCRModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
     </div>
   );
 }

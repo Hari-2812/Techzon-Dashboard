@@ -273,3 +273,67 @@ exports.updateWhatsAppGroup = async (req, res) => {
         res.status(500).json({ success: false, message: 'Server Error' });
     }
 };
+
+// @route   POST /api/crs
+exports.createCR = async (req, res) => {
+    try {
+        if (req.user.role !== 'ADMIN') return res.status(403).json({ success: false, message: 'Admin only' });
+        const newCR = await CRProfile.create(req.body);
+        
+        await CRActivity.create({
+            crId: newCR._id,
+            employeeId: req.user.id,
+            activityType: 'CR_CREATED',
+            description: 'CR Profile created'
+        });
+        
+        const io = require('../app').get('io');
+        if (io) io.emit('cr:updated', { bulk: true });
+        
+        res.status(201).json({ success: true, data: newCR });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Server Error', error: err.message });
+    }
+};
+
+// @route   PUT /api/crs/:id
+exports.updateCR = async (req, res) => {
+    try {
+        if (req.user.role !== 'ADMIN') return res.status(403).json({ success: false, message: 'Admin only' });
+        const cr = await CRProfile.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        if (!cr) return res.status(404).json({ success: false, message: 'CR not found' });
+        
+        await CRActivity.create({
+            crId: cr._id,
+            employeeId: req.user.id,
+            activityType: 'CR_UPDATED',
+            description: 'CR Profile details updated'
+        });
+        
+        const io = require('../app').get('io');
+        if (io) io.emit('cr:updated', { crId: cr._id });
+        
+        res.json({ success: true, data: cr });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+};
+
+// @route   DELETE /api/crs/:id
+exports.deleteCR = async (req, res) => {
+    try {
+        if (req.user.role !== 'ADMIN') return res.status(403).json({ success: false, message: 'Admin only' });
+        const cr = await CRProfile.findByIdAndDelete(req.params.id);
+        if (!cr) return res.status(404).json({ success: false, message: 'CR not found' });
+        
+        const io = require('../app').get('io');
+        if (io) io.emit('cr:updated', { bulk: true });
+        
+        res.json({ success: true, message: 'CR deleted successfully' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+};

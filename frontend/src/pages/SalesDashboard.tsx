@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { Wallet, Phone, MessageCircle, BarChart3, Users, CheckCircle } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { openWhatsApp } from '../utils/whatsapp';
+import { SalesKanban } from '../components/sales/SalesKanban';
 
 const SalesDashboard = () => {
     const { user } = useAuthStore();
@@ -94,45 +95,7 @@ const SalesDashboard = () => {
             )}
 
             {activeTab === 'PIPELINE' && (
-                <Card>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left">
-                            <thead className="bg-gray-50 text-gray-500 uppercase text-xs">
-                                <tr>
-                                    <th className="px-4 py-3">Student Name</th>
-                                    <th className="px-4 py-3">Phone</th>
-                                    <th className="px-4 py-3">Domain</th>
-                                    <th className="px-4 py-3">Priority</th>
-                                    <th className="px-4 py-3">Status</th>
-                                    <th className="px-4 py-3 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {sales?.leads?.map((lead: any) => (
-                                    <tr key={lead._id} className="border-b hover:bg-gray-50">
-                                        <td className="px-4 py-3 font-bold">{lead.studentName}</td>
-                                        <td className="px-4 py-3">{lead.phone}</td>
-                                        <td className="px-4 py-3">{lead.interestedDomain || lead.department}</td>
-                                        <td className="px-4 py-3">
-                                            <Badge variant={lead.priority === 'HIGH' ? 'error' : lead.priority === 'MEDIUM' ? 'warning' : 'neutral'}>
-                                                {lead.priority}
-                                            </Badge>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <Badge variant="primary">{lead.salesStatus}</Badge>
-                                        </td>
-                                        <td className="px-4 py-3 text-right">
-                                            <Button size="sm" onClick={() => navigate(`/sales/${lead._id}`)}>View</Button>
-                                        </td>
-                                    </tr>
-                                ))}
-                                {(!sales?.leads || sales.leads.length === 0) && (
-                                    <tr><td colSpan={6} className="text-center p-4">No sales data available.</td></tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </Card>
+                <SalesKanban leads={sales?.leads || []} />
             )}
 
             {activeTab === 'CALL_QUEUE' && (

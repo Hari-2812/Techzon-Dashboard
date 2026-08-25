@@ -289,20 +289,49 @@ exports.convertSale = async (req, res) => {
 
 exports.updateStatus = async (req, res) => {
     try {
-        const { salesStatus } = req.body;
+        const { salesStatus, lostReason } = req.body;
         const lead = await Lead.findOne({ _id: req.params.id, ...buildAccessQuery(req) });
         if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
 
         lead.salesStatus = salesStatus;
+        if (salesStatus === 'Lost' && lostReason) {
+            lead.lostReason = lostReason;
+        }
         await lead.save();
 
         await LeadActivity.create({
             leadId: lead._id,
             employeeId: req.user._id,
             activityType: 'Sales Status Change',
-            description: `Changed status to ${salesStatus}`
+            description: `Changed status to ${salesStatus}${lostReason ? ` - Reason: ${lostReason}` : ''}`
         });
 
+        req.app.get('io').emit('sales:updated', { leadId: lead._id });
+        res.json({ success: true, lead });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+exports.moveLeadToSales = async (req, res) => {
+    try {
+        const { leadId } = req.body;
+        const lead = await Lead.findById(leadId);
+        
+        if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
+        
+        // If it's already in sales pipeline (not 'New Lead' and not 'Not Contacted' etc)
+        // But for simplicity, let's just make sure it gets added to Sales
+        lead.salesStatus = 'New Lead';
+        await lead.save();
+        
+        await LeadActivity.create({
+            leadId: lead._id,
+            employeeId: req.user._id,
+            activityType: 'Moved to Sales',
+            description: 'Lead was moved to the Sales Pipeline'
+        });
+        
         req.app.get('io').emit('sales:updated', { leadId: lead._id });
         res.json({ success: true, lead });
     } catch (error) {
