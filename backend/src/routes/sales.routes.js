@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const salesController = require('../controllers/sales.controller');
-const { protect } = require('../middleware/auth');
+const { auth } = require('../middlewares/auth');
 
-router.use(protect);
+router.use(auth);
 
 router.get('/dashboard', salesController.getDashboard);
 router.get('/queue', salesController.getCallQueue);

@@ -3,7 +3,6 @@ const FollowUp = require('../models/FollowUp');
 const Sale = require('../models/Sale');
 const LeadActivity = require('../models/LeadActivity');
 const User = require('../models/User');
-const { getIO } = require('../socket');
 const mongoose = require('mongoose');
 
 // Helper to check access
@@ -208,7 +207,7 @@ exports.addResponse = async (req, res) => {
             metadata: { studentResponse, remarks }
         });
 
-        getIO().emit('sales:updated', { leadId: lead._id });
+        req.app.get('io').emit('sales:updated', { leadId: lead._id });
         res.json({ success: true, lead });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Server error' });
@@ -244,7 +243,7 @@ exports.logCall = async (req, res) => {
             metadata: { callResult, remarks }
         });
 
-        getIO().emit('sales:updated', { leadId: lead._id });
+        req.app.get('io').emit('sales:updated', { leadId: lead._id });
         res.json({ success: true, lead });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Server error' });
@@ -281,7 +280,7 @@ exports.convertSale = async (req, res) => {
             metadata: { course, amount, paymentStatus }
         });
 
-        getIO().emit('sales:updated', { leadId: lead._id });
+        req.app.get('io').emit('sales:updated', { leadId: lead._id });
         res.json({ success: true, lead, sale });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Server error' });
@@ -304,7 +303,7 @@ exports.updateStatus = async (req, res) => {
             description: `Changed status to ${salesStatus}`
         });
 
-        getIO().emit('sales:updated', { leadId: lead._id });
+        req.app.get('io').emit('sales:updated', { leadId: lead._id });
         res.json({ success: true, lead });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Server error' });
@@ -327,7 +326,7 @@ exports.updatePriority = async (req, res) => {
             description: `Changed priority to ${priority}`
         });
 
-        getIO().emit('sales:updated', { leadId: lead._id });
+        req.app.get('io').emit('sales:updated', { leadId: lead._id });
         res.json({ success: true, lead });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Server error' });
@@ -346,7 +345,7 @@ exports.bulkUpdate = async (req, res) => {
 
         await Lead.updateMany({ _id: { $in: leadIds } }, { $set: updateData });
 
-        getIO().emit('sales:updated', { bulk: true });
+        req.app.get('io').emit('sales:updated', { bulk: true });
         res.json({ success: true, message: 'Bulk update applied' });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Server error' });
