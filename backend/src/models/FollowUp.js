@@ -7,7 +7,7 @@ const FollowUpSchema = new mongoose.Schema({
     assignedEmployeeId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     type: {
         type: String,
-        enum: ['Student Verification', 'CR Identification', 'CR First Contact', 'CR Follow-up', 'Group Creation', 'Group Link Collection', 'Student Joining Follow-up', 'Final Follow-up'],
+        enum: ['Student Verification', 'CR Identification', 'CR First Contact', 'CR Follow-up', 'Group Creation', 'Group Link Collection', 'Student Joining Follow-up', 'Final Follow-up', 'Sales Follow-up'],
         required: true
     },
     dueDate: { type: Date, required: true, index: true },

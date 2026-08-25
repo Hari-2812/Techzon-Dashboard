@@ -10,10 +10,17 @@ const SaleSchema = new mongoose.Schema({
     amount: { type: Number, required: true },
     status: {
         type: String,
-        enum: ['Lead', 'Interested', 'Payment Pending', 'Payment Received', 'Converted', 'Cancelled'],
+        enum: ['Lead', 'Interested', 'Payment Pending', 'Partially Paid', 'Paid', 'Converted', 'Cancelled'],
         default: 'Interested',
         index: true
-    }
+    },
+    paymentStatus: {
+        type: String,
+        enum: ['Pending', 'Partially Paid', 'Paid'],
+        default: 'Pending'
+    },
+    remarks: { type: String },
+    conversionDate: { type: Date, default: Date.now }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Sale', SaleSchema);

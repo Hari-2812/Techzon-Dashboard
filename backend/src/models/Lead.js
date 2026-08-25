@@ -9,9 +9,14 @@ const LeadSchema = new mongoose.Schema({
     department: { type: String, required: false },
     year: { type: String, required: false },
     course: { type: String, required: false },
+    interestedDomain: { type: String, required: false },
+    interestedCourse: { type: String, required: false },
+    interestLevel: { type: String, enum: ['High', 'Medium', 'Low', 'None'], required: false },
+    studentResponse: { type: String, required: false },
     parentContactName: { type: String, required: false },
     parentContactPhone: { type: String, required: false },
     assignedEmployeeId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
+    lastContactedAt: { type: Date, index: true },
     crStatus: {
         type: String,
         enum: ['Not Verified', 'Not Asked', 'Student Is CR', 'Student Is Not CR', 'CR Details Received', 'CR Confirmed', 'Not Applicable'],
@@ -26,7 +31,7 @@ const LeadSchema = new mongoose.Schema({
     },
     salesStatus: {
         type: String,
-        enum: ['Not Contacted', 'Interested', 'Follow-up', 'Converted', 'Not Interested', 'Lost'],
+        enum: ['Not Contacted', 'GROUP MEMBER', 'RESPONDED', 'INTERESTED', 'SALES QUEUE', 'CALL PENDING', 'CALLED', 'FOLLOW-UP', 'CONVERTED', 'NOT INTERESTED', 'NO RESPONSE', 'NOT REACHABLE', 'LOST'],
         default: 'Not Contacted',
         index: true
     },

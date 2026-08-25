@@ -12,6 +12,8 @@ import ResetPassword from './pages/ResetPassword';
 import NotFound from './pages/NotFound';
 import Leads from './pages/Leads';
 import LeadDetail from './pages/LeadDetail';
+import SalesDashboard from './pages/SalesDashboard';
+import SalesDetail from './pages/SalesDetail';
 import DailyUpdates from './pages/DailyUpdates';
 import CRManagement from './pages/CRManagement';
 import CRDetail from './pages/CRDetail';
@@ -88,6 +90,8 @@ function App() {
             {/* Common Routes */}
             <Route path="leads" element={<Leads />} />
             <Route path="leads/:id" element={<LeadDetail />} />
+            <Route path="sales" element={<SalesDashboard />} />
+            <Route path="sales/:id" element={<SalesDetail />} />
             <Route path="daily-updates" element={<DailyUpdates />} />
             <Route path="crs" element={<CRManagement />} />
             <Route path="crs/:id" element={<CRDetail />} />
