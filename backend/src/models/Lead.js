@@ -33,7 +33,7 @@ const LeadSchema = new mongoose.Schema({
     salesStatus: {
         type: String,
         enum: CANONICAL_SALES_STATUSES,
-        default: 'NOT_CONTACTED',
+        default: 'Not Contacted',
         index: true
     },
     lostReason: { type: String, required: false },

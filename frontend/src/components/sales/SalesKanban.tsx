@@ -7,9 +7,9 @@ import { Badge } from '../ui/Badge';
 import { useNavigate } from 'react-router-dom';
 
 const PIPELINE_STAGES = [
-    'Not Contacted', 'Contacted', 'Interested', 'Follow Up', 'Demo Scheduled', 'Demo Completed', 'Payment Pending'
+    'Not Contacted', 'Contacted', 'Interested', 'Follow-up'
 ]; 
-const ALL_STAGES = [...PIPELINE_STAGES, 'Converted', 'Not Interested', 'Lost'];
+const ALL_STAGES = [...PIPELINE_STAGES, 'Converted', 'Not Interested', 'Closed'];
 
 export const SalesKanban = ({ leads }: { leads: any[] }) => {
     const navigate = useNavigate();

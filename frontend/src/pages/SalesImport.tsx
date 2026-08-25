@@ -43,7 +43,7 @@ export default function SalesImport() {
           }
           
           const lines = pasteText.trim().split('\n');
-          let csvContent = "Name,Phone,Domain,College,Year\n";
+          let csvContent = "Name,Phone,Domain,College,Department,Year,Status,Remarks\n";
           
           for (const line of lines) {
               const cleaned = line.trim();
@@ -64,9 +64,12 @@ export default function SalesImport() {
               const phone = parts[1] ? parts[1].trim().replace(/,/g, '') : '';
               const domain = parts[2] ? parts[2].trim().replace(/,/g, '') : '';
               const college = parts[3] ? parts[3].trim().replace(/,/g, '') : '';
-              const year = parts[4] ? parts[4].trim().replace(/,/g, '') : '';
+              const department = parts[4] ? parts[4].trim().replace(/,/g, '') : '';
+              const year = parts[5] ? parts[5].trim().replace(/,/g, '') : '';
+              const status = parts[6] ? parts[6].trim().replace(/,/g, '') : '';
+              const remarks = parts[7] ? parts[7].trim().replace(/,/g, '') : '';
               
-              csvContent += `${name},${phone},${domain},${college},${year}\n`;
+              csvContent += `${name},${phone},${domain},${college},${department},${year},${status},${remarks}\n`;
           }
           
           const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -94,7 +97,8 @@ export default function SalesImport() {
           department: 'department',
           year: 'year',
           interestedDomain: 'interestedDomain',
-          salesStatus: 'salesStatus'
+          salesStatus: 'salesStatus',
+          studentResponse: 'studentResponse'
       };
 
       const previewRes = await api.post('/leads/import/preview', {

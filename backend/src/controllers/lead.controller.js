@@ -355,6 +355,7 @@ exports.importPreview = async (req, res) => {
             detectAlt(['department', 'branch', 'degreebranch', 'degree branch'], 'department');
             detectAlt(['year', 'batch'], 'year');
             detectAlt(['salesstatus', 'sales status', 'sales_status', 'status'], 'salesStatus');
+            detectAlt(['remarks', 'notes', 'studentresponse'], 'studentResponse');
             
             rawData.priority = rawData.priority || 'MEDIUM';
 

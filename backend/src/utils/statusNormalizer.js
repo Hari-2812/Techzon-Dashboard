@@ -4,18 +4,17 @@
  */
 
 const CANONICAL_SALES_STATUSES = [
-    'NOT_CONTACTED', 
-    'CONTACTED', 
-    'INTERESTED', 
-    'FOLLOW_UP', 
-    'NOT_INTERESTED', 
-    'CONVERTED', 
-    'CALL_BACK', 
-    'NO_RESPONSE'
+    'Not Contacted', 
+    'Contacted', 
+    'Interested', 
+    'Follow-up', 
+    'Not Interested', 
+    'Converted', 
+    'Closed'
 ];
 
 const normalizeSalesStatus = (status) => {
-    if (!status || typeof status !== 'string') return 'NOT_CONTACTED';
+    if (!status || typeof status !== 'string') return 'Not Contacted';
 
     const normalized = status.trim().toLowerCase();
 
@@ -26,17 +25,17 @@ const normalizeSalesStatus = (status) => {
         case 'not contacted':
         case 'notcalled':
         case 'not called':
-            return 'NOT_CONTACTED';
+            return 'Not Contacted';
 
         case 'contacted':
         case 'called':
         case 'reached out':
-            return 'CONTACTED';
+            return 'Contacted';
 
         case 'interested':
         case 'very interested':
         case 'high intent':
-            return 'INTERESTED';
+            return 'Interested';
 
         case 'follow-up':
         case 'follow up':
@@ -45,37 +44,45 @@ const normalizeSalesStatus = (status) => {
         case 'course discussion':
         case 'call pending':
         case 'sales queue':
-            return 'FOLLOW_UP';
+            return 'Follow-up';
             
         case 'callback':
         case 'call back':
-            return 'CALL_BACK';
+        case 'call_back':
+            // we will map callback to Follow-up per new enum
+            return 'Follow-up';
+
+        case 'not_interested':
+        case 'not interested':
+        case 'rejected':
+        case 'declined':
+        case 'busy':
+        case 'wrong number':
+            return 'Not Interested';
 
         case 'converted':
-        case 'sale':
+        case 'admitted':
         case 'enrolled':
         case 'joined':
-            return 'CONVERTED';
-
-        case 'not interested':
-        case 'not_interested':
-        case 'low intent':
-            return 'NOT_INTERESTED';
-
-        case 'lost':
-        case 'dead':
-        case 'invalid':
-        case 'no response':
+        case 'success':
+        case 'won':
+            return 'Converted';
+            
         case 'no_response':
-            return 'NO_RESPONSE';
+        case 'no response':
+        case 'did not answer':
+        case 'unreachable':
+        case 'switched off':
+            // we will map this to Closed or Not Contacted depending on logic, let's say Closed
+            return 'Closed';
+            
+        case 'closed':
+        case 'lost':
+            return 'Closed';
 
         default:
-            const exactMatch = CANONICAL_SALES_STATUSES.find(
-                s => s.toLowerCase() === normalized
-            );
-            if (exactMatch) return exactMatch;
-
-            return 'NOT_CONTACTED';
+            // If it doesn't match exactly, fallback to Not Contacted
+            return 'Not Contacted';
     }
 };
 

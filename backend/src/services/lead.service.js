@@ -60,6 +60,11 @@ exports.verifyCR = async (leadId, employeeId, isCR, crDetails) => {
             year: lead.year || crDetails.year,
             section: lead.section || crDetails.section || ''
         };
+    } else {
+        // If not the same person, inherit the student's college/department/year if omitted
+        crDetails.college = crDetails.college || lead.college;
+        crDetails.department = crDetails.department || lead.department;
+        crDetails.year = crDetails.year || lead.year;
     }
 
     // Validate required fields if we are creating or updating a CR profile

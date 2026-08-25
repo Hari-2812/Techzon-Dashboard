@@ -28,15 +28,15 @@ exports.getDashboard = async (req, res) => {
             convertedStudents
         ] = await Promise.all([
             Lead.countDocuments({ ...query }),
-            Lead.countDocuments({ ...query, salesStatus: 'NOT_CONTACTED' }),
-            Lead.countDocuments({ ...query, salesStatus: 'CONTACTED' }),
-            Lead.countDocuments({ ...query, salesStatus: 'INTERESTED' }),
+            Lead.countDocuments({ ...query, salesStatus: 'Not Contacted' }),
+            Lead.countDocuments({ ...query, salesStatus: 'Contacted' }),
+            Lead.countDocuments({ ...query, salesStatus: 'Interested' }),
             Lead.countDocuments({ 
                 ...query, 
                 nextFollowUp: { $lte: todayEndOfDay },
-                salesStatus: { $nin: ['CONVERTED', 'NOT_INTERESTED', 'NO_RESPONSE'] } 
+                salesStatus: { $nin: ['Converted', 'Not Interested', 'Closed'] } 
             }),
-            Lead.countDocuments({ ...query, salesStatus: 'CONVERTED' })
+            Lead.countDocuments({ ...query, salesStatus: 'Converted' })
         ]);
 
         const conversionRate = totalSalesLeads > 0 ? ((convertedStudents / totalSalesLeads) * 100).toFixed(2) : 0;
@@ -61,10 +61,10 @@ exports.getDashboard = async (req, res) => {
                     _id: user._id,
                     name: user.name,
                     totalLeads: employeeLeads.length,
-                    contacted: employeeLeads.filter(l => ['CONTACTED', 'INTERESTED', 'FOLLOW_UP', 'CONVERTED', 'CALL_BACK'].includes(l.salesStatus)).length,
-                    interested: employeeLeads.filter(l => l.salesStatus === 'INTERESTED').length,
+                    contacted: employeeLeads.filter(l => ['Contacted', 'Interested', 'Follow-up', 'Converted'].includes(l.salesStatus)).length,
+                    interested: employeeLeads.filter(l => l.salesStatus === 'Interested').length,
                     followUp: employeeLeads.filter(l => l.nextFollowUp && new Date(l.nextFollowUp) <= todayEndOfDay).length,
-                    conversions: employeeLeads.filter(l => l.salesStatus === 'CONVERTED').length
+                    conversions: employeeLeads.filter(l => l.salesStatus === 'Converted').length
                 };
             });
         }
@@ -124,7 +124,7 @@ exports.getCallQueue = async (req, res) => {
     try {
         const query = {
             ...buildAccessQuery(req),
-            salesStatus: { $nin: ['CONVERTED', 'NOT_INTERESTED', 'NO_RESPONSE'] }
+            salesStatus: { $nin: ['Converted', 'Not Interested', 'Closed'] }
         };
 
         const leads = await Lead.find(query)
@@ -150,8 +150,8 @@ exports.getCallQueue = async (req, res) => {
             if (a.priority === 'HIGH' && b.priority !== 'HIGH') return -1;
             if (a.priority !== 'HIGH' && b.priority === 'HIGH') return 1;
 
-            const isAUncontacted = a.salesStatus === 'NOT_CONTACTED';
-            const isBUncontacted = b.salesStatus === 'NOT_CONTACTED';
+            const isAUncontacted = a.salesStatus === 'Not Contacted';
+            const isBUncontacted = b.salesStatus === 'Not Contacted';
 
             if (isAUncontacted && isBUncontacted) {
                 return new Date(a.createdAt) - new Date(b.createdAt); // Oldest first
@@ -208,7 +208,7 @@ exports.addResponse = async (req, res) => {
         lead.interestLevel = interestLevel || lead.interestLevel;
         lead.studentResponse = studentResponse || lead.studentResponse;
         lead.priority = priority || lead.priority;
-        lead.salesStatus = 'FOLLOW_UP';
+        lead.salesStatus = 'Follow-up';
         lead.lastContactedAt = new Date();
         
         if (nextFollowUp) lead.nextFollowUp = new Date(nextFollowUp);
@@ -236,7 +236,7 @@ exports.logCall = async (req, res) => {
         const lead = await Lead.findOne({ _id: req.params.id, ...buildAccessQuery(req) });
         if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
 
-        lead.salesStatus = 'CONTACTED';
+        lead.salesStatus = 'Contacted';
         lead.lastContactedAt = new Date();
         if (nextFollowUp) {
             lead.nextFollowUp = new Date(nextFollowUp);
@@ -272,7 +272,7 @@ exports.convertSale = async (req, res) => {
         const lead = await Lead.findOne({ _id: req.params.id, ...buildAccessQuery(req) });
         if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
 
-        lead.salesStatus = 'CONVERTED';
+        lead.salesStatus = 'Converted';
         lead.course = course || lead.course;
         
         await lead.save();
@@ -298,6 +298,82 @@ exports.convertSale = async (req, res) => {
         req.app.get('io').emit('sales:updated', { leadId: lead._id });
         res.json({ success: true, lead, sale });
     } catch (error) {
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+exports.bulkUpdate = async (req, res) => {
+    try {
+        const { leadIds, updates } = req.body;
+        if (!leadIds || !Array.isArray(leadIds) || leadIds.length === 0) {
+            return res.status(400).json({ success: false, message: 'No leads provided' });
+        }
+        
+        // Ensure only allowed fields can be updated
+        const allowedUpdates = {};
+        if (updates.salesStatus) allowedUpdates.salesStatus = updates.salesStatus;
+        if (updates.priority) allowedUpdates.priority = updates.priority;
+        if (updates.assignedEmployeeId && req.user.role === 'ADMIN') {
+            allowedUpdates.assignedEmployeeId = updates.assignedEmployeeId;
+        }
+        
+        await Lead.updateMany(
+            { _id: { $in: leadIds }, ...buildAccessQuery(req) },
+            { $set: allowedUpdates }
+        );
+        
+        res.json({ success: true, message: 'Leads updated successfully' });
+    } catch (error) {
+        console.error('Error in bulkUpdate:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+exports.moveLeadToSales = async (req, res) => {
+    try {
+        const { leadId } = req.body;
+        const lead = await Lead.findOne({ _id: leadId, ...buildAccessQuery(req) });
+        if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
+        
+        lead.salesStatus = 'Not Contacted';
+        await lead.save();
+        
+        res.json({ success: true, lead, message: 'Lead moved to sales queue' });
+    } catch (error) {
+        console.error('Error in moveLeadToSales:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+exports.updateStatus = async (req, res) => {
+    try {
+        const { salesStatus } = req.body;
+        const lead = await Lead.findOne({ _id: req.params.id, ...buildAccessQuery(req) });
+        if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
+        
+        lead.salesStatus = salesStatus;
+        await lead.save();
+        
+        req.app.get('io').emit('sales:updated', { leadId: lead._id });
+        res.json({ success: true, lead });
+    } catch (error) {
+        console.error('Error in updateStatus:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+exports.updatePriority = async (req, res) => {
+    try {
+        const { priority } = req.body;
+        const lead = await Lead.findOne({ _id: req.params.id, ...buildAccessQuery(req) });
+        if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
+        
+        lead.priority = priority;
+        await lead.save();
+        
+        req.app.get('io').emit('sales:updated', { leadId: lead._id });
+        res.json({ success: true, lead });
+    } catch (error) {
+        console.error('Error in updatePriority:', error);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
