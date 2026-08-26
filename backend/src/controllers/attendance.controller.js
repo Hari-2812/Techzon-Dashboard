@@ -43,50 +43,42 @@ exports.clockIn = async (req, res) => {
     
     const isTestMode = (process.env.NODE_ENV === 'development' || req.headers.host?.includes('localhost')) && isTest === true;
 
+    // Check if they already have a pending request
+    const AttendanceRequest = require('../models/AttendanceRequest');
+    const existingReq = await AttendanceRequest.findOne({ employeeId: req.user.id, date: dateStr, requestType: 'CLOCK_IN', status: 'PENDING', isTestSession: isTestMode });
+    if (existingReq) {
+      return res.status(400).json({ success: false, message: 'You already have a pending Clock-In request.' });
+    }
+
     // Check if they are already clocked in
     const existingSession = await WorkSession.findOne({ employeeId: req.user.id, date: dateStr, isTestSession: isTestMode });
     if (existingSession) {
       return res.status(400).json({ success: false, message: 'Already clocked in today' });
     }
 
-    const clockInTime = new Date();
-
-    // Create the WorkSession directly
-    const session = await WorkSession.create({
-      employeeId: req.user.id,
-      date: dateStr,
-      clockInAt: clockInTime,
-      status: 'ACTIVE',
-      isTestSession: isTestMode
-    });
-
-    // Create or update AttendanceDaily
-    let daily = await AttendanceDaily.findOne({ employeeId: req.user.id, date: dateStr, isTestSession: isTestMode });
-    if (!daily) {
-      daily = await AttendanceDaily.create({
+    // Create the Request
+    const request = await AttendanceRequest.create({
         employeeId: req.user.id,
         date: dateStr,
-        status: 'WORKING',
+        requestType: 'CLOCK_IN',
+        status: 'PENDING',
+        requestedTime: new Date(),
         isTestSession: isTestMode
-      });
-    } else {
-      daily.status = 'WORKING';
-      await daily.save();
-    }
+    });
 
     // Notify Admin Realtime
-    const io = req.app.get('io');
+    const io = req.app.get('io') || require('../server').io;
     const User = require('../models/User');
     const emp = await User.findById(req.user.id);
     if (io) {
-      io.emit('attendance:clock-in', { 
-        employeeId: req.user.id,
+      io.emit('attendance:clock-in-request', { 
+        requestId: request._id,
         employeeName: emp ? emp.name : 'Unknown',
-        time: clockInTime
+        time: request.requestedTime
       });
     }
 
-    res.json({ success: true, data: { session, daily }, message: 'Clocked in successfully' });
+    res.json({ success: true, data: request, message: 'Clock-in request sent for admin approval' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server Error' });
@@ -101,6 +93,13 @@ exports.clockOut = async (req, res) => {
     
     const isTestMode = (process.env.NODE_ENV === 'development' || req.headers.host?.includes('localhost')) && isTest === true;
 
+    // Check if they already have a pending request
+    const AttendanceRequest = require('../models/AttendanceRequest');
+    const existingReq = await AttendanceRequest.findOne({ employeeId: req.user.id, date: dateStr, requestType: 'CLOCK_OUT', status: 'PENDING', isTestSession: isTestMode });
+    if (existingReq) {
+      return res.status(400).json({ success: false, message: 'You already have a pending Clock-Out request.' });
+    }
+
     let session = await WorkSession.findOne({ employeeId: req.user.id, date: dateStr, isTestSession: isTestMode }).sort({ createdAt: -1 });
     if (!session || session.clockOutAt) {
       return res.status(400).json({ success: false, message: 'Not actively clocked in' });
@@ -114,35 +113,29 @@ exports.clockOut = async (req, res) => {
       }
     }
 
-    const clockOutTime = new Date();
-    session.clockOutAt = clockOutTime;
-    session.status = 'COMPLETED';
-    await session.save();
-
-    // Recalculate daily stats
-    const stats = await calculateSessionStats(session, settings);
-    
-    let daily = await AttendanceDaily.findOne({ employeeId: req.user.id, date: dateStr, isTestSession: isTestMode });
-    if (!daily) {
-      daily = new AttendanceDaily({ employeeId: req.user.id, date: dateStr, isTestSession: isTestMode });
-    }
-    
-    Object.assign(daily, stats);
-    await daily.save();
+    // Create the Request
+    const request = await AttendanceRequest.create({
+        employeeId: req.user.id,
+        date: dateStr,
+        requestType: 'CLOCK_OUT',
+        status: 'PENDING',
+        requestedTime: new Date(),
+        isTestSession: isTestMode
+    });
 
     // Notify Admin Realtime
-    const io = req.app.get('io');
+    const io = req.app.get('io') || require('../server').io;
     const User = require('../models/User');
     const emp = await User.findById(req.user.id);
     if (io) {
-      io.emit('attendance:clock-out', { 
-        employeeId: req.user.id,
+      io.emit('attendance:clock-out-request', { 
+        requestId: request._id,
         employeeName: emp ? emp.name : 'Unknown',
-        time: clockOutTime
+        time: request.requestedTime
       });
     }
 
-    res.json({ success: true, data: { session, daily }, message: 'Clocked out successfully' });
+    res.json({ success: true, data: request, message: 'Clock-out request sent for admin approval' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server Error' });

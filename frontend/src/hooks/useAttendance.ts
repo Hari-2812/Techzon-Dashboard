@@ -161,7 +161,14 @@ export const useAttendance = () => {
       });
     }
     
-    const diff = Math.max(0, Math.floor((end - start - totalBreakMs) / 1000));
+    const rawDiffSeconds = Math.floor((end - start - totalBreakMs) / 1000);
+    
+    if (rawDiffSeconds < 0 && !session.clockOutAt) {
+       console.error(`[Attendance Timer Error] Timestamp mismatch detected. Approved clock-in (${new Date(start).toISOString()}) is in the future compared to current time (${new Date(end).toISOString()}).`);
+       return 'Invalid Timestamp';
+    }
+
+    const diff = Math.max(0, rawDiffSeconds);
     const hours = Math.floor(diff / 3600);
     const mins = Math.floor((diff % 3600) / 60);
     const secs = diff % 60;

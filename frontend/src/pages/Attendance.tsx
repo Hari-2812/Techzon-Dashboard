@@ -183,8 +183,8 @@ const Attendance = () => {
               <div className="w-full">
                 {isCompleted && data?.session?.clockInAt ? (
                   <div className="bg-[var(--color-surface-light)] p-4 rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] text-sm mb-4">
-                    <div className="flex justify-between mb-2"><span className="text-[var(--color-text-muted)]">Clock In</span><span className="font-semibold text-[var(--color-text-primary)]">{moment(data.session.clockInAt).format('hh:mm A')}</span></div>
-                    <div className="flex justify-between"><span className="text-[var(--color-text-muted)]">Clock Out</span><span className="font-semibold text-[var(--color-text-primary)]">{moment(data.session.clockOutAt).format('hh:mm A')}</span></div>
+                    <div className="flex justify-between mb-2"><span className="text-[var(--color-text-muted)]">Clock In</span><span className="font-semibold text-[var(--color-text-primary)]">{new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(data.session.clockInAt))}</span></div>
+                    <div className="flex justify-between"><span className="text-[var(--color-text-muted)]">Clock Out</span><span className="font-semibold text-[var(--color-text-primary)]">{new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(data.session.clockOutAt))}</span></div>
                   </div>
                 ) : null}
 

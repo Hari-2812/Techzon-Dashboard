@@ -143,7 +143,7 @@ const Dashboard = () => {
                 <p className="text-[var(--color-text-primary)] font-semibold text-lg flex items-center">
                   <span className="w-2 h-2 rounded-full bg-[var(--color-text-muted)] mr-2"></span> Completed
                 </p>
-                <p className="text-sm text-[var(--color-text-muted)] mt-1">Clock In: {new Date(attData.session.clockInAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} &bull; Clock Out: {new Date(attData.session.clockOutAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                <p className="text-sm text-[var(--color-text-muted)] mt-1">Clock In: {new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(attData.session.clockInAt))} &bull; Clock Out: {new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(attData.session.clockOutAt))}</p>
               </div>
               <div className="mt-4 sm:mt-0 text-right">
                 <p className="font-semibold text-[var(--color-text-primary)]">{attData.daily?.status || 'PRESENT'}</p>
@@ -159,7 +159,7 @@ const Dashboard = () => {
                   <span className={`w-2 h-2 rounded-full mr-2 ${isOnBreak ? 'bg-[var(--color-warning)]' : 'bg-[var(--color-success)]'}`}></span>
                   {isOnBreak ? 'ON BREAK' : 'WORKING'}
                 </p>
-                <p className="text-sm text-[var(--color-text-muted)] mt-1">Clocked in at {new Date(attData.session.clockInAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                <p className="text-sm text-[var(--color-text-muted)] mt-1">Clocked in at {new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(attData.session.clockInAt))}</p>
               </div>
               <div className="text-center mb-4 sm:mb-0">
                 <div className="text-3xl font-bold text-[var(--color-text-primary)] font-mono tracking-tight">{getLiveTimer(new Date().getTime())}</div>
