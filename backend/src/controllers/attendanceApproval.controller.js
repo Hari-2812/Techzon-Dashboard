@@ -7,7 +7,7 @@ const AuditLog = require('../models/AuditLog');
 const { calculateSessionStats } = require('../services/attendance.service');
 const moment = require('moment-timezone');
 
-const getTodayDateString = (timezone) => moment().tz(timezone || 'Asia/Kolkata').format('YYYY-MM-DD');
+const getBusinessDateIST = () => moment().tz('Asia/Kolkata').format('YYYY-MM-DD');
 
 exports.getPendingRequests = async (req, res) => {
     try {
@@ -26,8 +26,7 @@ exports.getPendingRequests = async (req, res) => {
 
 exports.getMyPendingRequests = async (req, res) => {
     try {
-        const settings = await AttendanceSettings.findOne() || new AttendanceSettings();
-        const dateStr = getTodayDateString(settings.timezone);
+        const dateStr = getBusinessDateIST();
         
         const requests = await AttendanceRequest.find({ employeeId: req.user.id, date: dateStr, status: 'PENDING' })
             .sort({ requestedTime: -1 });
@@ -50,7 +49,7 @@ exports.approveRequest = async (req, res) => {
         if (!request) return res.status(404).json({ success: false, message: 'Request not found' });
         if (request.status !== 'PENDING') return res.status(400).json({ success: false, message: 'Request is already processed' });
         
-        const approvedTime = editedTime ? new Date(editedTime) : new Date(request.requestedTime);
+        const approvedTime = editedTime ? new Date(editedTime) : new Date();
         
         if (isNaN(approvedTime.getTime())) {
             return res.status(400).json({ success: false, message: 'Invalid timestamp provided' });

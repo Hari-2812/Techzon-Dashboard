@@ -17,17 +17,28 @@ function getDistanceFromLatLonInM(lat1, lon1, lat2, lon2) {
   return Math.round(R * c * 1000); // Distance in meters
 }
 
-const getTodayDateString = (timezone) => moment().tz(timezone || 'Asia/Kolkata').format('YYYY-MM-DD');
+const getBusinessDateIST = () => moment().tz('Asia/Kolkata').format('YYYY-MM-DD');
 
 exports.getTodayAttendance = async (req, res) => {
   try {
-    const settings = await AttendanceSettings.findOne() || new AttendanceSettings();
-    const dateStr = getTodayDateString(settings.timezone);
+    const dateStr = getBusinessDateIST();
     
     // Find the most recent session for today (could be test or real)
     let session = await WorkSession.findOne({ employeeId: req.user.id, date: dateStr }).sort({ createdAt: -1 });
     let daily = await AttendanceDaily.findOne({ employeeId: req.user.id, date: dateStr }).sort({ createdAt: -1 });
     
+    // Safety check for bogus future timestamps (from previous buggy code that added 5.5 hours)
+    if (session && session.clockInAt) {
+       if (new Date(session.clockInAt).getTime() > Date.now() + 60000) {
+           // Clock-in is in the future. The old code erroneously added 5.5 hours.
+           // Fix it by subtracting 5.5 hours.
+           session.clockInAt = new Date(new Date(session.clockInAt).getTime() - (5.5 * 60 * 60 * 1000));
+           await session.save();
+           console.log(`[ATTENDANCE DEBUG] Fixed future clockInAt for ${req.user.id} to ${session.clockInAt}`);
+       }
+    }
+
+    const settings = await AttendanceSettings.findOne() || new AttendanceSettings();
     res.json({ success: true, data: { session, daily, settings, serverTime: new Date() } });
   } catch (err) {
     console.error(err);
@@ -38,8 +49,7 @@ exports.getTodayAttendance = async (req, res) => {
 exports.clockIn = async (req, res) => {
   try {
     const { isTest } = req.body;
-    const settings = await AttendanceSettings.findOne() || new AttendanceSettings();
-    const dateStr = getTodayDateString(settings.timezone);
+    const dateStr = getBusinessDateIST();
     
     const isTestMode = (process.env.NODE_ENV === 'development' || req.headers.host?.includes('localhost')) && isTest === true;
 
@@ -101,8 +111,7 @@ exports.clockIn = async (req, res) => {
 exports.clockOut = async (req, res) => {
   try {
     const { isTest } = req.body;
-    const settings = await AttendanceSettings.findOne() || new AttendanceSettings();
-    const dateStr = getTodayDateString(settings.timezone);
+    const dateStr = getBusinessDateIST();
     
     const isTestMode = (process.env.NODE_ENV === 'development' || req.headers.host?.includes('localhost')) && isTest === true;
 
@@ -169,8 +178,7 @@ exports.startBreak = async (req, res) => {
     const { reason, comment, isTest } = req.body;
     if (!reason) return res.status(400).json({ success: false, message: 'Break reason is required' });
     
-    const settings = await AttendanceSettings.findOne() || new AttendanceSettings();
-    const dateStr = getTodayDateString(settings.timezone);
+    const dateStr = getBusinessDateIST();
     const isTestMode = (process.env.NODE_ENV === 'development' || req.headers.host?.includes('localhost')) && isTest === true;
     
     let session = await WorkSession.findOne({ employeeId: req.user.id, date: dateStr, isTestSession: isTestMode }).sort({ createdAt: -1 });
@@ -229,8 +237,7 @@ exports.startBreak = async (req, res) => {
 exports.endBreak = async (req, res) => {
   try {
     const { resumeComment, isTest } = req.body;
-    const settings = await AttendanceSettings.findOne() || new AttendanceSettings();
-    const dateStr = getTodayDateString(settings.timezone);
+    const dateStr = getBusinessDateIST();
     const isTestMode = (process.env.NODE_ENV === 'development' || req.headers.host?.includes('localhost')) && isTest === true;
     
     let session = await WorkSession.findOne({ employeeId: req.user.id, date: dateStr, isTestSession: isTestMode }).sort({ createdAt: -1 });
