@@ -110,9 +110,10 @@ const UpdateLeadDrawer: React.FC<UpdateLeadDrawerProps> = ({ lead, isOpen, onClo
         ...formData
       });
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to save update');
+      const errorMessage = err.response?.data?.error || err.response?.data?.message || 'Failed to save update';
+      alert(`Error: ${errorMessage}`);
     }
   };
 

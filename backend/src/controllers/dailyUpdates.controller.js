@@ -23,8 +23,11 @@ exports.createUpdate = async (req, res) => {
         let finalLeadId = leadId;
         let lead = null;
         
-        // Pre-normalize the incoming sales status so we don't trip validation
-        const safeSalesStatus = normalizeSalesStatus(salesStatus);
+        // Only normalize the incoming sales status if it was explicitly provided
+        let finalSalesStatus;
+        if (salesStatus !== undefined && salesStatus !== null && salesStatus !== '') {
+            finalSalesStatus = normalizeSalesStatus(salesStatus);
+        }
 
         // Determine if we need to fetch an existing lead or create a new one
         if (entryType === 'existing' && leadId) {
@@ -84,7 +87,7 @@ exports.createUpdate = async (req, res) => {
             crYear,
             crSection,
 
-            salesStatus: safeSalesStatus,
+            salesStatus: finalSalesStatus,
             expectedConversionDate,
 
             followUpRequired,
@@ -102,18 +105,20 @@ exports.createUpdate = async (req, res) => {
             let newLeadStatus = lead.leadStatus;
             if (callOutcome === 'Connected' && lead.leadStatus === 'New') newLeadStatus = 'Contacted';
             if (studentResponse === 'Interested') newLeadStatus = 'Follow-up';
-            if (safeSalesStatus === 'Converted') newLeadStatus = 'Converted';
+            if (finalSalesStatus === 'Converted') newLeadStatus = 'Converted';
             if (crStatus === 'Student Is CR' || crStatus === 'CR Confirmed') newLeadStatus = 'CR Identified';
             
             // Manual override if provided explicitly in the body
             if (leadStatus) newLeadStatus = leadStatus;
 
             lead.leadStatus = newLeadStatus;
-            lead.salesStatus = safeSalesStatus;
+            if (finalSalesStatus) {
+                lead.salesStatus = finalSalesStatus;
+            }
 
             if (crStatus) lead.crStatus = crStatus;
             if (courseInterested) lead.course = courseInterested;
-            if (safeSalesStatus === 'Converted') {
+            if (finalSalesStatus === 'Converted') {
                 // Logic to not double-count sales could go here if needed
                 lead.leadStatus = 'Completed'; 
             }
@@ -160,7 +165,7 @@ exports.createUpdate = async (req, res) => {
                     dailyUpdateId: dailyUpdate._id,
                     callOutcome,
                     studentResponse,
-                    salesStatus: safeSalesStatus,
+                    salesStatus: finalSalesStatus || (lead ? lead.salesStatus : undefined),
                     crStatus,
                     followUpRequired,
                     followUpDate
@@ -177,13 +182,14 @@ exports.createUpdate = async (req, res) => {
     } catch (error) {
         console.error('Error in createUpdate:', error);
         if (error.name === 'ValidationError') {
+            const errorDetails = Object.keys(error.errors).map(key => error.errors[key].message).join(', ');
             return res.status(400).json({ 
                 success: false, 
-                message: 'Validation failed. Please check the required fields.',
-                errors: Object.keys(error.errors).map(key => error.errors[key].message)
+                message: 'Validation failed',
+                error: errorDetails
             });
         }
-        res.status(500).json({ success: false, message: 'Server error' });
+        res.status(500).json({ success: false, message: 'Failed to save daily update', error: error.message });
     }
 };
 
