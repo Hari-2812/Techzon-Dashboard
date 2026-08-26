@@ -165,7 +165,7 @@ export const useAttendance = () => {
     
     if (rawDiffSeconds < 0 && !session.clockOutAt) {
        console.error(`[Attendance Timer Error] Timestamp mismatch detected. Approved clock-in (${new Date(start).toISOString()}) is in the future compared to current time (${new Date(end).toISOString()}).`);
-       return 'Invalid Timestamp';
+       return '--';
     }
 
     const diff = Math.max(0, rawDiffSeconds);

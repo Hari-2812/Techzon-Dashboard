@@ -540,10 +540,14 @@ const AttendanceManagement = () => {
                 <Button variant="primary" onClick={async () => {
                    try {
                      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+                     
+                     // Ensure the editedTime is parsed as IST before sending to the UTC backend
+                     const formattedEditedTime = editedTime ? moment.tz(editedTime, 'Asia/Kolkata').toISOString() : undefined;
+
                      await fetch(`${apiUrl}/attendance/requests/${selectedRequest._id}/approve`, {
                         method: 'POST',
                         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ editedTime, adminComment })
+                        body: JSON.stringify({ editedTime: formattedEditedTime, adminComment })
                      });
                      setSelectedRequest(null);
                      fetchAdminAttendance();

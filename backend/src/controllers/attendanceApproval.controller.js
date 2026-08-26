@@ -50,7 +50,16 @@ exports.approveRequest = async (req, res) => {
         if (!request) return res.status(404).json({ success: false, message: 'Request not found' });
         if (request.status !== 'PENDING') return res.status(400).json({ success: false, message: 'Request is already processed' });
         
-        const approvedTime = editedTime ? new Date(editedTime) : request.requestedTime;
+        const approvedTime = editedTime ? new Date(editedTime) : new Date(request.requestedTime);
+        
+        if (isNaN(approvedTime.getTime())) {
+            return res.status(400).json({ success: false, message: 'Invalid timestamp provided' });
+        }
+        
+        // Ensure the approved time is not in the future (allowing a 5 min leeway for clock drift)
+        if (approvedTime.getTime() > Date.now() + 5 * 60000) {
+            return res.status(400).json({ success: false, message: 'Approved time cannot be in the future' });
+        }
         
         request.status = 'APPROVED';
         request.reviewedAt = new Date();

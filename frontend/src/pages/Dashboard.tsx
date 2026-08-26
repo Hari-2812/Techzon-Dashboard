@@ -46,6 +46,15 @@ const Dashboard = () => {
     };
   }, [queryClient]);
 
+  const [now, setNow] = useState(Date.now());
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   const { data: attData, isLoading: attLoading, isClockedIn, isOnBreak, isCompleted, isTestSession, getLiveTimer, testReset } = attendance;
 
   return (
@@ -162,7 +171,7 @@ const Dashboard = () => {
                 <p className="text-sm text-[var(--color-text-muted)] mt-1">Clocked in at {new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(attData.session.clockInAt))}</p>
               </div>
               <div className="text-center mb-4 sm:mb-0">
-                <div className="text-3xl font-bold text-[var(--color-text-primary)] font-mono tracking-tight">{getLiveTimer(new Date().getTime())}</div>
+                <div className="text-3xl font-bold text-[var(--color-text-primary)] font-mono tracking-tight">{getLiveTimer(now)}</div>
               </div>
               <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                  <AttendanceControls layout="dashboard" />

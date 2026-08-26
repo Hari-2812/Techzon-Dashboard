@@ -377,7 +377,9 @@ exports.adminCorrectAttendance = async (req, res) => {
 
     if (type === 'CLOCK_OUT') {
        oldValue = session.clockOutAt;
-       session.clockOutAt = newValue ? new Date(newValue) : new Date();
+       const newTime = newValue ? new Date(newValue) : new Date();
+       if (isNaN(newTime.getTime())) return res.status(400).json({ success: false, message: 'Invalid timestamp provided' });
+       session.clockOutAt = newTime;
        session.status = 'COMPLETED';
        session.clockOutVerification = {
            method: 'ADMIN_CORRECTION',
@@ -386,7 +388,10 @@ exports.adminCorrectAttendance = async (req, res) => {
        };
     } else if (type === 'CLOCK_IN') {
        oldValue = session.clockInAt;
-       session.clockInAt = new Date(newValue);
+       const newTime = new Date(newValue);
+       if (isNaN(newTime.getTime())) return res.status(400).json({ success: false, message: 'Invalid timestamp provided' });
+       if (newTime.getTime() > Date.now() + 5 * 60000) return res.status(400).json({ success: false, message: 'Clock-in time cannot be in the future' });
+       session.clockInAt = newTime;
     }
 
     await session.save();

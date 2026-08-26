@@ -70,7 +70,7 @@ const Attendance = () => {
   const { isClockedIn, isOnBreak, isCompleted, activeBreak, getLiveTimer } = attendance;
 
   // Calculate Progress
-  let timerStr = getLiveTimer(new Date().getTime());
+  let timerStr = getLiveTimer(currentDateTime.valueOf());
   let workedHoursStr = timerStr;
   let progressPercent = 0;
   if (isCompleted && data?.daily) {
