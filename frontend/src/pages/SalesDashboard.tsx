@@ -132,6 +132,7 @@ const SalesDashboard = () => {
                                         </div>
                                         <p className="text-sm text-gray-500">{lead.phone} • {lead.interestedDomain || lead.department || 'N/A'}</p>
                                         <p className="text-xs text-gray-400 mt-0.5">Status: {lead.salesStatus}</p>
+                                        <p className="text-[10px] text-gray-400 mt-1">Submitted by: {lead.importedBy?.name || 'Employee'} • {new Date(lead.importedAt || lead.createdAt).toLocaleDateString()}</p>
                                     </div>
                                     <Badge variant={lead.priority === 'HIGH' ? 'error' : lead.priority === 'MEDIUM' ? 'warning' : 'neutral'}>
                                         {lead.priority}
@@ -149,7 +150,10 @@ const SalesDashboard = () => {
                             </div>
                         ))}
                         {(!queue || queue.length === 0) && (
-                            <div className="p-4 text-center text-gray-500">No calls pending in the queue.</div>
+                            <div className="p-8 text-center text-gray-500">
+                                <p className="font-bold">No employee sales contacts available.</p>
+                                <p className="text-sm mt-1">Contacts pasted by employees will appear here dynamically.</p>
+                            </div>
                         )}
                     </div>
                 </Card>

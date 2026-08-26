@@ -124,11 +124,13 @@ exports.getCallQueue = async (req, res) => {
     try {
         const query = {
             ...buildAccessQuery(req),
+            salesSource: 'EMPLOYEE_SALES',
             salesStatus: { $nin: ['Converted', 'Not Interested', 'Closed'] }
         };
 
         const leads = await Lead.find(query)
             .populate('assignedEmployeeId', 'name')
+            .populate('importedBy', 'name')
             .lean();
 
         const todayEndOfDay = new Date();
@@ -374,6 +376,101 @@ exports.updatePriority = async (req, res) => {
         res.json({ success: true, lead });
     } catch (error) {
         console.error('Error in updatePriority:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+exports.importEmployeeContacts = async (req, res) => {
+    try {
+        if (req.user.role !== 'RGS' && req.user.role !== 'BDE' && req.user.role !== 'EMPLOYEE' && req.user.role !== 'ADMIN') {
+            return res.status(403).json({ success: false, message: 'Forbidden' });
+        }
+
+        const { contacts } = req.body;
+        if (!Array.isArray(contacts) || contacts.length === 0) {
+            return res.status(400).json({ success: false, message: 'No contacts provided' });
+        }
+
+        const Lead = require('../models/Lead');
+        const { normalizePhone } = require('../validations/lead.validation');
+        const io = require('../server').io;
+
+        let created = 0;
+        let updated = 0;
+        let duplicates = 0;
+        let failed = 0;
+        let errors = [];
+
+        for (let i = 0; i < contacts.length; i++) {
+            let contact = contacts[i];
+            
+            if (!contact.studentName || !contact.phone) {
+                failed++;
+                errors.push(`Row ${i+1}: Name and phone are required.`);
+                continue;
+            }
+
+            const phone = normalizePhone(contact.phone);
+            if (!phone) {
+                failed++;
+                errors.push(`Row ${i+1}: Invalid phone format.`);
+                continue;
+            }
+
+            const existingLead = await Lead.findOne({ phone });
+
+            if (existingLead) {
+                if (existingLead.salesSource === 'EMPLOYEE_SALES') {
+                    duplicates++;
+                } else {
+                    existingLead.salesSource = 'EMPLOYEE_SALES';
+                    existingLead.importedBy = req.user.id;
+                    existingLead.importedAt = new Date();
+                    
+                    if (contact.email && !existingLead.email) existingLead.email = contact.email;
+                    if (contact.interestedDomain && !existingLead.interestedDomain) existingLead.interestedDomain = contact.interestedDomain;
+                    
+                    await existingLead.save();
+                    updated++;
+                }
+            } else {
+                try {
+                    await Lead.create({
+                        studentName: contact.studentName,
+                        phone: phone,
+                        email: contact.email || '',
+                        interestedDomain: contact.interestedDomain || '',
+                        salesStatus: 'Not Contacted',
+                        leadStatus: 'New',
+                        crStatus: 'Not Verified',
+                        priority: 'MEDIUM',
+                        salesSource: 'EMPLOYEE_SALES',
+                        importedBy: req.user.id,
+                        importedAt: new Date()
+                    });
+                    created++;
+                } catch (err) {
+                    failed++;
+                    errors.push(`Row ${i+1}: Validation failed: ${err.message}`);
+                }
+            }
+        }
+
+        if (io && (created > 0 || updated > 0)) {
+            io.emit('leads:employee-sales-imported', { count: created + updated, importedBy: req.user.id });
+        }
+
+        res.json({
+            success: true,
+            created,
+            updated,
+            duplicates,
+            failed,
+            errors
+        });
+
+    } catch (error) {
+        console.error('Error importing employee contacts:', error);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };

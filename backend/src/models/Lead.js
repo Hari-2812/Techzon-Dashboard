@@ -47,7 +47,10 @@ const LeadSchema = new mongoose.Schema({
     source: { type: String, enum: ['MANUAL', 'CSV', 'GOOGLE_SHEETS'], default: 'MANUAL', index: true },
     sourceSpreadsheetId: { type: String },
     sourceWorksheet: { type: String },
-    sourceRowId: { type: String }
+    sourceRowId: { type: String },
+    salesSource: { type: String, enum: ['CRM', 'EMPLOYEE_SALES'], default: 'CRM', index: true },
+    importedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    importedAt: { type: Date }
 }, { timestamps: true });
 
 // Pre-validate hook to normalize data before creation or full save

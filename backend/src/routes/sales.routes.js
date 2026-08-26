@@ -9,6 +9,7 @@ router.get('/dashboard', salesController.getDashboard);
 router.get('/queue', salesController.getCallQueue);
 router.post('/bulk', salesController.bulkUpdate);
 router.post('/from-lead', salesController.moveLeadToSales);
+router.post('/employee-contacts', salesController.importEmployeeContacts);
 
 router.route('/')
     .get(salesController.getSales);
