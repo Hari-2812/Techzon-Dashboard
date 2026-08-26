@@ -3,6 +3,8 @@ const LeadActivity = require('../models/LeadActivity');
 const AuditLog = require('../models/AuditLog');
 const leadService = require('../services/lead.service');
 const { normalizeSalesStatus } = require('../utils/statusNormalizer');
+const StudentCRRelationship = require('../models/StudentCRRelationship');
+const mongoose = require('mongoose');
 
 // @route   GET /api/leads
 exports.getLeads = async (req, res) => {
@@ -114,6 +116,10 @@ exports.createLead = async (req, res) => {
 // @route   GET /api/leads/:id
 exports.getLeadById = async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({ success: false, message: 'Invalid lead ID' });
+    }
+
     const lead = await Lead.findById(req.params.id).populate('assignedEmployeeId', 'name email');
     if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
     
@@ -137,6 +143,9 @@ exports.getLeadById = async (req, res) => {
 // @route   GET /api/leads/:id/activities
 exports.getLeadActivities = async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({ success: false, message: 'Invalid lead ID' });
+    }
     const activities = await LeadActivity.find({ leadId: req.params.id })
       .populate('employeeId', 'name role')
       .sort({ timestamp: -1 });
@@ -182,6 +191,9 @@ exports.bulkAssign = async (req, res) => {
 // @route POST /api/leads/:id/call
 exports.recordCall = async (req, res) => {
     try {
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            return res.status(400).json({ success: false, message: 'Invalid lead ID' });
+        }
         const lead = await leadService.recordCall(req.params.id, req.user.id, req.body.outcome, req.body.notes);
         res.json({ success: true, data: lead });
     } catch (err) {
@@ -193,6 +205,9 @@ exports.recordCall = async (req, res) => {
 // @route POST /api/leads/:id/cr/yes
 exports.verifyCRYes = async (req, res) => {
     try {
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            return res.status(400).json({ success: false, message: 'Invalid lead ID' });
+        }
         const result = await leadService.verifyCR(req.params.id, req.user.id, true, req.body.details);
         const io = require('../server').io;
         if (io) {
@@ -214,6 +229,9 @@ exports.verifyCRYes = async (req, res) => {
 // @route POST /api/leads/:id/cr/no
 exports.verifyCRNo = async (req, res) => {
     try {
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            return res.status(400).json({ success: false, message: 'Invalid lead ID' });
+        }
         const result = await leadService.verifyCR(req.params.id, req.user.id, false, req.body.details);
         const io = require('../server').io;
         if (io) {
@@ -563,6 +581,9 @@ exports.importConfirm = async (req, res) => {
 // @route PATCH /api/leads/:id/status
 exports.updateLeadStatus = async (req, res) => {
     try {
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            return res.status(400).json({ success: false, message: 'Invalid lead ID' });
+        }
         const lead = await Lead.findById(req.params.id);
         if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
         
