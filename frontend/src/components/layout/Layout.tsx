@@ -32,6 +32,7 @@ const Layout = () => {
     socket.on('sale:created', handleUpdate);
     socket.on('sale:updated', handleUpdate);
     socket.on('sale:converted', handleUpdate);
+    socket.on('leads:imported', handleUpdate);
 
     return () => {
       socket.off('cr:updated', handleUpdate);
@@ -46,6 +47,7 @@ const Layout = () => {
       socket.off('sale:created', handleUpdate);
       socket.off('sale:updated', handleUpdate);
       socket.off('sale:converted', handleUpdate);
+      socket.off('leads:imported', handleUpdate);
     };
   }, [queryClient]);
 

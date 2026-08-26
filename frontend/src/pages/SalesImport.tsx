@@ -42,34 +42,59 @@ export default function SalesImport() {
               return;
           }
           
-          const lines = pasteText.trim().split('\n');
-          let csvContent = "Name,Phone,Domain,College,Department,Year,Status,Remarks\n";
+          const text = pasteText.trim();
+          let csvContent = "Name,Phone,Email,InterestedDomain,College,Department,Year\n";
           
-          for (const line of lines) {
-              const cleaned = line.trim();
-              if (!cleaned || cleaned.toLowerCase().includes('name') && cleaned.toLowerCase().includes('phone')) continue; // skip headers
-              
-              // Try splitting by tab first
-              let parts = cleaned.split('\t');
-              if (parts.length < 2) {
-                  // Fallback to comma
-                  parts = cleaned.split(',');
+          if (/name\s*[:-]/i.test(text) || /phone\s*[:-]/i.test(text)) {
+              // Handle Key-Value unstructured data (e.g. NAME :- John)
+              const blocks = text.split(/\n\s*\n/);
+              for (const block of blocks) {
+                  if (!block.trim()) continue;
+                  let name = '', phone = '', email = '', domain = '', college = '', department = '', year = '';
+                  const lines = block.split('\n');
+                  for (const line of lines) {
+                      let match = line.match(/^(.*?)(?:\s*[:-]+\s*)(.*)$/);
+                      if (!match) match = line.match(/^(.*?)(?:\s*[-]+\s*)(.*)$/);
+                      if (match) {
+                          const key = match[1].toLowerCase();
+                          const val = match[2].trim().replace(/,/g, '');
+                          if (key.includes('name')) name = val;
+                          else if (key.includes('phone') || key.includes('mobile')) phone = val;
+                          else if (key.includes('mail') || key.includes('email')) email = val;
+                          else if (key.includes('domain') || key.includes('course')) domain = val;
+                          else if (key.includes('college')) college = val;
+                          else if (key.includes('department') || key.includes('dept')) department = val;
+                          else if (key.includes('year')) year = val;
+                      }
+                  }
+                  if (name || phone) {
+                      csvContent += `${name},${phone},${email},${domain},${college},${department},${year}\n`;
+                  }
               }
-              if (parts.length < 2) {
-                  // Fallback to multiple spaces
-                  parts = cleaned.split(/\s{2,}/);
+          } else {
+              // Handle Tabular Data (TSV/CSV)
+              const lines = text.split('\n');
+              for (const line of lines) {
+                  const cleaned = line.trim();
+                  if (!cleaned || (cleaned.toLowerCase().includes('name') && cleaned.toLowerCase().includes('phone'))) continue;
+                  
+                  let parts = cleaned.split('\t');
+                  if (parts.length < 2) parts = cleaned.split(',');
+                  if (parts.length < 2) parts = cleaned.split(/\s{2,}/);
+                  
+                  const name = parts[0] ? parts[0].trim().replace(/,/g, '') : '';
+                  const phone = parts[1] ? parts[1].trim().replace(/,/g, '') : '';
+                  const email = parts[2] && parts[2].includes('@') ? parts[2].trim().replace(/,/g, '') : '';
+                  let domain = '';
+                  // If email was matched to parts[2], domain is parts[3], else domain could be parts[2]
+                  if (email) {
+                      domain = parts[3] ? parts[3].trim().replace(/,/g, '') : '';
+                  } else {
+                      domain = parts[2] ? parts[2].trim().replace(/,/g, '') : '';
+                  }
+                  
+                  csvContent += `${name},${phone},${email},${domain},,, \n`;
               }
-              
-              const name = parts[0] ? parts[0].trim().replace(/,/g, '') : '';
-              const phone = parts[1] ? parts[1].trim().replace(/,/g, '') : '';
-              const domain = parts[2] ? parts[2].trim().replace(/,/g, '') : '';
-              const college = parts[3] ? parts[3].trim().replace(/,/g, '') : '';
-              const department = parts[4] ? parts[4].trim().replace(/,/g, '') : '';
-              const year = parts[5] ? parts[5].trim().replace(/,/g, '') : '';
-              const status = parts[6] ? parts[6].trim().replace(/,/g, '') : '';
-              const remarks = parts[7] ? parts[7].trim().replace(/,/g, '') : '';
-              
-              csvContent += `${name},${phone},${domain},${college},${department},${year},${status},${remarks}\n`;
           }
           
           const blob = new Blob([csvContent], { type: 'text/csv' });
