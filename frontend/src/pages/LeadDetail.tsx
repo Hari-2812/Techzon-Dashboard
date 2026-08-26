@@ -18,7 +18,7 @@ const LeadDetail = () => {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'ADMIN';
 
-  const { data: leadData, isLoading: leadLoading } = useLead(id || '');
+  const { data: leadData, isLoading: leadLoading, isError, error } = useLead(id || '');
   const { data: activities, isLoading: actLoading } = useLeadActivities(id || '');
   
   const recordCall = useRecordCall();
@@ -35,6 +35,12 @@ const LeadDetail = () => {
   const [missingCRInfo, setMissingCRInfo] = useState({ college: '', department: '', year: '' });
 
   if (leadLoading) return <div className="p-6">Loading lead...</div>;
+  if (isError) {
+    const status = (error as any)?.response?.status;
+    if (status === 404) return <div className="p-6">Lead not found.</div>;
+    if (status === 403) return <div className="p-6">Unauthorized: You do not have permission to view this lead.</div>;
+    return <div className="p-6">Failed to load lead. Please try again later.</div>;
+  }
   if (!leadData?.data) return <div className="p-6">Lead not found.</div>;
 
   const lead = leadData.data;

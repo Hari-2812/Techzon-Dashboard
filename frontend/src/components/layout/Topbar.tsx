@@ -1,8 +1,6 @@
 import React from 'react';
 import { Search, Bell, Menu } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
-import { useAttendance } from '../../hooks/useAttendance';
-import { AttendanceControls } from '../ui/AttendanceControls';
 import logo from '../../assets/logo.jpeg';
 
 interface TopbarProps {
@@ -14,9 +12,6 @@ interface TopbarProps {
 const Topbar: React.FC<TopbarProps> = ({ isSidebarOpen, toggleSidebar, toggleMobileMenu }) => {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'ADMIN';
-  const attendance = useAttendance();
-
-  const { isWorking, isOnBreak, isCompleted: isClockedOut, isTestSession, getLiveTimer, isLoading } = attendance;
 
   return (
     <header className="bg-white border-b border-[var(--color-border-subtle)] h-16 flex items-center justify-between px-4 md:px-6 z-10 shrink-0">
@@ -54,31 +49,7 @@ const Topbar: React.FC<TopbarProps> = ({ isSidebarOpen, toggleSidebar, toggleMob
           <Search size={20} />
         </button>
 
-        {/* Attendance Quick Status */}
-        {!isAdmin && !isLoading && attendance.data && (
-          <div className="hidden md:flex items-center gap-4">
-             <div className={`flex items-center gap-3 px-3 py-1.5 rounded-full border ${isTestSession ? 'border-orange-300 bg-orange-50' : 'border-[var(--color-border-subtle)] bg-[var(--color-surface-light)]'}`}>
-               <div className="flex items-center gap-1.5">
-                 <span className={`w-2 h-2 rounded-full ${isWorking ? 'bg-green-500' : isOnBreak ? 'bg-orange-500' : isClockedOut ? 'bg-blue-500' : 'bg-gray-400'}`}></span>
-                 <span className={`text-sm font-medium ${isTestSession ? 'text-orange-700' : 'text-[var(--color-text-secondary)]'}`}>
-                   {isWorking ? 'Working' : isOnBreak ? 'On Break' : isClockedOut ? 'Completed' : 'Not Clocked In'}
-                   {isTestSession && ' (TEST)'}
-                 </span>
-               </div>
-               {(isWorking || isOnBreak || isClockedOut) && (
-                 <>
-                   <span className="text-xs text-gray-400">|</span>
-                   <span className={`text-sm font-mono font-medium ${isTestSession ? 'text-orange-800' : 'text-[var(--color-text-primary)]'}`}>
-                      {getLiveTimer(new Date().getTime())}
-                   </span>
-                 </>
-               )}
-             </div>
-             
-             {/* Action Buttons via shared controls */}
-             <AttendanceControls layout="topbar" />
-          </div>
-        )}
+
         
         {isAdmin && (
            <div className="hidden md:flex items-center gap-3 bg-[var(--color-surface-light)] px-3 py-1.5 rounded-full border border-[var(--color-border-subtle)] text-sm font-medium text-gray-600">

@@ -79,9 +79,9 @@ const Attendance = () => {
     workedHoursStr = `${h.toString().padStart(2, '0')}h ${m.toString().padStart(2, '0')}m`;
     progressPercent = Math.min(100, Math.round((data.daily.workedMinutes / (8 * 60)) * 100));
   } else if (isClockedIn) {
-    const parts = timerStr.split('h ');
-    const h = parseInt(parts[0]);
-    const m = parseInt(parts[1].replace('m', ''));
+    const parts = timerStr.split(' ');
+    const h = parseInt(parts[0].replace('h', '')) || 0;
+    const m = parseInt(parts[1]?.replace('m', '')) || 0;
     progressPercent = Math.min(100, Math.round(((h * 60 + m) / (8 * 60)) * 100));
   }
   

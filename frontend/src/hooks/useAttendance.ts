@@ -142,7 +142,7 @@ export const useAttendance = () => {
 
   // Calculate live working timer logic wrapper
   const getLiveTimer = (currentTimeMs: number) => {
-    if (!session || !session.clockInAt) return '00h 00m';
+    if (!session || !session.clockInAt) return '00h 00m 00s';
     
     // Adjust current local time to server time to prevent '00h 00m' if local clock is behind
     const serverAdjustedTimeMs = currentTimeMs + timeOffset;
@@ -164,7 +164,8 @@ export const useAttendance = () => {
     const diff = Math.max(0, Math.floor((end - start - totalBreakMs) / 1000));
     const hours = Math.floor(diff / 3600);
     const mins = Math.floor((diff % 3600) / 60);
-    return `${hours.toString().padStart(2, '0')}h ${mins.toString().padStart(2, '0')}m`;
+    const secs = diff % 60;
+    return `${hours.toString().padStart(2, '0')}h ${mins.toString().padStart(2, '0')}m ${secs.toString().padStart(2, '0')}s`;
   };
 
   return {

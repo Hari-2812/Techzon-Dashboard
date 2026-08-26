@@ -118,8 +118,11 @@ exports.getLeadById = async (req, res) => {
     if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
     
     // RBAC
-    if (req.user.role !== 'ADMIN' && lead.assignedEmployeeId._id.toString() !== req.user.id) {
-        return res.status(403).json({ success: false, message: 'Forbidden' });
+    if (req.user.role !== 'ADMIN') {
+        const assignedId = lead.assignedEmployeeId ? (lead.assignedEmployeeId._id || lead.assignedEmployeeId).toString() : null;
+        if (assignedId !== req.user.id) {
+            return res.status(403).json({ success: false, message: 'Forbidden: You do not have access to this lead' });
+        }
     }
 
     const relationship = await StudentCRRelationship.findOne({ studentId: lead._id }).populate('crId');
@@ -508,6 +511,7 @@ exports.importConfirm = async (req, res) => {
                     });
                 }
             } else {
+                // Ensure assignedEmployeeId is preserved for newly imported rows
                 newLeads.push(row);
             }
         }
