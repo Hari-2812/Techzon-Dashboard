@@ -79,7 +79,7 @@ exports.approveRequest = async (req, res) => {
                 employeeId: request.employeeId,
                 date: request.date,
                 clockInAt: approvedTime,
-                status: 'WORKING',
+                status: 'RUNNING',
                 isTestSession: request.isTestSession
             });
 
@@ -190,7 +190,7 @@ exports.rejectRequest = async (req, res) => {
         if (request.requestType === 'BREAK' || request.requestType === 'CHECK_OUT') {
             session = await WorkSession.findOne({ employeeId: request.employeeId, date: request.date, isTestSession: request.isTestSession }).sort({ createdAt: -1 });
             if (session) {
-                session.status = 'WORKING';
+                session.status = 'RUNNING';
                 await session.save();
                 
                 await AttendanceDaily.findOneAndUpdate(

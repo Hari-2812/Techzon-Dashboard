@@ -34,7 +34,7 @@ exports.getTodayAdminAttendance = async (req, res) => {
     });
 
     sessions.forEach(s => {
-      if (s.status === 'ACTIVE') summary.currentlyWorking++;
+      if (s.status === 'RUNNING' || s.status === 'ACTIVE') summary.currentlyWorking++;
       if (s.status === 'MISSING_CLOCK_OUT') summary.missingClockOut++;
     });
 

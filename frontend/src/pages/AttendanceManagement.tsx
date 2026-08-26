@@ -105,7 +105,7 @@ const AttendanceManagement = () => {
   // Dynamic Chart Data
   const chartData = [
     { name: 'Present', value: data?.summary?.present || 0 },
-    { name: 'On Break', value: data?.sessions?.filter((s:any) => s.status === 'ACTIVE' && s.breaks?.length > 0 && !s.breaks[s.breaks.length-1].endAt).length || 0 },
+    { name: 'On Break', value: data?.sessions?.filter((s:any) => (s.status === 'ACTIVE' || s.status === 'RUNNING') && s.breaks?.length > 0 && !s.breaks[s.breaks.length-1].endAt).length || 0 },
     { name: 'Absent', value: data?.summary?.absent || 0 },
     { name: 'On Leave', value: data?.summary?.onLeave || 0 },
   ];
@@ -124,7 +124,7 @@ const AttendanceManagement = () => {
     if (search && !item.employeeId?.name.toLowerCase().includes(search.toLowerCase())) return false;
     
     if (statusFilter !== 'All') {
-      const isActive = item.session?.status === 'ACTIVE';
+      const isActive = (item.session?.status === 'ACTIVE' || item.session?.status === 'RUNNING');
       const isOnBreak = isActive && item.session?.breaks?.length > 0 && !item.session.breaks[item.session.breaks.length-1].endAt;
       const isCompleted = item.session?.status === 'COMPLETED';
       
@@ -168,7 +168,7 @@ const AttendanceManagement = () => {
         </Card>
         <Card className="p-4 rounded-xl border-t-4 border-orange-500 shadow-sm border-x border-b border-[var(--color-border-subtle)] text-center">
           <p className="text-xs font-bold text-[var(--color-text-muted)] mb-1 uppercase tracking-tight">On Break</p>
-          <p className="text-2xl font-black text-orange-600">{data?.sessions?.filter((s:any) => s.status === 'ACTIVE' && s.breaks?.length > 0 && !s.breaks[s.breaks.length-1].endAt).length || 0}</p>
+          <p className="text-2xl font-black text-orange-600">{data?.sessions?.filter((s:any) => (s.status === 'ACTIVE' || s.status === 'RUNNING') && s.breaks?.length > 0 && !s.breaks[s.breaks.length-1].endAt).length || 0}</p>
         </Card>
         <Card className="p-4 rounded-xl border-t-4 border-yellow-500 shadow-sm border-x border-b border-[var(--color-border-subtle)] text-center">
           <p className="text-xs font-bold text-[var(--color-text-muted)] mb-1 uppercase tracking-tight">Late</p>
@@ -295,7 +295,7 @@ const AttendanceManagement = () => {
               <TableBody>
                 {mergedData.map((item: any) => {
                   const session = item.session;
-                  const isActive = session?.status === 'ACTIVE';
+                  const isActive = (session?.status === 'ACTIVE' || session?.status === 'RUNNING');
                   const isOnBreak = isActive && session?.breaks?.length > 0 && !session.breaks[session.breaks.length-1].endAt;
                   const isCompleted = session?.status === 'COMPLETED';
 
@@ -425,8 +425,8 @@ const AttendanceManagement = () => {
                    <div className="flex justify-between items-center pb-3 border-b border-[var(--color-border-subtle)]">
                      <span className="text-[var(--color-text-muted)]">Status</span>
                      <StatusBadge 
-                        isActive={selectedEmployee.session?.status === 'ACTIVE' && !(selectedEmployee.session?.breaks?.length > 0 && !selectedEmployee.session.breaks[selectedEmployee.session.breaks.length-1].endAt)} 
-                        isOnBreak={selectedEmployee.session?.status === 'ACTIVE' && selectedEmployee.session?.breaks?.length > 0 && !selectedEmployee.session.breaks[selectedEmployee.session.breaks.length-1].endAt} 
+                        isActive={(selectedEmployee.session?.status === 'ACTIVE' || selectedEmployee.session?.status === 'RUNNING') && !(selectedEmployee.session?.breaks?.length > 0 && !selectedEmployee.session.breaks[selectedEmployee.session.breaks.length-1].endAt)} 
+                        isOnBreak={(selectedEmployee.session?.status === 'ACTIVE' || selectedEmployee.session?.status === 'RUNNING') && selectedEmployee.session?.breaks?.length > 0 && !selectedEmployee.session.breaks[selectedEmployee.session.breaks.length-1].endAt} 
                         isCompleted={selectedEmployee.session?.status === 'COMPLETED'} 
                         dailyStatus={selectedEmployee.status} 
                       />

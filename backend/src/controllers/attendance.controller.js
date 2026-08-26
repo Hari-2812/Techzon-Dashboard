@@ -28,13 +28,11 @@ exports.getTodayAttendance = async (req, res) => {
     let daily = await AttendanceDaily.findOne({ employeeId: req.user.id, date: dateStr }).sort({ createdAt: -1 });
     
     // Safety check for bogus future timestamps (from previous buggy code that added 5.5 hours)
+    // We sanitize it purely in memory for the response so the UI works, but we DO NOT save it 
+    // to avoid triggering mongoose validation errors on legacy enums.
     if (session && session.clockInAt) {
        if (new Date(session.clockInAt).getTime() > Date.now() + 60000) {
-           // Clock-in is in the future. The old code erroneously added 5.5 hours.
-           // Fix it by subtracting 5.5 hours.
            session.clockInAt = new Date(new Date(session.clockInAt).getTime() - (5.5 * 60 * 60 * 1000));
-           await session.save();
-           console.log(`[ATTENDANCE DEBUG] Fixed future clockInAt for ${req.user.id} to ${session.clockInAt}`);
        }
     }
 
@@ -81,11 +79,11 @@ exports.clockIn = async (req, res) => {
       daily = await AttendanceDaily.create({
         employeeId: req.user.id,
         date: dateStr,
-        status: 'PENDING_CHECK_IN_APPROVAL',
+        status: 'PENDING',
         isTestSession: isTestMode
       });
     } else {
-      daily.status = 'PENDING_CHECK_IN_APPROVAL';
+      daily.status = 'PENDING';
       await daily.save();
     }
 
@@ -257,7 +255,7 @@ exports.endBreak = async (req, res) => {
     // Calculate break duration
     lastBreak.durationMinutes = Math.round((endTime.getTime() - new Date(lastBreak.startAt).getTime()) / 60000);
     
-    session.status = 'WORKING';
+    session.status = 'RUNNING';
     await session.save();
     
     let daily = await AttendanceDaily.findOne({ employeeId: req.user.id, date: dateStr, isTestSession: isTestMode });

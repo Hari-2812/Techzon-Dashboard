@@ -12,8 +12,8 @@ const AttendanceDailySchema = new mongoose.Schema({
     overtimeMinutes: { type: Number, default: 0 },
     status: {
         type: String,
-        enum: ['PENDING_CHECK_IN_APPROVAL', 'WORKING', 'PENDING_BREAK_APPROVAL', 'ON_BREAK', 'PENDING_CHECK_OUT_APPROVAL', 'COMPLETED', 'REJECTED', 'MISSING_CLOCK_OUT', 'PRESENT', 'LATE', 'HALF_DAY', 'ABSENT', 'PAID_LEAVE', 'HOLIDAY', 'WEEK_OFF', 'EARLY_LEAVE', 'OVERTIME', 'REQUIRES_REVIEW'],
-        required: true,
+        enum: ['PENDING', 'WORKING', 'ON_BREAK', 'COMPLETED', 'REJECTED', 'MISSING_CLOCK_OUT', 'PRESENT', 'LATE', 'HALF_DAY', 'ABSENT', 'PAID_LEAVE', 'HOLIDAY', 'WEEK_OFF', 'EARLY_LEAVE', 'OVERTIME', 'REQUIRES_REVIEW', 'PENDING_CHECK_IN_APPROVAL', 'PENDING_BREAK_APPROVAL', 'PENDING_CHECK_OUT_APPROVAL'],
+        default: 'PENDING',
         index: true
     },
     correctionStatus: { type: String, enum: ['Pending', 'Approved', 'Rejected'] },
