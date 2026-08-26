@@ -29,6 +29,24 @@ exports.createUpdate = async (req, res) => {
             finalSalesStatus = normalizeSalesStatus(salesStatus);
         }
 
+        // Explicitly check for daily notes
+        if (!notes || !notes.trim()) {
+            return res.status(400).json({ success: false, message: 'Daily notes are required' });
+        }
+
+        // Determine department - fallback to User profile if not provided explicitly or by lead
+        let finalDepartment = department;
+        if (!finalDepartment) {
+            const currentUser = await User.findById(req.user.id);
+            if (currentUser && currentUser.department) {
+                finalDepartment = currentUser.department;
+            }
+        }
+
+        if (!finalDepartment) {
+            return res.status(400).json({ success: false, message: 'Department is required (Please update your profile or specify one)' });
+        }
+
         // Determine if we need to fetch an existing lead or create a new one
         if (entryType === 'existing' && leadId) {
             lead = await Lead.findById(leadId);
@@ -54,7 +72,7 @@ exports.createUpdate = async (req, res) => {
                     phone,
                     email,
                     college,
-                    department,
+                    department: finalDepartment,
                     year,
                     course: courseInterested,
                     assignedEmployeeId: req.user.id,
@@ -71,7 +89,7 @@ exports.createUpdate = async (req, res) => {
             phone,
             email,
             college,
-            department,
+            department: finalDepartment,
             year,
             courseInterested,
             
