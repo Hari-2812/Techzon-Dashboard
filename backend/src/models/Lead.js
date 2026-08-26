@@ -51,22 +51,20 @@ const LeadSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Pre-validate hook to normalize data before creation or full save
-LeadSchema.pre('validate', function (next) {
+LeadSchema.pre('validate', function () {
     if (this.isModified('salesStatus') || this.isNew) {
         this.salesStatus = normalizeSalesStatus(this.salesStatus);
     }
-    next();
 });
 
 // Pre-findOneAndUpdate hook to normalize data during updates
-LeadSchema.pre('findOneAndUpdate', function (next) {
+LeadSchema.pre('findOneAndUpdate', function () {
     const update = this.getUpdate();
     if (update.salesStatus) {
         update.salesStatus = normalizeSalesStatus(update.salesStatus);
     } else if (update.$set && update.$set.salesStatus) {
         update.$set.salesStatus = normalizeSalesStatus(update.$set.salesStatus);
     }
-    next();
 });
 
 module.exports = mongoose.model('Lead', LeadSchema);
