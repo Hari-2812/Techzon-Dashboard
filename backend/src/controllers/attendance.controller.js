@@ -45,9 +45,9 @@ exports.clockIn = async (req, res) => {
 
     // Check if they already have a pending request
     const AttendanceRequest = require('../models/AttendanceRequest');
-    const existingReq = await AttendanceRequest.findOne({ employeeId: req.user.id, date: dateStr, requestType: 'CLOCK_IN', status: 'PENDING', isTestSession: isTestMode });
+    const existingReq = await AttendanceRequest.findOne({ employeeId: req.user.id, date: dateStr, requestType: 'CHECK_IN', status: 'PENDING', isTestSession: isTestMode });
     if (existingReq) {
-      return res.status(400).json({ success: false, message: 'You already have a pending Clock-In request.' });
+      return res.status(400).json({ success: false, message: 'You already have a pending Check-In request.' });
     }
 
     // Check if they are already clocked in
@@ -60,11 +60,24 @@ exports.clockIn = async (req, res) => {
     const request = await AttendanceRequest.create({
         employeeId: req.user.id,
         date: dateStr,
-        requestType: 'CLOCK_IN',
+        requestType: 'CHECK_IN',
         status: 'PENDING',
         requestedTime: new Date(),
         isTestSession: isTestMode
     });
+    
+    let daily = await AttendanceDaily.findOne({ employeeId: req.user.id, date: dateStr, isTestSession: isTestMode });
+    if (!daily) {
+      daily = await AttendanceDaily.create({
+        employeeId: req.user.id,
+        date: dateStr,
+        status: 'PENDING_CHECK_IN_APPROVAL',
+        isTestSession: isTestMode
+      });
+    } else {
+      daily.status = 'PENDING_CHECK_IN_APPROVAL';
+      await daily.save();
+    }
 
     // Notify Admin Realtime
     const io = req.app.get('io') || require('../server').io;
@@ -78,7 +91,7 @@ exports.clockIn = async (req, res) => {
       });
     }
 
-    res.json({ success: true, data: request, message: 'Clock-in request sent for admin approval' });
+    res.json({ success: true, data: request, message: 'Check-in request sent for admin approval' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server Error' });
@@ -95,9 +108,9 @@ exports.clockOut = async (req, res) => {
 
     // Check if they already have a pending request
     const AttendanceRequest = require('../models/AttendanceRequest');
-    const existingReq = await AttendanceRequest.findOne({ employeeId: req.user.id, date: dateStr, requestType: 'CLOCK_OUT', status: 'PENDING', isTestSession: isTestMode });
+    const existingReq = await AttendanceRequest.findOne({ employeeId: req.user.id, date: dateStr, requestType: 'CHECK_OUT', status: 'PENDING', isTestSession: isTestMode });
     if (existingReq) {
-      return res.status(400).json({ success: false, message: 'You already have a pending Clock-Out request.' });
+      return res.status(400).json({ success: false, message: 'You already have a pending Check-Out request.' });
     }
 
     let session = await WorkSession.findOne({ employeeId: req.user.id, date: dateStr, isTestSession: isTestMode }).sort({ createdAt: -1 });
@@ -117,11 +130,20 @@ exports.clockOut = async (req, res) => {
     const request = await AttendanceRequest.create({
         employeeId: req.user.id,
         date: dateStr,
-        requestType: 'CLOCK_OUT',
+        requestType: 'CHECK_OUT',
         status: 'PENDING',
         requestedTime: new Date(),
         isTestSession: isTestMode
     });
+
+    session.status = 'PENDING_CHECK_OUT_APPROVAL';
+    await session.save();
+    
+    let daily = await AttendanceDaily.findOne({ employeeId: req.user.id, date: dateStr, isTestSession: isTestMode });
+    if (daily) {
+        daily.status = 'PENDING_CHECK_OUT_APPROVAL';
+        await daily.save();
+    }
 
     // Notify Admin Realtime
     const io = req.app.get('io') || require('../server').io;
@@ -135,7 +157,7 @@ exports.clockOut = async (req, res) => {
       });
     }
 
-    res.json({ success: true, data: request, message: 'Clock-out request sent for admin approval' });
+    res.json({ success: true, data: request, message: 'Check-out request sent for admin approval' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server Error' });
@@ -144,40 +166,60 @@ exports.clockOut = async (req, res) => {
 
 exports.startBreak = async (req, res) => {
   try {
-    const { reason, comment } = req.body;
+    const { reason, comment, isTest } = req.body;
     if (!reason) return res.status(400).json({ success: false, message: 'Break reason is required' });
-    if (reason === 'Other' && (!comment || comment.trim() === '')) {
-      return res.status(400).json({ success: false, message: 'Comment is required when reason is Other' });
-    }
-
+    
     const settings = await AttendanceSettings.findOne() || new AttendanceSettings();
     const dateStr = getTodayDateString(settings.timezone);
+    const isTestMode = (process.env.NODE_ENV === 'development' || req.headers.host?.includes('localhost')) && isTest === true;
     
-    let session = await WorkSession.findOne({ employeeId: req.user.id, date: dateStr }).sort({ createdAt: -1 });
+    let session = await WorkSession.findOne({ employeeId: req.user.id, date: dateStr, isTestSession: isTestMode }).sort({ createdAt: -1 });
     if (!session || session.clockOutAt) {
       return res.status(400).json({ success: false, message: 'Not actively clocked in' });
     }
 
-    if (session.breaks.length > 0 && !session.breaks[session.breaks.length - 1].endAt) {
+    if (session.breaks && session.breaks.length > 0 && !session.breaks[session.breaks.length - 1].endAt) {
       return res.status(400).json({ success: false, message: 'Already on a break' });
     }
+    
+    // Check pending break request
+    const AttendanceRequest = require('../models/AttendanceRequest');
+    const existingReq = await AttendanceRequest.findOne({ employeeId: req.user.id, date: dateStr, requestType: 'BREAK', status: 'PENDING', isTestSession: isTestMode });
+    if (existingReq) return res.status(400).json({ success: false, message: 'You already have a pending Break request.' });
 
-    session.breaks.push({ startAt: new Date(), reason, comment });
-    await session.save();
-
-    const AuditLog = require('../models/AuditLog');
-    await AuditLog.create({
-      actorId: req.user.id,
-      action: 'BREAK_STARTED',
-      entityType: 'WorkSession',
-      entityId: session._id,
-      metadata: { reason, comment }
+    // Create the Request
+    const request = await AttendanceRequest.create({
+        employeeId: req.user.id,
+        date: dateStr,
+        requestType: 'BREAK',
+        status: 'PENDING',
+        requestedTime: new Date(),
+        breakReason: reason,
+        adminComment: comment,
+        isTestSession: isTestMode
     });
+    
+    session.status = 'PENDING_BREAK_APPROVAL';
+    await session.save();
+    
+    let daily = await AttendanceDaily.findOne({ employeeId: req.user.id, date: dateStr, isTestSession: isTestMode });
+    if (daily) {
+        daily.status = 'PENDING_BREAK_APPROVAL';
+        await daily.save();
+    }
 
-    const io = require('../server').io;
-    if (io) io.emit('employee:on-break', { employeeId: req.user.id, session });
+    const io = req.app.get('io') || require('../server').io;
+    const User = require('../models/User');
+    const emp = await User.findById(req.user.id);
+    if (io) {
+      io.emit('attendance:break-request', { 
+        requestId: request._id,
+        employeeName: emp ? emp.name : 'Unknown',
+        time: request.requestedTime
+      });
+    }
 
-    res.json({ success: true, data: session });
+    res.json({ success: true, data: request, message: 'Break request sent for admin approval' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server Error' });
@@ -186,42 +228,50 @@ exports.startBreak = async (req, res) => {
 
 exports.endBreak = async (req, res) => {
   try {
-    const { resumeComment } = req.body;
+    const { resumeComment, isTest } = req.body;
     const settings = await AttendanceSettings.findOne() || new AttendanceSettings();
     const dateStr = getTodayDateString(settings.timezone);
+    const isTestMode = (process.env.NODE_ENV === 'development' || req.headers.host?.includes('localhost')) && isTest === true;
     
-    let session = await WorkSession.findOne({ employeeId: req.user.id, date: dateStr }).sort({ createdAt: -1 });
+    let session = await WorkSession.findOne({ employeeId: req.user.id, date: dateStr, isTestSession: isTestMode }).sort({ createdAt: -1 });
     if (!session || session.clockOutAt) {
       return res.status(400).json({ success: false, message: 'Not actively clocked in' });
     }
 
-    if (session.breaks.length === 0 || session.breaks[session.breaks.length - 1].endAt) {
+    if (!session.breaks || session.breaks.length === 0 || session.breaks[session.breaks.length - 1].endAt) {
       return res.status(400).json({ success: false, message: 'Not on a break' });
     }
 
     const lastBreak = session.breaks[session.breaks.length - 1];
-    lastBreak.endAt = new Date();
+    const endTime = new Date();
+    lastBreak.endAt = endTime;
     if (resumeComment) lastBreak.resumeComment = resumeComment;
     
-    const start = moment(lastBreak.startAt);
-    const end = moment(lastBreak.endAt);
-    lastBreak.durationMinutes = Math.max(0, end.diff(start, 'minutes'));
-
+    // Calculate break duration
+    lastBreak.durationMinutes = Math.round((endTime.getTime() - new Date(lastBreak.startAt).getTime()) / 60000);
+    
+    session.status = 'WORKING';
     await session.save();
+    
+    let daily = await AttendanceDaily.findOne({ employeeId: req.user.id, date: dateStr, isTestSession: isTestMode });
+    if (daily) {
+        daily.status = 'WORKING';
+        await daily.save();
+    }
 
     const AuditLog = require('../models/AuditLog');
     await AuditLog.create({
       actorId: req.user.id,
-      action: 'WORK_RESUMED',
+      action: 'BREAK_ENDED',
       entityType: 'WorkSession',
       entityId: session._id,
-      metadata: { durationMinutes: lastBreak.durationMinutes, resumeComment }
+      metadata: { resumeComment, breakDurationMinutes: lastBreak.durationMinutes }
     });
 
-    const io = require('../server').io;
-    if (io) io.emit('employee:resumed', { employeeId: req.user.id, session });
+    const io = req.app.get('io') || require('../server').io;
+    if (io) io.emit('employee:break-ended', { employeeId: req.user.id, session });
 
-    res.json({ success: true, data: session });
+    res.json({ success: true, data: session, message: 'Resumed work successfully' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server Error' });

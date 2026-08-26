@@ -211,7 +211,7 @@ const AttendanceManagement = () => {
                        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{req.employeeId?.employeeId}</p>
                      </TableCell>
                      <TableCell>
-                       <Badge variant={req.requestType === 'CLOCK_IN' ? 'success' : 'neutral'}>{req.requestType.replace('_', ' ')}</Badge>
+                       <Badge variant={req.requestType === 'CHECK_IN' ? 'success' : 'neutral'}>{req.requestType.replace('_', ' ')}</Badge>
                      </TableCell>
                      <TableCell className="font-semibold text-[var(--color-text-primary)]">
                        {moment(req.requestedTime).format('hh:mm A')}

@@ -174,7 +174,7 @@ const Dashboard = () => {
                 <div className="text-3xl font-bold text-[var(--color-text-primary)] font-mono tracking-tight">{getLiveTimer(now)}</div>
               </div>
               <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                 <AttendanceControls layout="dashboard" />
+                 <Button onClick={() => navigate('/attendance')} variant="outline" className="w-full sm:w-auto">View Attendance</Button>
               </div>
             </div>
           )}

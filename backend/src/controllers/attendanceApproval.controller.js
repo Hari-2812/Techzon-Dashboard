@@ -70,28 +70,25 @@ exports.approveRequest = async (req, res) => {
         const settings = await AttendanceSettings.findOne() || new AttendanceSettings();
         let session;
 
-        if (request.requestType === 'CLOCK_IN') {
-            const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-            
+        if (request.requestType === 'CHECK_IN') {
             if (request.isTestSession) {
                 await WorkSession.deleteMany({ employeeId: request.employeeId, date: request.date, isTestSession: true });
-                await AttendanceDaily.deleteMany({ employeeId: request.employeeId, date: request.date, isTestSession: true });
+                // We keep the daily record but update it
             }
 
             session = await WorkSession.create({
                 employeeId: request.employeeId,
                 date: request.date,
                 clockInAt: approvedTime,
-                status: 'ACTIVE',
-                isTestSession: request.isTestSession
-            });
-
-            await AttendanceDaily.create({
-                employeeId: request.employeeId,
-                date: request.date,
                 status: 'WORKING',
                 isTestSession: request.isTestSession
             });
+
+            await AttendanceDaily.findOneAndUpdate(
+                { employeeId: request.employeeId, date: request.date, isTestSession: request.isTestSession },
+                { status: 'WORKING' },
+                { upsert: true }
+            );
 
             await AuditLog.create({
                 actorId: req.user.id,
@@ -101,14 +98,41 @@ exports.approveRequest = async (req, res) => {
                 metadata: { originalTime: request.requestedTime, approvedTime, edited: !!editedTime }
             });
 
-            const io = require('../server').io;
+            const io = req.app.get('io') || require('../server').io;
             if (io) io.emit('attendance:clock-in-approved', { employeeId: request.employeeId, session, request });
 
-        } else if (request.requestType === 'CLOCK_OUT') {
+        } else if (request.requestType === 'BREAK') {
+            session = await WorkSession.findOne({ employeeId: request.employeeId, date: request.date, isTestSession: request.isTestSession }).sort({ createdAt: -1 });
+            if (!session) return res.status(404).json({ success: false, message: 'Session not found to take break' });
+            
+            session.breaks.push({
+                startAt: approvedTime,
+                reason: request.breakReason,
+                comment: request.adminComment
+            });
+            session.status = 'ON_BREAK';
+            await session.save();
+            
+            await AttendanceDaily.findOneAndUpdate(
+                { employeeId: request.employeeId, date: request.date, isTestSession: request.isTestSession },
+                { status: 'ON_BREAK' }
+            );
+            
+            await AuditLog.create({
+                actorId: req.user.id,
+                action: 'BREAK_APPROVED',
+                entityType: 'AttendanceRequest',
+                entityId: request._id,
+                metadata: { originalTime: request.requestedTime, approvedTime, reason: request.breakReason }
+            });
+            
+            const io = req.app.get('io') || require('../server').io;
+            if (io) io.emit('attendance:break-approved', { employeeId: request.employeeId, session, request });
+            
+        } else if (request.requestType === 'CHECK_OUT') {
             session = await WorkSession.findOne({ employeeId: request.employeeId, date: request.date, isTestSession: request.isTestSession }).sort({ createdAt: -1 });
             if (!session) return res.status(404).json({ success: false, message: 'Session not found to clock out' });
 
-            const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
             session.clockOutAt = approvedTime;
             session.status = 'COMPLETED';
             await session.save();
@@ -123,7 +147,7 @@ exports.approveRequest = async (req, res) => {
         
             let daily = await AttendanceDaily.findOneAndUpdate(
               { employeeId: request.employeeId, date: request.date, isTestSession: request.isTestSession },
-              { ...stats, workedOnHoliday: !!holiday },
+              { ...stats, workedOnHoliday: !!holiday, status: 'COMPLETED' },
               { returnDocument: 'after', upsert: true }
             );
 
@@ -135,7 +159,7 @@ exports.approveRequest = async (req, res) => {
                 metadata: { originalTime: request.requestedTime, approvedTime, edited: !!editedTime }
             });
 
-            const io = require('../server').io;
+            const io = req.app.get('io') || require('../server').io;
             if (io) io.emit('attendance:clock-out-approved', { employeeId: request.employeeId, session, daily, request });
         }
 
@@ -163,18 +187,36 @@ exports.rejectRequest = async (req, res) => {
         request.rejectionReason = rejectionReason || 'Rejected by Admin';
         await request.save();
 
+        let session;
+        if (request.requestType === 'BREAK' || request.requestType === 'CHECK_OUT') {
+            session = await WorkSession.findOne({ employeeId: request.employeeId, date: request.date, isTestSession: request.isTestSession }).sort({ createdAt: -1 });
+            if (session) {
+                session.status = 'WORKING';
+                await session.save();
+                
+                await AttendanceDaily.findOneAndUpdate(
+                    { employeeId: request.employeeId, date: request.date, isTestSession: request.isTestSession },
+                    { status: 'WORKING' }
+                );
+            }
+        } else if (request.requestType === 'CHECK_IN') {
+             await AttendanceDaily.findOneAndUpdate(
+                 { employeeId: request.employeeId, date: request.date, isTestSession: request.isTestSession },
+                 { status: 'REJECTED' }
+             );
+        }
+
         await AuditLog.create({
             actorId: req.user.id,
-            action: request.requestType === 'CLOCK_IN' ? 'CLOCK_IN_REJECTED' : 'CLOCK_OUT_REJECTED',
+            action: `${request.requestType}_REJECTED`,
             entityType: 'AttendanceRequest',
             entityId: request._id,
             metadata: { rejectionReason }
         });
 
-        const io = require('../server').io;
+        const io = req.app.get('io') || require('../server').io;
         if (io) {
-            const eventName = request.requestType === 'CLOCK_IN' ? 'attendance:clock-in-rejected' : 'attendance:clock-out-rejected';
-            io.emit(eventName, { employeeId: request.employeeId, request });
+            io.emit('attendance:request-rejected', { employeeId: request.employeeId, request, session });
         }
 
         res.json({ success: true, message: 'Request rejected successfully' });

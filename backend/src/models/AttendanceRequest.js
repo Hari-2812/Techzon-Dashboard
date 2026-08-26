@@ -5,10 +5,11 @@ const AttendanceRequestSchema = new mongoose.Schema({
     date: { type: String, required: true, index: true },
     requestType: {
         type: String,
-        enum: ['CLOCK_IN', 'CLOCK_OUT'],
+        enum: ['CHECK_IN', 'CHECK_OUT', 'BREAK'],
         required: true,
         index: true
     },
+    breakReason: { type: String },
     status: {
         type: String,
         enum: ['PENDING', 'APPROVED', 'REJECTED'],

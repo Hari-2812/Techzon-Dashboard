@@ -127,17 +127,19 @@ export const useAttendance = () => {
       return new Date(data.serverTime).getTime() - new Date().getTime();
   }, [data?.serverTime]);
   
-  const pendingClockInReq = pendingRequestsData?.find((r: any) => r.requestType === 'CLOCK_IN');
-  const pendingClockOutReq = pendingRequestsData?.find((r: any) => r.requestType === 'CLOCK_OUT');
+  const pendingClockInReq = pendingRequestsData?.find((r: any) => r.requestType === 'CHECK_IN');
+  const pendingClockOutReq = pendingRequestsData?.find((r: any) => r.requestType === 'CHECK_OUT');
+  const pendingBreakReq = pendingRequestsData?.find((r: any) => r.requestType === 'BREAK');
 
   const isPendingClockIn = !!pendingClockInReq;
   const isPendingClockOut = !!pendingClockOutReq;
+  const isPendingBreak = !!pendingBreakReq;
 
   const isClockedIn = !!session && !session.clockOutAt;
-  const isOnBreak = session?.breaks?.length > 0 && !session.breaks[session.breaks.length - 1].endAt;
+  const isOnBreak = session?.status === 'ON_BREAK';
   const activeBreak = isOnBreak ? session.breaks[session.breaks.length - 1] : null;
-  const isCompleted = session?.clockOutAt != null;
-  const isWorking = isClockedIn && !isOnBreak;
+  const isCompleted = session?.status === 'COMPLETED';
+  const isWorking = session?.status === 'WORKING';
   const isTestSession = session?.isTestSession;
 
   // Calculate live working timer logic wrapper
@@ -190,6 +192,7 @@ export const useAttendance = () => {
     isTestSession,
     isPendingClockIn,
     isPendingClockOut,
+    isPendingBreak,
     getLiveTimer,
     clockIn,
     clockOut,
