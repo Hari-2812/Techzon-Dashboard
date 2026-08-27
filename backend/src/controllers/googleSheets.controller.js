@@ -100,7 +100,18 @@ exports.handleOAuthCallback = async (req, res) => {
 
 exports.getSheets = async (req, res) => {
     try {
-        const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+        const { targetEmployeeId } = req.query;
+        let spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+        
+        if (targetEmployeeId) {
+            const user = await User.findById(targetEmployeeId);
+            if (user && user.googleSheetId) {
+                spreadsheetId = user.googleSheetId;
+            } else {
+                return res.status(400).json({ success: false, message: 'Google Sheet ID is not configured for this employee.' });
+            }
+        }
+
         if (!spreadsheetId) {
             return res.status(400).json({ success: false, message: 'Google Spreadsheet ID is not configured.' });
         }
@@ -116,7 +127,7 @@ exports.getSheets = async (req, res) => {
         res.json({ success: true, sheets: formattedSheets });
     } catch (err) {
         console.error('Error fetching sheets:', err);
-        res.status(500).json({ success: false, message: 'Failed to fetch sheets from Google.' });
+        res.status(500).json({ success: false, message: 'Failed to fetch sheets from Google. Make sure the ID is correct and shared with the service account.' });
     }
 };
 
@@ -169,11 +180,26 @@ const getSheetDataAsObjects = async (spreadsheetId, worksheetName) => {
 exports.executeSync = async (req, res) => {
     let syncRecord;
     try {
-        const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
-        const { worksheets } = req.body;
+        const { worksheets, targetEmployeeId } = req.body;
+        let spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+
+        // Security Validation & override
+        let finalTargetEmployeeId = targetEmployeeId;
+        if (req.user.role !== 'ADMIN') {
+            finalTargetEmployeeId = req.user.id;
+        }
+
+        if (finalTargetEmployeeId) {
+            const user = await User.findById(finalTargetEmployeeId);
+            if (user && user.googleSheetId) {
+                spreadsheetId = user.googleSheetId;
+            } else {
+                return res.status(400).json({ success: false, message: 'Google Sheet ID is not configured for this employee.' });
+            }
+        }
 
         if (!spreadsheetId) {
-            return res.status(400).json({ success: false, message: 'Spreadsheet ID is not configured in .env' });
+            return res.status(400).json({ success: false, message: 'Spreadsheet ID is not configured in .env or user profile' });
         }
         
         if (!worksheets || !Array.isArray(worksheets) || worksheets.length === 0) {
@@ -302,7 +328,9 @@ exports.executeSync = async (req, res) => {
             phoneMap.set(normalizedPhone, true); 
             
             let assignedEmployeeId = null;
-            if (activeUsers.length > 0) {
+            if (finalTargetEmployeeId) {
+                assignedEmployeeId = finalTargetEmployeeId;
+            } else if (activeUsers.length > 0) {
                 if (settings.assignmentStrategy === 'LEAST_ASSIGNED') {
                     let minId = activeUsers[0]._id.toString();
                     for (const [id, count] of employeeLoad.entries()) {

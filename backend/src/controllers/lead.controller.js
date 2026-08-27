@@ -321,7 +321,12 @@ exports.importParse = async (req, res) => {
 // @route POST /api/leads/import/preview
 exports.importPreview = async (req, res) => {
     try {
-        const { rawId, mapping } = req.body;
+        const { rawId, mapping, targetEmployeeId } = req.body;
+        
+        let finalTargetEmployeeId = targetEmployeeId;
+        if (req.user.role !== 'ADMIN') {
+            finalTargetEmployeeId = req.user.id;
+        }
         
         if (!rawId || !importRawCache.has(rawId)) {
             return res.status(400).json({ success: false, message: 'Invalid or expired parsing session. Please upload again.' });
@@ -335,13 +340,19 @@ exports.importPreview = async (req, res) => {
         let duplicates = 0;
         let invalid = 0;
 
-        // Active employees for Round Robin
+        // Active employees for Round Robin or manual target
         const activeEmployees = await User.find({ isActive: true, role: { $in: ['RGS', 'BDE'] } });
         let rrIndex = 0;
         const employeeStats = {};
         activeEmployees.forEach(emp => {
             employeeStats[emp._id.toString()] = { name: emp.name, count: 0 };
         });
+
+        // Add target employee to stats if not already there
+        if (finalTargetEmployeeId && !employeeStats[finalTargetEmployeeId]) {
+            const targetEmp = await User.findById(finalTargetEmployeeId);
+            if (targetEmp) employeeStats[finalTargetEmployeeId] = { name: targetEmp.name, count: 0 };
+        }
 
         for (let i = 0; i < rawResults.length; i++) {
             const row = rawResults[i];
@@ -431,7 +442,12 @@ exports.importPreview = async (req, res) => {
 
             // Auto Assignment for new leads only
             if (!data.isUpdate && !data.assignedEmployeeId) {
-                if (req.user.role !== 'ADMIN') {
+                if (finalTargetEmployeeId) {
+                    data.assignedEmployeeId = finalTargetEmployeeId;
+                    if (employeeStats[finalTargetEmployeeId]) {
+                        employeeStats[finalTargetEmployeeId].count++;
+                    }
+                } else if (req.user.role !== 'ADMIN') {
                     // Employee imports their own leads
                     data.assignedEmployeeId = req.user.id;
                     if (employeeStats[req.user.id]) {

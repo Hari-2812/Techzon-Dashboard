@@ -114,12 +114,15 @@ function App() {
               <Route path="/employees/create" element={<CreateEmployee />} />
               <Route path="/employees/:id" element={<EmployeeProfile />} />
               <Route path="/employees/:id/edit" element={<EditEmployee />} />
+              <Route path="/employees/:employeeId/import-leads" element={<ImportLeads />} />
               <Route path="/analytics" element={<Analytics />} />
-              <Route path="import-leads" element={<ImportLeads />} />
               <Route path="audit-logs" element={<AuditLogs />} />
               <Route path="team" element={<Team />} />
               <Route path="salary-attendance" element={<SalaryAttendance />} />
             </Route>
+
+            {/* Accessible by anyone (Role logic handled inside component) */}
+            <Route path="import-leads" element={<ImportLeads />} />
 
             <Route path="*" element={<NotFound />} />
           </Route>

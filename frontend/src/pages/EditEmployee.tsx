@@ -19,7 +19,7 @@ const EditEmployee = () => {
     const [formData, setFormData] = useState({
         firstName: '', lastName: '', email: '', phone: '',
         role: '', department: '', designation: '',
-        joiningDate: '', gender: '', dob: '', employmentType: '', workLocation: '',
+        joiningDate: '', gender: '', dob: '', employmentType: '', workLocation: '', googleSheetId: '',
         emergencyContactName: '', emergencyContactPhone: '', emergencyContactRelation: '',
     });
 
@@ -51,6 +51,7 @@ const EditEmployee = () => {
                 dob: employee.dob ? employee.dob.split('T')[0] : '',
                 employmentType: employee.employmentType || '',
                 workLocation: employee.workLocation || '',
+                googleSheetId: employee.googleSheetId || '',
                 emergencyContactName: employee.emergencyContact?.name || '',
                 emergencyContactPhone: employee.emergencyContact?.phone || '',
                 emergencyContactRelation: employee.emergencyContact?.relationship || ''
@@ -281,6 +282,11 @@ const EditEmployee = () => {
                         <div>
                             <label className="block text-sm font-medium mb-1">Work Location</label>
                             <input className="w-full border p-2 rounded-lg" value={formData.workLocation} onChange={e => setFormData({...formData, workLocation: e.target.value})} />
+                        </div>
+                        <div className="md:col-span-2">
+                            <label className="block text-sm font-medium mb-1">Google Sheet ID</label>
+                            <input className="w-full border p-2 rounded-lg" placeholder="e.g., 1BxiMvs0XRYFgwnAKnZJ7... (Optional)" value={formData.googleSheetId} onChange={e => setFormData({...formData, googleSheetId: e.target.value})} />
+                            <p className="text-xs text-gray-500 mt-1">If provided, this Google Sheet will be synced for this employee instead of the global sheet.</p>
                         </div>
                     </div>
                 </Card>

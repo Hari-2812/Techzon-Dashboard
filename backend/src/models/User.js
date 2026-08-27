@@ -21,6 +21,7 @@ const UserSchema = new mongoose.Schema({
     gender: { type: String, enum: ['Male', 'Female', 'Other'] },
     employmentType: { type: String, enum: ['Full Time', 'Part Time', 'Intern', 'Contract'] },
     workLocation: { type: String },
+    googleSheetId: { type: String, default: '' },
     
     emergencyContact: {
         name: { type: String },

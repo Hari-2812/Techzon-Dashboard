@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 import { 
@@ -22,11 +22,17 @@ import {
   useGoogleSheetsAuthUrl,
   useGoogleSheetsList
 } from '../hooks/useGoogleSheets';
+import { useEmployees } from '../hooks/useEmployees';
 
 export default function ImportLeads() {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'ADMIN';
+  const { employeeId } = useParams<{ employeeId: string }>();
   const queryClient = useQueryClient();
+  const { getEmployeeById } = useEmployees();
+  
+  const { data: targetEmployee } = getEmployeeById(employeeId || '');
+  const resolvedTargetEmployeeId = employeeId || (!isAdmin ? (user as any)?._id || (user as any)?.id : null);
 
   const [activeTab, setActiveTab] = useState<'csv' | 'google-sheets'>('google-sheets');
 
@@ -36,7 +42,7 @@ export default function ImportLeads() {
   const { data: configStatus, isLoading: authStatusLoading } = useGoogleSheetsConfig();
   
   // Only fetch sheets if configured
-  const { data: sheetsList, isLoading: sheetsLoading, refetch: refetchSheets } = useGoogleSheetsList();
+  const { data: sheetsList, isLoading: sheetsLoading, refetch: refetchSheets } = useGoogleSheetsList(resolvedTargetEmployeeId);
   
   const updateSettings = useUpdateGoogleSheetsSettings();
   const executeSync = useExecuteGoogleSheetsSync();
@@ -63,8 +69,8 @@ export default function ImportLeads() {
       }
   }, [sheetsList]);
 
-  if (!isAdmin) {
-    return <div className="p-6">You do not have permission to import leads.</div>;
+  if (!isAdmin && employeeId && employeeId !== (user as any)?._id && employeeId !== (user as any)?.id) {
+    return <div className="p-6">You do not have permission to import leads for other employees.</div>;
   }
 
   // --- GOOGLE SHEETS LOGIC ---
@@ -86,7 +92,8 @@ export default function ImportLeads() {
     try {
       setAuthError('');
       const res = await executeSync.mutateAsync({ 
-        worksheets: selectedSheets
+        worksheets: selectedSheets,
+        targetEmployeeId: resolvedTargetEmployeeId
       });
       setGsResults(res);
       queryClient.invalidateQueries({ queryKey: ['googleSheetsHistory'] });
@@ -118,8 +125,14 @@ export default function ImportLeads() {
     <div className="p-4 md:p-6 max-w-6xl mx-auto pb-24">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
           <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-[var(--color-text-primary)]">Import Leads</h1>
-              <p className="text-[var(--color-text-muted)] text-sm mt-1">Import via CSV or synchronize directly from Google Sheets.</p>
+              <h1 className="text-2xl md:text-3xl font-bold text-[var(--color-text-primary)]">
+                {targetEmployee ? `Upload Leads for: ${targetEmployee.name}` : 'Import Leads'}
+              </h1>
+              <p className="text-[var(--color-text-muted)] text-sm mt-1">
+                {targetEmployee 
+                  ? `Import via CSV or synchronize from ${targetEmployee.name}'s Google Sheet.` 
+                  : 'Import via CSV or synchronize directly from Google Sheets.'}
+              </p>
           </div>
           
           <div className="flex bg-gray-100 p-1 rounded-lg w-full sm:w-auto">

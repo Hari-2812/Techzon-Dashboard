@@ -17,7 +17,7 @@ const CreateEmployee = () => {
         firstName: '', lastName: '', email: '', phone: '',
         role: 'RGS', department: 'Revenue Growth', designation: 'Revenue Growth Specialist',
         joiningDate: new Date().toISOString().split('T')[0],
-        gender: 'Male', dob: '', employmentType: 'Full Time', workLocation: 'Office',
+        gender: 'Male', dob: '', employmentType: 'Full Time', workLocation: 'Office', googleSheetId: '',
         emergencyContactName: '', emergencyContactPhone: '', emergencyContactRelation: '',
         passwordMode: 'AUTO', manualPassword: ''
     });
@@ -168,6 +168,11 @@ const CreateEmployee = () => {
                             <div>
                                 <label className="block text-sm font-medium mb-1">Work Location</label>
                                 <input className="w-full border p-2 rounded-lg" value={formData.workLocation} onChange={e => setFormData({...formData, workLocation: e.target.value})} />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-medium mb-1">Google Sheet ID</label>
+                                <input className="w-full border p-2 rounded-lg" placeholder="e.g., 1BxiMvs0XRYFgwnAKnZJ7... (Optional)" value={formData.googleSheetId} onChange={e => setFormData({...formData, googleSheetId: e.target.value})} />
+                                <p className="text-xs text-gray-500 mt-1">If provided, this Google Sheet will be synced for this employee instead of the global sheet.</p>
                             </div>
                         </div>
 

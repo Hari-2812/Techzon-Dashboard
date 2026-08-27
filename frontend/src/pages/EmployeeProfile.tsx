@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useEmployees } from '../hooks/useEmployees';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
-import { ArrowLeft, Mail, Phone, Calendar as CalIcon, MapPin, Briefcase, Edit, MoreVertical } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Calendar as CalIcon, MapPin, Briefcase, Edit, MoreVertical, Upload } from 'lucide-react';
 import moment from 'moment-timezone';
 import { useAuthStore } from '../store/authStore';
 
@@ -112,6 +112,12 @@ const EmployeeProfile = () => {
                 
                 {user?.role === 'ADMIN' && (
                     <div className="flex gap-3 relative">
+                        <button 
+                            onClick={() => navigate(`/employees/${employee._id}/import-leads`)} 
+                            className="flex items-center px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:bg-opacity-90 shadow-sm"
+                        >
+                            <Upload size={16} className="mr-2" /> Upload Leads
+                        </button>
                         <button 
                             onClick={() => navigate(`/employees/${employee._id}/edit`)} 
                             className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm"

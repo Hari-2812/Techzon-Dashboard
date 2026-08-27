@@ -43,11 +43,12 @@ export const useUpdateGoogleSheetsSettings = () => {
   });
 };
 
-export const useGoogleSheetsList = () => {
+export const useGoogleSheetsList = (targetEmployeeId?: string | null) => {
   return useQuery({
-    queryKey: ['googleSheets', 'list'],
+    queryKey: ['googleSheets', 'list', targetEmployeeId],
     queryFn: async () => {
-      const { data } = await api.get('/google-sheets/sheets');
+      const url = targetEmployeeId ? `/google-sheets/sheets?targetEmployeeId=${targetEmployeeId}` : '/google-sheets/sheets';
+      const { data } = await api.get(url);
       return data.sheets;
     },
     // Only fetch if it's likely configured, usually enabled conditionally in the component
@@ -75,14 +76,14 @@ export const usePreviewGoogleSheetsSync = () => {
 export const useExecuteGoogleSheetsSync = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (config: { worksheets: string[] }) => {
+    mutationFn: async (config: { worksheets: string[], targetEmployeeId?: string | null }) => {
       const { data } = await api.post('/google-sheets/sync', config);
       return data.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leads'] });
       queryClient.invalidateQueries({ queryKey: ['googleSheetsHistory'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
     }
   });
 };

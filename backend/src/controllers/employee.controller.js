@@ -26,7 +26,7 @@ exports.createEmployee = async (req, res) => {
         
         const { 
             firstName, lastName, name, email, phone, role, department, designation, 
-            joiningDate, passwordMode, manualPassword, gender, dob, employmentType, workLocation,
+            joiningDate, passwordMode, manualPassword, gender, dob, employmentType, workLocation, googleSheetId,
             emergencyContactName, emergencyContactPhone, emergencyContactRelation
         } = req.body;
         
@@ -70,6 +70,7 @@ exports.createEmployee = async (req, res) => {
             dob,
             employmentType,
             workLocation,
+            googleSheetId,
             emergencyContact: {
                 name: emergencyContactName,
                 phone: emergencyContactPhone,
@@ -259,7 +260,7 @@ exports.updateEmployee = async (req, res) => {
         
         const { 
             firstName, lastName, name, email, phone, role, department, designation, 
-            joiningDate, gender, dob, employmentType, workLocation,
+            joiningDate, gender, dob, employmentType, workLocation, googleSheetId,
             emergencyContactName, emergencyContactPhone, emergencyContactRelation,
             removePhoto
         } = req.body;
@@ -291,6 +292,7 @@ exports.updateEmployee = async (req, res) => {
         if (dob) employee.dob = dob;
         if (employmentType) employee.employmentType = employmentType;
         if (workLocation) employee.workLocation = workLocation;
+        if (googleSheetId !== undefined) employee.googleSheetId = googleSheetId;
 
         if (emergencyContactName || emergencyContactPhone || emergencyContactRelation) {
             if (!employee.emergencyContact) employee.emergencyContact = {};
