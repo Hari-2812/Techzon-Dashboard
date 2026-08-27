@@ -37,6 +37,7 @@ import EmployeeManagement from './pages/EmployeeManagement';
 import CreateEmployee from './pages/CreateEmployee';
 import EmployeeProfile from './pages/EmployeeProfile';
 import EditEmployee from './pages/EditEmployee';
+import LeadAssignment from './pages/LeadAssignment';
 import ChangePassword from './pages/ChangePassword';
 
 const DynamicTitle = () => {
@@ -116,6 +117,7 @@ function App() {
               <Route path="/employees/:id/edit" element={<EditEmployee />} />
               <Route path="/employees/:employeeId/import-leads" element={<ImportLeads />} />
               <Route path="/analytics" element={<Analytics />} />
+              <Route path="/lead-assignment" element={<LeadAssignment />} />
               <Route path="audit-logs" element={<AuditLogs />} />
               <Route path="team" element={<Team />} />
               <Route path="salary-attendance" element={<SalaryAttendance />} />

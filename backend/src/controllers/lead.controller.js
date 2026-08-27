@@ -9,13 +9,15 @@ const mongoose = require('mongoose');
 // @route   GET /api/leads
 exports.getLeads = async (req, res) => {
   try {
-    const { page = 1, limit = 20, search, college, crStatus, leadStatus, priority } = req.query;
+    const { page = 1, limit = 20, search, college, crStatus, leadStatus, priority, assignedEmployeeId } = req.query;
     
     let query = {};
 
     // RBAC check: RGS/BDE only see their assigned leads
     if (req.user.role !== 'ADMIN') {
         query.assignedEmployeeId = req.user.id;
+    } else if (assignedEmployeeId) {
+        query.assignedEmployeeId = assignedEmployeeId;
     }
 
     if (search) {
@@ -39,7 +41,7 @@ exports.getLeads = async (req, res) => {
     const total = await Lead.countDocuments(query);
 
     // Get KPIs
-    let kpiQuery = req.user.role !== 'ADMIN' ? { assignedEmployeeId: req.user.id } : {};
+    let kpiQuery = req.user.role !== 'ADMIN' ? { assignedEmployeeId: req.user.id } : (assignedEmployeeId ? { assignedEmployeeId } : {});
     const totalLeads = await Lead.countDocuments(kpiQuery);
     const newLeads = await Lead.countDocuments({ ...kpiQuery, leadStatus: 'New' });
     const crsIdentified = await Lead.countDocuments({ ...kpiQuery, leadStatus: 'CR Identified' });

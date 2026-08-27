@@ -386,7 +386,13 @@ exports.importEmployeeContacts = async (req, res) => {
             return res.status(403).json({ success: false, message: 'Forbidden' });
         }
 
-        const { contacts } = req.body;
+        const { contacts, targetEmployeeId } = req.body;
+        
+        let finalTargetEmployeeId = targetEmployeeId;
+        if (req.user.role !== 'ADMIN') {
+            finalTargetEmployeeId = req.user.id;
+        }
+
         if (!Array.isArray(contacts) || contacts.length === 0) {
             return res.status(400).json({ success: false, message: 'No contacts provided' });
         }
@@ -426,6 +432,9 @@ exports.importEmployeeContacts = async (req, res) => {
                     existingLead.salesSource = 'EMPLOYEE_SALES';
                     existingLead.importedBy = req.user.id;
                     existingLead.importedAt = new Date();
+                    if (finalTargetEmployeeId) {
+                        existingLead.assignedEmployeeId = finalTargetEmployeeId;
+                    }
                     
                     if (contact.email && !existingLead.email) existingLead.email = contact.email;
                     if (contact.interestedDomain && !existingLead.interestedDomain) existingLead.interestedDomain = contact.interestedDomain;
@@ -446,7 +455,8 @@ exports.importEmployeeContacts = async (req, res) => {
                         priority: 'MEDIUM',
                         salesSource: 'EMPLOYEE_SALES',
                         importedBy: req.user.id,
-                        importedAt: new Date()
+                        importedAt: new Date(),
+                        ...(finalTargetEmployeeId ? { assignedEmployeeId: finalTargetEmployeeId } : {})
                     });
                     created++;
                 } catch (err) {

@@ -5,7 +5,13 @@ import { Upload, FileText, CheckCircle, ArrowLeft, AlertCircle, RefreshCw } from
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 
-export default function SalesImport() {
+interface SalesImportProps {
+  embedded?: boolean;
+  targetEmployeeId?: string;
+  onSuccess?: () => void;
+}
+
+export default function SalesImport({ embedded = false, targetEmployeeId, onSuccess }: SalesImportProps = {}) {
   const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<'idle' | 'uploading' | 'preview' | 'importing' | 'success'>('idle');
@@ -134,7 +140,8 @@ export default function SalesImport() {
 
       const previewRes = await api.post('/leads/import/preview', {
           rawId: parseRes.data.data.rawId,
-          mapping
+          mapping,
+          targetEmployeeId
       });
 
       setPreviewData(previewRes.data.data);
@@ -151,8 +158,12 @@ export default function SalesImport() {
     
     try {
       if (activeTab === 'paste') {
-         const res = await api.post('/sales/employee-contacts', { contacts: parsedContacts });
+         const res = await api.post('/sales/employee-contacts', { 
+           contacts: parsedContacts,
+           targetEmployeeId 
+         });
          setStatus('success');
+         if (onSuccess) onSuccess();
          setPreviewData({
              successfullyImported: res.data.created,
              successfullyUpdated: res.data.updated,
@@ -162,9 +173,11 @@ export default function SalesImport() {
       } else {
          const res = await api.post('/leads/import/confirm', {
            previewId: previewData.previewId,
-           duplicateAction
+           duplicateAction,
+           targetEmployeeId
          });
          setStatus('success');
+         if (onSuccess) onSuccess();
          setPreviewData(res.data.data);
       }
     } catch (err: any) {
@@ -174,18 +187,20 @@ export default function SalesImport() {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto pb-24">
-      <div className="flex items-center gap-4 mb-6">
-        <button onClick={() => navigate('/sales')} className="text-gray-500 hover:text-gray-700">
-          <ArrowLeft size={24} />
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Import Sales Contacts</h1>
-          <p className="text-gray-500 text-sm">Upload a CSV file or paste unstructured contacts directly.</p>
+    <div className={embedded ? "" : "p-6 max-w-4xl mx-auto pb-24"}>
+      {!embedded && (
+        <div className="flex items-center gap-4 mb-6">
+          <button onClick={() => navigate('/sales')} className="text-gray-500 hover:text-gray-700">
+            <ArrowLeft size={24} />
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Import Sales Contacts</h1>
+            <p className="text-gray-500 text-sm">Upload a CSV file or paste unstructured contacts directly.</p>
+          </div>
         </div>
-      </div>
+      )}
 
-      <Card className="p-6">
+      <Card className={embedded ? "p-4 border-0 shadow-none" : "p-6"}>
         {status === 'idle' || status === 'uploading' ? (
           <div>
             <div className="flex bg-gray-100 p-1 rounded-lg w-full sm:w-auto mb-6 max-w-sm mx-auto">
