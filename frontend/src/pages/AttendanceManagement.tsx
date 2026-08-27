@@ -56,6 +56,8 @@ const AttendanceManagement = () => {
   const [editedTime, setEditedTime] = useState('');
   const [adminComment, setAdminComment] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
+  
+  const [forceClockOutModalOpen, setForceClockOutModalOpen] = useState(false);
 
   const fetchAdminAttendance = async () => {
     try {
@@ -92,6 +94,7 @@ const AttendanceManagement = () => {
     socket.on('employee:resumed', fetchAdminAttendance);
     socket.on('attendance:clock-in-request', fetchAdminAttendance);
     socket.on('attendance:clock-out-request', fetchAdminAttendance);
+    socket.on('attendance:admin-force-clock-out', fetchAdminAttendance);
 
     return () => {
       socket.disconnect();
@@ -424,12 +427,19 @@ const AttendanceManagement = () => {
                  <div className="space-y-4">
                    <div className="flex justify-between items-center pb-3 border-b border-[var(--color-border-subtle)]">
                      <span className="text-[var(--color-text-muted)]">Status</span>
-                     <StatusBadge 
-                        isActive={(selectedEmployee.session?.status === 'ACTIVE' || selectedEmployee.session?.status === 'RUNNING') && !(selectedEmployee.session?.breaks?.length > 0 && !selectedEmployee.session.breaks[selectedEmployee.session.breaks.length-1].endAt)} 
-                        isOnBreak={(selectedEmployee.session?.status === 'ACTIVE' || selectedEmployee.session?.status === 'RUNNING') && selectedEmployee.session?.breaks?.length > 0 && !selectedEmployee.session.breaks[selectedEmployee.session.breaks.length-1].endAt} 
-                        isCompleted={selectedEmployee.session?.status === 'COMPLETED'} 
-                        dailyStatus={selectedEmployee.status} 
-                      />
+                     <div className="flex gap-2 items-center">
+                       <StatusBadge 
+                          isActive={(selectedEmployee.session?.status === 'ACTIVE' || selectedEmployee.session?.status === 'RUNNING') && !(selectedEmployee.session?.breaks?.length > 0 && !selectedEmployee.session.breaks[selectedEmployee.session.breaks.length-1].endAt)} 
+                          isOnBreak={(selectedEmployee.session?.status === 'ACTIVE' || selectedEmployee.session?.status === 'RUNNING') && selectedEmployee.session?.breaks?.length > 0 && !selectedEmployee.session.breaks[selectedEmployee.session.breaks.length-1].endAt} 
+                          isCompleted={selectedEmployee.session?.status === 'COMPLETED'} 
+                          dailyStatus={selectedEmployee.status} 
+                        />
+                        { (selectedEmployee.session?.status === 'ACTIVE' || selectedEmployee.session?.status === 'RUNNING' || selectedEmployee.session?.status === 'ON_BREAK') && (
+                          <Button variant="danger" size="sm" onClick={() => setForceClockOutModalOpen(true)}>
+                            Force Clock Out
+                          </Button>
+                        )}
+                     </div>
                    </div>
                    <div className="flex justify-between items-center">
                      <span className="text-[var(--color-text-muted)]">Clock In</span>
@@ -569,23 +579,62 @@ const AttendanceManagement = () => {
                   placeholder="e.g. Too far from office"
                />
             </div>
-            <div className="flex justify-end gap-3 mt-6">
-                <Button variant="outline" onClick={() => setSelectedRequest(null)}>Cancel</Button>
-                <Button variant="danger" onClick={async () => {
-                   try {
-                     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-                     await fetch(`${apiUrl}/attendance/requests/${selectedRequest._id}/reject`, {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ rejectionReason })
-                     });
-                     setSelectedRequest(null);
-                     fetchAdminAttendance();
-                   } catch(e) { console.error(e); }
-                }}>Reject</Button>
-            </div>
-         </div>
-      </Modal>
+             <div className="flex justify-end gap-3 mt-6">
+                 <Button variant="outline" onClick={() => setSelectedRequest(null)}>Cancel</Button>
+                 <Button variant="danger" onClick={async () => {
+                    try {
+                      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+                      await fetch(`${apiUrl}/attendance/requests/${selectedRequest._id}/reject`, {
+                         method: 'POST',
+                         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
+                         body: JSON.stringify({ rejectionReason })
+                      });
+                      setSelectedRequest(null);
+                      fetchAdminAttendance();
+                    } catch(e) { console.error(e); }
+                 }}>Reject</Button>
+             </div>
+          </div>
+       </Modal>
+
+       <Modal isOpen={forceClockOutModalOpen} onClose={() => setForceClockOutModalOpen(false)} title="Force Clock Out Employee?">
+          {selectedEmployee && (
+             <div className="space-y-4">
+               <div className="p-4 bg-red-50 text-red-800 rounded-lg border border-red-100 text-sm">
+                 <p className="font-semibold mb-2">Are you sure you want to forcefully clock out this employee?</p>
+                 <p className="mb-1"><strong>Employee:</strong> {selectedEmployee.employeeId?.name}</p>
+                 <p className="mb-1"><strong>Clock In:</strong> {selectedEmployee.session ? moment(selectedEmployee.session.clockInAt).format('hh:mm A') : '—'}</p>
+                 <p>The session will be closed immediately using the current server time.</p>
+               </div>
+               
+               <div className="flex justify-end gap-3 mt-6">
+                   <Button variant="outline" onClick={() => setForceClockOutModalOpen(false)}>Cancel</Button>
+                   <Button variant="danger" onClick={async () => {
+                      try {
+                        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+                        const res = await fetch(`${apiUrl}/attendance/admin/force-clock-out/${selectedEmployee.employeeId._id}`, {
+                           method: 'POST',
+                           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                        });
+                        const data = await res.json();
+                        
+                        setForceClockOutModalOpen(false);
+                        
+                        if (data.success) {
+                           setSelectedEmployee(null); // Close drawer to refresh fully
+                           fetchAdminAttendance();
+                        } else {
+                           alert(data.message || 'Unable to clock out employee.');
+                        }
+                      } catch(e) { 
+                        console.error(e); 
+                        alert('Unable to clock out employee. Please try again.');
+                      }
+                   }}>Confirm Clock Out</Button>
+               </div>
+             </div>
+          )}
+       </Modal>
 
     </div>
   );

@@ -475,3 +475,86 @@ exports.adminCorrectAttendance = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server Error' });
   }
 };
+
+exports.adminForceClockOut = async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ success: false, message: 'Forbidden: Only Admins can force clock out' });
+    }
+
+    const { employeeId } = req.params;
+    const dateStr = getBusinessDateIST();
+
+    // Check for an active session (can be real or test)
+    let session = await WorkSession.findOne({ 
+      employeeId, 
+      date: dateStr, 
+      status: { $in: ['RUNNING', 'ON_BREAK'] } 
+    }).sort({ createdAt: -1 });
+
+    if (!session) {
+      return res.status(400).json({ success: false, message: 'Employee is already clocked out or has no active session.' });
+    }
+
+    const clockOutTime = new Date();
+
+    // Handle open breaks
+    if (session.status === 'ON_BREAK' && session.breaks && session.breaks.length > 0) {
+      const lastBreak = session.breaks[session.breaks.length - 1];
+      if (!lastBreak.endAt) {
+        lastBreak.endAt = clockOutTime;
+        lastBreak.resumeComment = 'System: Auto-closed due to Admin Force Clock-Out';
+        const duration = moment(lastBreak.endAt).diff(moment(lastBreak.startAt), 'minutes');
+        lastBreak.durationMinutes = duration > 0 ? duration : 0;
+      }
+    }
+
+    session.clockOutAt = clockOutTime;
+    session.status = 'COMPLETED';
+    await session.save();
+
+    const settings = await AttendanceSettings.findOne() || new AttendanceSettings();
+    const stats = await calculateSessionStats(session, settings);
+
+    const Holiday = require('../models/Holiday');
+    const holiday = await Holiday.findOne({ date: dateStr, isActive: true });
+    if (holiday) {
+        stats.status = 'HOLIDAY_WORKED';
+    }
+
+    const daily = await AttendanceDaily.findOneAndUpdate(
+      { employeeId, date: dateStr, isTestSession: session.isTestSession },
+      { ...stats, workedOnHoliday: !!holiday, status: 'COMPLETED' },
+      { returnDocument: 'after', upsert: true }
+    );
+
+    const AuditLog = require('../models/AuditLog');
+    await AuditLog.create({
+      actorId: req.user.id,
+      action: 'ADMIN_FORCE_CLOCK_OUT',
+      entityType: 'WorkSession',
+      entityId: session._id,
+      metadata: { 
+        employeeId, 
+        clockInTime: session.clockInAt,
+        clockOutTime,
+        workedMinutes: stats.workedMinutes
+      }
+    });
+
+    const io = req.app.get('io') || require('../server').io;
+    if (io) {
+      io.emit('attendance:admin-force-clock-out', { 
+        employeeId, 
+        session, 
+        daily 
+      });
+    }
+
+    res.json({ success: true, message: 'Employee forcefully clocked out.', session, daily });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};

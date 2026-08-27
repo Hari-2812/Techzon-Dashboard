@@ -13,7 +13,8 @@ const {
   getVerificationLogs,
   adminCorrectAttendance,
   requestCorrection,
-  testReset
+  testReset,
+  adminForceClockOut
 } = require('../controllers/attendance.controller');
 
 const {
@@ -43,5 +44,6 @@ router.put('/settings', auth, updateSettings);
 router.get('/logs', auth, getVerificationLogs);
 router.put('/admin-correct', auth, adminCorrectAttendance);
 router.post('/test-reset', auth, testReset);
+router.post('/admin/force-clock-out/:employeeId', auth, adminForceClockOut);
 
 module.exports = router;
