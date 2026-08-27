@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { Upload, FileText, CheckCircle, ArrowLeft, AlertCircle, RefreshCw } from 'lucide-react';
+import { Upload, FileText, CheckCircle, ArrowLeft, AlertCircle, RefreshCw, Trash2, Plus, Copy } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import { Badge } from '../components/ui/Badge';
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell, TableContainer } from '../components/ui/Table';
 
 interface SalesImportProps {
   embedded?: boolean;
@@ -11,377 +13,369 @@ interface SalesImportProps {
   onSuccess?: () => void;
 }
 
+interface LeadRow {
+  id: string;
+  studentName: string;
+  phone: string;
+  email: string;
+  interestedDomain: string;
+  isValid: boolean;
+  isDuplicate: boolean;
+}
+
 export default function SalesImport({ embedded = false, targetEmployeeId, onSuccess }: SalesImportProps = {}) {
   const navigate = useNavigate();
-  const [file, setFile] = useState<File | null>(null);
-  const [status, setStatus] = useState<'idle' | 'uploading' | 'preview' | 'importing' | 'success'>('idle');
+  
+  const [rows, setRows] = useState<LeadRow[]>([]);
+  const [status, setStatus] = useState<'idle' | 'importing' | 'success'>('idle');
   const [error, setError] = useState('');
-  
-  const [activeTab, setActiveTab] = useState<'paste' | 'csv'>('paste');
-  const [pasteText, setPasteText] = useState('');
-  
-  const [previewData, setPreviewData] = useState<any>(null);
-  const [parsedContacts, setParsedContacts] = useState<any[]>([]);
-  const [duplicateAction, setDuplicateAction] = useState('merge');
+  const [successStats, setSuccessStats] = useState<any>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setFile(e.target.files[0]);
-      setStatus('idle');
-      setError('');
+  // Initialize with empty rows
+  useEffect(() => {
+    if (rows.length === 0 && status === 'idle') {
+      const initialRows = Array.from({ length: 5 }, () => createEmptyRow());
+      setRows(initialRows);
     }
+  }, []);
+
+  const createEmptyRow = (): LeadRow => ({
+    id: Math.random().toString(36).substring(7),
+    studentName: '',
+    phone: '',
+    email: '',
+    interestedDomain: '',
+    isValid: false,
+    isDuplicate: false
+  });
+
+  const validateRow = (row: LeadRow): LeadRow => {
+    const phoneClean = row.phone.replace(/[^\d+]/g, '');
+    const hasValidPhone = (phoneClean.length >= 10 && phoneClean.length <= 14);
+    const hasName = row.studentName.trim().length > 0;
+    
+    return {
+      ...row,
+      phone: phoneClean, // normalize
+      isValid: hasValidPhone && hasName
+    };
   };
 
-  const handlePreviewPaste = () => {
-    if (!pasteText.trim()) {
-        setError('Please paste some contacts first');
-        return;
-    }
-    
-    setError('');
-    const text = pasteText.trim();
-    let contacts: any[] = [];
-    
-    if (/name\s*[:-]/i.test(text) || /phone\s*[:-]/i.test(text) || /mobile\s*[:-]/i.test(text)) {
-        // Handle Key-Value unstructured data (e.g. NAME :- John)
-        const blocks = text.split(/\n\s*\n/);
-        for (const block of blocks) {
-            if (!block.trim()) continue;
-            let name = '', phone = '', email = '', domain = '';
-            const lines = block.split('\n');
-            for (const line of lines) {
-                let match = line.match(/^(.*?)(?:\s*[:-]+\s*)(.*)$/);
-                if (!match) match = line.match(/^(.*?)(?:\s*[-]+\s*)(.*)$/);
-                if (match) {
-                    const key = match[1].toLowerCase();
-                    const val = match[2].trim().replace(/,/g, '');
-                    if (key.includes('name')) name = val;
-                    else if (key.includes('phone') || key.includes('mobile')) phone = val;
-                    else if (key.includes('mail') || key.includes('email')) email = val;
-                    else if (key.includes('domain') || key.includes('course')) domain = val;
-                }
-            }
-            if (name || phone) {
-                contacts.push({ studentName: name, phone, email, interestedDomain: domain });
-            }
-        }
-    } else {
-        // Handle Tabular Data (TSV/CSV)
-        const lines = text.split('\n');
-        for (const line of lines) {
-            const cleaned = line.trim();
-            if (!cleaned || (cleaned.toLowerCase().includes('name') && cleaned.toLowerCase().includes('phone'))) continue;
-            
-            let parts = cleaned.split('\t');
-            if (parts.length < 2) parts = cleaned.split(',');
-            if (parts.length < 2) parts = cleaned.split(/\s{2,}/);
-            
-            const name = parts[0] ? parts[0].trim().replace(/,/g, '') : '';
-            const phone = parts[1] ? parts[1].trim().replace(/,/g, '') : '';
-            const email = parts[2] && parts[2].includes('@') ? parts[2].trim().replace(/,/g, '') : '';
-            let domain = '';
-            if (email) {
-                domain = parts[3] ? parts[3].trim().replace(/,/g, '') : '';
-            } else {
-                domain = parts[2] ? parts[2].trim().replace(/,/g, '') : '';
-            }
-            
-            if (name || phone) {
-                contacts.push({ studentName: name, phone, email, interestedDomain: domain });
-            }
-        }
-    }
-
-    if (contacts.length === 0) {
-        setError('Could not extract any valid contacts. Please check the format.');
-        return;
-    }
-
-    setParsedContacts(contacts);
-    setPreviewData({
-        totalRows: contacts.length,
-        validRowsCount: contacts.filter(c => c.studentName && c.phone).length,
-        invalidRows: contacts.filter(c => !c.studentName || !c.phone).length,
-        duplicatesSkipped: 0
-    });
-    setStatus('preview');
-  };
-
-  const handleUploadCSV = async () => {
-    if (!file) {
-        setError('Please select a file');
-        return;
-    }
-    
-    setStatus('uploading');
-    setError('');
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      // Step 1: Parse
-      const parseRes = await api.post('/leads/import/parse', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-
-      // Step 2: Auto-Preview with standard mapping
-      const mapping = {
-          studentName: 'studentName',
-          phone: 'phone',
-          email: 'email',
-          college: 'college',
-          department: 'department',
-          year: 'year',
-          interestedDomain: 'interestedDomain',
-          salesStatus: 'salesStatus',
-          studentResponse: 'studentResponse'
-      };
-
-      const previewRes = await api.post('/leads/import/preview', {
-          rawId: parseRes.data.data.rawId,
-          mapping,
-          targetEmployeeId
-      });
-
-      setPreviewData(previewRes.data.data);
-      setStatus('preview');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Error processing file');
-      setStatus('idle');
-    }
-  };
-
-  const handleConfirm = async () => {
-    setStatus('importing');
-    setError('');
-    
-    try {
-      if (activeTab === 'paste') {
-         const res = await api.post('/sales/employee-contacts', { 
-           contacts: parsedContacts,
-           targetEmployeeId 
-         });
-         setStatus('success');
-         if (onSuccess) onSuccess();
-         setPreviewData({
-             successfullyImported: res.data.created,
-             successfullyUpdated: res.data.updated,
-             failed: res.data.failed,
-             duplicates: res.data.duplicates
-         });
-      } else {
-         const res = await api.post('/leads/import/confirm', {
-           previewId: previewData.previewId,
-           duplicateAction,
-           targetEmployeeId
-         });
-         setStatus('success');
-         if (onSuccess) onSuccess();
-         setPreviewData(res.data.data);
+  const handleCellChange = (id: string, field: keyof LeadRow, value: string) => {
+    setRows(prev => prev.map(row => {
+      if (row.id === id) {
+        return validateRow({ ...row, [field]: value });
       }
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Error importing data');
-      setStatus('preview');
+      return row;
+    }));
+  };
+
+  const addRow = () => {
+    setRows(prev => [...prev, createEmptyRow()]);
+  };
+
+  const deleteRow = (id: string) => {
+    setRows(prev => prev.filter(r => r.id !== id));
+  };
+
+  const clearEmptyRows = () => {
+    setRows(prev => prev.filter(r => r.studentName.trim() || r.phone.trim() || r.email.trim() || r.interestedDomain.trim()));
+  };
+
+  const parseMessyData = (text: string) => {
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    const newRows: LeadRow[] = [];
+
+    const isHeaderRow = (cells: string[]) => {
+      const text = cells.join(' ').toLowerCase();
+      let score = 0;
+      if (text.includes('name')) score++;
+      if (text.includes('phone') || text.includes('mobile')) score++;
+      if (text.includes('email') || (text.includes('mail') && !text.includes('@'))) score++;
+      if (text.includes('domain') || text.includes('course')) score++;
+      return score >= 2;
+    };
+
+    const extractPhone = (cells: string[]) => {
+      for (let i = 0; i < cells.length; i++) {
+        if (!cells[i]) continue;
+        const clean = cells[i].replace(/[^\d+]/g, '');
+        if ((clean.length >= 10 && clean.length <= 14) && /^\+?\d+$/.test(clean)) {
+          if (cells[i].replace(/[^0-9]/g, '').length >= 10) {
+            return { value: clean, index: i };
+          }
+        }
+      }
+      return null;
+    };
+
+    const extractEmail = (cells: string[]) => {
+      for (let i = 0; i < cells.length; i++) {
+        if (!cells[i]) continue;
+        if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cells[i])) {
+          return { value: cells[i].toLowerCase(), index: i };
+        }
+      }
+      return null;
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      let delimiter: string | RegExp = '\t';
+      if (line.includes('\t')) delimiter = '\t';
+      else if (line.includes(',')) delimiter = ',';
+      else delimiter = /\s{2,}/;
+      
+      let cells = line.split(delimiter).map(c => c.trim()).filter(Boolean);
+
+      if (isHeaderRow(cells)) continue;
+      
+      const row = createEmptyRow();
+
+      const phoneMatch = extractPhone(cells);
+      if (phoneMatch) {
+        row.phone = phoneMatch.value;
+        cells[phoneMatch.index] = '';
+      }
+
+      const emailMatch = extractEmail(cells);
+      if (emailMatch) {
+        row.email = emailMatch.value;
+        cells[emailMatch.index] = '';
+      }
+
+      let remaining = cells.filter(Boolean);
+      if (remaining.length > 0) {
+        row.studentName = remaining[0];
+        if (remaining.length > 1) {
+          row.interestedDomain = remaining.slice(1).join(' ');
+        }
+      }
+
+      if (row.studentName || row.phone || row.email || row.interestedDomain) {
+        newRows.push(validateRow(row));
+      }
+    }
+    
+    return newRows;
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const text = e.clipboardData.getData('text');
+    if (text.includes('\n') || text.includes('\t')) {
+      e.preventDefault();
+      const parsed = parseMessyData(text);
+      if (parsed.length > 0) {
+        setRows(prev => {
+          const cleaned = prev.filter(r => r.studentName.trim() || r.phone.trim() || r.email.trim() || r.interestedDomain.trim());
+          return [...cleaned, ...parsed];
+        });
+      }
     }
   };
+
+  const handleSaveAndAssign = async () => {
+    setError('');
+    
+    const filledRows = rows.filter(r => r.studentName.trim() || r.phone.trim() || r.email.trim() || r.interestedDomain.trim());
+    
+    if (filledRows.length === 0) {
+      setError('The sheet is empty.');
+      return;
+    }
+
+    const invalidCount = filledRows.filter(r => !r.isValid).length;
+    if (invalidCount > 0) {
+      setError(`There are ${invalidCount} invalid rows. Please ensure all leads have at least a Name and a valid Phone number.`);
+      return;
+    }
+
+    setStatus('importing');
+
+    const contactsToImport = filledRows.map(r => ({
+      studentName: r.studentName,
+      phone: r.phone,
+      email: r.email,
+      interestedDomain: r.interestedDomain
+    }));
+
+    try {
+      const res = await api.post('/sales/employee-contacts', { 
+        contacts: contactsToImport,
+        targetEmployeeId 
+      });
+      
+      setStatus('success');
+      setSuccessStats({
+        created: res.data.created,
+        updated: res.data.updated,
+        duplicates: res.data.duplicates,
+        failed: res.data.failed
+      });
+      
+      if (onSuccess) onSuccess();
+      
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Error saving leads');
+      setStatus('idle');
+    }
+  };
+
+  const handleReset = () => {
+    setRows(Array.from({ length: 5 }, () => createEmptyRow()));
+    setStatus('idle');
+    setSuccessStats(null);
+    setError('');
+  };
+
+  const validCount = rows.filter(r => r.isValid).length;
+  const invalidCount = rows.filter(r => (r.studentName || r.phone) && !r.isValid).length;
 
   return (
-    <div className={embedded ? "" : "p-6 max-w-4xl mx-auto pb-24"}>
+    <div className={embedded ? "" : "p-6 max-w-7xl mx-auto pb-24"}>
       {!embedded && (
         <div className="flex items-center gap-4 mb-6">
           <button onClick={() => navigate('/sales')} className="text-gray-500 hover:text-gray-700">
             <ArrowLeft size={24} />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Import Sales Contacts</h1>
-            <p className="text-gray-500 text-sm">Upload a CSV file or paste unstructured contacts directly.</p>
+            <h1 className="text-2xl font-bold text-gray-900">Lead Sheet</h1>
+            <p className="text-gray-500 text-sm">Paste unordered contacts to automatically organize and assign them.</p>
           </div>
         </div>
       )}
 
-      <Card className={embedded ? "p-4 border-0 shadow-none" : "p-6"}>
-        {status === 'idle' || status === 'uploading' ? (
-          <div>
-            <div className="flex bg-gray-100 p-1 rounded-lg w-full sm:w-auto mb-6 max-w-sm mx-auto">
-                <button 
-                onClick={() => { setActiveTab('paste'); setError(''); }}
-                className={`flex-1 px-4 py-2 text-sm font-semibold rounded-md transition-colors ${activeTab === 'paste' ? 'bg-white shadow text-primary' : 'text-gray-500'}`}
-                >
-                Paste Contacts
-                </button>
-                <button 
-                onClick={() => { setActiveTab('csv'); setError(''); }}
-                className={`flex-1 px-4 py-2 text-sm font-semibold rounded-md transition-colors ${activeTab === 'csv' ? 'bg-white shadow text-primary' : 'text-gray-500'}`}
-                >
-                Upload CSV
-                </button>
+      {status === 'success' ? (
+        <Card className={embedded ? "p-4 border-0 shadow-none text-center py-12" : "p-12 text-center"}>
+          <div className="flex justify-center mb-4">
+            <CheckCircle className="h-16 w-16 text-green-500" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Leads Assigned Successfully!</h2>
+          <p className="text-gray-600 mb-6 max-w-md mx-auto">
+            {successStats?.created} newly created, {successStats?.updated} updated, and {successStats?.duplicates} duplicates skipped.
+          </p>
+          <div className="flex gap-4 justify-center">
+            <Button onClick={handleReset}>Import More</Button>
+            {!embedded && <Button variant="outline" onClick={() => navigate('/sales')}>Go to Sales</Button>}
+          </div>
+        </Card>
+      ) : (
+        <Card className={embedded ? "border border-gray-200 shadow-sm" : "shadow-sm border border-gray-200"}>
+          <div className="p-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-4 bg-gray-50/50 rounded-t-xl">
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-indigo-600" />
+              <h3 className="font-semibold text-gray-800">Spreadsheet Importer</h3>
             </div>
+            <div className="flex gap-2">
+              <Badge variant="success">{validCount} Valid</Badge>
+              {invalidCount > 0 && <Badge variant="error">{invalidCount} Invalid</Badge>}
+            </div>
+          </div>
 
-            {activeTab === 'paste' ? (
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Paste contact data (Name, Phone, Domain)</label>
-                    <textarea 
-                        className="w-full border border-gray-300 rounded-lg p-4 min-h-[250px] font-mono text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
-                        placeholder={`NAME :- Prarthana PK\nPHONE- 8904111438\nMAIL ID:- prarthana@gmail.com\nDomain of choice:- embedded systems`}
-                        value={pasteText}
-                        onChange={(e) => setPasteText(e.target.value)}
-                    />
-                    <p className="text-xs text-gray-500 mt-2">Supports key-value format (NAME :- Value), tab-separated, comma-separated, or spaces.</p>
-                </div>
-            ) : (
-                <div className="text-center">
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 hover:bg-gray-50 transition-colors">
-                    <Upload className="mx-auto text-gray-400 mb-4" size={48} />
-                    <p className="text-gray-600 mb-2">Drag and drop your CSV file here, or click to browse</p>
-                    <input
-                        type="file"
-                        accept=".csv"
-                        onChange={handleFileChange}
-                        className="hidden"
-                        id="file-upload"
-                    />
-                    <label htmlFor="file-upload">
-                        <span className="cursor-pointer bg-primary text-white inline-flex items-center justify-center px-4 py-2 rounded-md font-medium">Select File</span>
-                    </label>
-                    {file && <p className="mt-4 font-medium text-green-700 flex items-center justify-center gap-2"><FileText size={18}/> {file.name}</p>}
-                    </div>
-                </div>
-            )}
+          {error && (
+            <div className="p-4 bg-red-50 border-b border-red-100 flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
+              <p className="text-red-700 text-sm">{error}</p>
+            </div>
+          )}
 
-            {error && (
-              <div className="mt-4 p-4 bg-red-50 text-red-700 rounded-md flex items-center justify-center gap-2">
-                <AlertCircle size={20} /> {error}
-              </div>
-            )}
+          <div 
+            className="overflow-x-auto" 
+            ref={containerRef}
+            onPaste={handlePaste}
+          >
+            <table className="w-full text-sm text-left border-collapse">
+              <thead className="bg-gray-50 border-y border-gray-200">
+                <tr>
+                  <th className="w-10 px-4 py-3 text-center text-gray-400 font-medium border-r border-gray-200">#</th>
+                  <th className="px-4 py-3 font-medium text-gray-700 border-r border-gray-200">Name *</th>
+                  <th className="px-4 py-3 font-medium text-gray-700 border-r border-gray-200">Phone *</th>
+                  <th className="px-4 py-3 font-medium text-gray-700 border-r border-gray-200">Email</th>
+                  <th className="px-4 py-3 font-medium text-gray-700 border-r border-gray-200">Domain</th>
+                  <th className="w-16 px-4 py-3 text-center font-medium text-gray-700">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, index) => (
+                  <tr key={row.id} className="border-b border-gray-100 hover:bg-gray-50/50 group">
+                    <td className="px-2 py-2 text-center text-gray-400 border-r border-gray-100">{index + 1}</td>
+                    <td className="p-0 border-r border-gray-100 relative">
+                      <input 
+                        type="text" 
+                        value={row.studentName}
+                        onChange={e => handleCellChange(row.id, 'studentName', e.target.value)}
+                        placeholder="Name"
+                        className="w-full h-full min-h-[40px] px-4 py-2 border-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 bg-transparent"
+                      />
+                    </td>
+                    <td className="p-0 border-r border-gray-100 relative">
+                      <input 
+                        type="text" 
+                        value={row.phone}
+                        onChange={e => handleCellChange(row.id, 'phone', e.target.value)}
+                        placeholder="Phone Number"
+                        className={`w-full h-full min-h-[40px] px-4 py-2 border-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 bg-transparent ${row.phone && !validateRow(row).phone.match(/^\d{10,14}$/) ? 'text-red-600 bg-red-50' : ''}`}
+                      />
+                    </td>
+                    <td className="p-0 border-r border-gray-100 relative">
+                      <input 
+                        type="text" 
+                        value={row.email}
+                        onChange={e => handleCellChange(row.id, 'email', e.target.value)}
+                        placeholder="Email"
+                        className="w-full h-full min-h-[40px] px-4 py-2 border-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 bg-transparent"
+                      />
+                    </td>
+                    <td className="p-0 border-r border-gray-100 relative">
+                      <input 
+                        type="text" 
+                        value={row.interestedDomain}
+                        onChange={e => handleCellChange(row.id, 'interestedDomain', e.target.value)}
+                        placeholder="Domain"
+                        className="w-full h-full min-h-[40px] px-4 py-2 border-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 bg-transparent"
+                      />
+                    </td>
+                    <td className="px-2 py-2 text-center">
+                      <button 
+                        onClick={() => deleteRow(row.id)}
+                        className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded hover:bg-red-50 opacity-0 group-hover:opacity-100"
+                        title="Delete Row"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-            <div className="mt-6">
+          <div className="p-4 border-t border-gray-100 flex items-center justify-between bg-gray-50 rounded-b-xl">
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={addRow} className="flex items-center gap-1">
+                <Plus size={16} /> Add Row
+              </Button>
+              <Button variant="outline" size="sm" onClick={clearEmptyRows} className="flex items-center gap-1">
+                Clear Empty
+              </Button>
+            </div>
+            
+            <div className="flex gap-3 items-center">
+              <span className="text-xs text-gray-500 mr-2 flex items-center gap-1 hidden sm:flex">
+                <Copy size={14} /> You can paste data anywhere in the table
+              </span>
               <Button 
-                 onClick={activeTab === 'paste' ? handlePreviewPaste : handleUploadCSV} 
-                 disabled={status === 'uploading'} 
-                 className="w-full bg-green-600 hover:bg-green-700"
+                onClick={handleSaveAndAssign} 
+                disabled={status === 'importing'}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white"
               >
-                {status === 'uploading' ? <RefreshCw className="animate-spin mr-2" /> : null}
-                {status === 'uploading' ? 'Processing...' : 'Preview Contacts'}
+                {status === 'importing' ? 'Saving...' : 'Save & Assign Leads'}
               </Button>
             </div>
           </div>
-        ) : status === 'preview' || status === 'importing' ? (
-          <div>
-             <h3 className="text-lg font-bold mb-4">Preview & Configuration</h3>
-             
-             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-                <div className="bg-gray-50 p-4 rounded-lg text-center border border-gray-200">
-                   <p className="text-sm text-gray-500 font-bold uppercase mb-1">Total Rows</p>
-                   <p className="text-2xl font-black">{previewData.totalRows || 0}</p>
-                </div>
-                <div className="bg-green-50 p-4 rounded-lg text-center border border-green-200">
-                   <p className="text-sm text-green-700 font-bold uppercase mb-1">Valid Rows</p>
-                   <p className="text-2xl font-black text-green-700">{previewData.validRowsCount || 0}</p>
-                </div>
-                {activeTab === 'csv' && (
-                    <div className="bg-orange-50 p-4 rounded-lg text-center border border-orange-200">
-                       <p className="text-sm text-orange-700 font-bold uppercase mb-1">Duplicates</p>
-                       <p className="text-2xl font-black text-orange-700">{previewData.duplicatesSkipped || 0}</p>
-                    </div>
-                )}
-                <div className="bg-red-50 p-4 rounded-lg text-center border border-red-200">
-                   <p className="text-sm text-red-700 font-bold uppercase mb-1">Invalid</p>
-                   <p className="text-2xl font-black text-red-700">{previewData.invalidRows || 0}</p>
-                </div>
-             </div>
-             
-             {activeTab === 'paste' && parsedContacts.length > 0 && (
-                <div className="mb-6 overflow-x-auto">
-                    <table className="w-full text-sm text-left">
-                        <thead className="bg-gray-50 text-gray-500 uppercase">
-                            <tr>
-                                <th className="px-4 py-2">Name</th>
-                                <th className="px-4 py-2">Phone</th>
-                                <th className="px-4 py-2">Email</th>
-                                <th className="px-4 py-2">Domain</th>
-                                <th className="px-4 py-2 text-right">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {parsedContacts.map((c, idx) => (
-                                <tr key={idx} className="border-b">
-                                    <td className="px-4 py-2 font-medium">{c.studentName || '-'}</td>
-                                    <td className="px-4 py-2">{c.phone || '-'}</td>
-                                    <td className="px-4 py-2">{c.email || '-'}</td>
-                                    <td className="px-4 py-2">{c.interestedDomain || '-'}</td>
-                                    <td className="px-4 py-2 text-right">
-                                        {c.studentName && c.phone ? 
-                                            <span className="text-green-600 font-bold text-xs bg-green-50 px-2 py-1 rounded">Valid</span> : 
-                                            <span className="text-red-600 font-bold text-xs bg-red-50 px-2 py-1 rounded">Missing Info</span>
-                                        }
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-             )}
-
-             {activeTab === 'csv' && (
-                 <div className="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
-                     <label className="block text-sm font-bold text-gray-700 mb-2">How should we handle duplicates?</label>
-                     <select 
-                        value={duplicateAction} 
-                        onChange={(e) => setDuplicateAction(e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-md"
-                     >
-                         <option value="merge">Merge (Update missing info only)</option>
-                         <option value="overwrite">Overwrite (Replace all existing info with CSV data)</option>
-                         <option value="skip">Skip (Do not update existing contacts)</option>
-                     </select>
-                     <p className="text-xs text-gray-500 mt-2">Duplicates are identified by phone number.</p>
-                 </div>
-             )}
-
-             {error && (
-              <div className="mb-4 p-4 bg-red-50 text-red-700 rounded-md flex items-center gap-2">
-                <AlertCircle size={20} /> {error}
-              </div>
-             )}
-
-             <div className="flex gap-4">
-                 <Button variant="outline" onClick={() => setStatus('idle')} className="flex-1">Cancel</Button>
-                 <Button onClick={handleConfirm} disabled={status === 'importing' || previewData.validRowsCount === 0} className="flex-1 bg-green-600 hover:bg-green-700">
-                    {status === 'importing' ? <RefreshCw className="animate-spin mr-2" /> : null}
-                    Confirm & Add Contacts
-                 </Button>
-             </div>
-          </div>
-        ) : (
-          <div className="text-center py-8">
-             <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-4">
-                 <CheckCircle className="text-green-600" size={40} />
-             </div>
-             <h2 className="text-2xl font-black text-gray-900 mb-2">Import Successful!</h2>
-             <p className="text-gray-600 mb-6">Your sales contacts have been imported and updated.</p>
-
-             <div className="flex justify-center gap-6 mb-8">
-                <div>
-                   <p className="text-sm text-gray-500 uppercase font-bold">New Contacts</p>
-                   <p className="text-3xl font-black text-green-600">{previewData.successfullyImported || 0}</p>
-                </div>
-                <div>
-                   <p className="text-sm text-gray-500 uppercase font-bold">Updated</p>
-                   <p className="text-3xl font-black text-blue-600">{previewData.successfullyUpdated || 0}</p>
-                </div>
-                {activeTab === 'paste' && previewData.duplicates > 0 && (
-                   <div>
-                       <p className="text-sm text-gray-500 uppercase font-bold">Duplicates</p>
-                       <p className="text-3xl font-black text-orange-600">{previewData.duplicates || 0}</p>
-                   </div>
-                )}
-             </div>
-
-             <Button onClick={() => { setStatus('idle'); setPasteText(''); setFile(null); navigate('/sales'); }} className="w-full sm:w-auto bg-primary text-white">Go to Sales Pipeline</Button>
-          </div>
-        )}
-      </Card>
+        </Card>
+      )}
     </div>
   );
 }
