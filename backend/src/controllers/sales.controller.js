@@ -437,6 +437,7 @@ exports.importEmployeeContacts = async (req, res) => {
                     }
                     
                     if (contact.email && !existingLead.email) existingLead.email = contact.email;
+                    if (contact.collegeName && !existingLead.college) existingLead.college = contact.collegeName;
                     if (contact.interestedDomain && !existingLead.interestedDomain) existingLead.interestedDomain = contact.interestedDomain;
                     
                     await existingLead.save();
@@ -448,6 +449,7 @@ exports.importEmployeeContacts = async (req, res) => {
                         studentName: contact.studentName,
                         phone: phone,
                         email: contact.email || '',
+                        college: contact.collegeName || '',
                         interestedDomain: contact.interestedDomain || '',
                         salesStatus: 'Not Contacted',
                         leadStatus: 'New',

@@ -117,6 +117,7 @@ export default function LeadAssignment() {
                         <TableRow>
                           <TableHead>Name</TableHead>
                           <TableHead>Phone</TableHead>
+                          <TableHead>College</TableHead>
                           <TableHead>Domain</TableHead>
                           <TableHead>Status</TableHead>
                         </TableRow>
@@ -126,6 +127,7 @@ export default function LeadAssignment() {
                           <TableRow key={lead._id}>
                             <TableCell className="font-medium text-gray-900">{lead.studentName}</TableCell>
                             <TableCell>{lead.phone}</TableCell>
+                            <TableCell>{lead.college || '-'}</TableCell>
                             <TableCell>{lead.interestedDomain || '-'}</TableCell>
                             <TableCell>
                               <Badge variant={

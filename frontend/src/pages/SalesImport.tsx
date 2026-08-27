@@ -18,6 +18,7 @@ interface LeadRow {
   studentName: string;
   phone: string;
   email: string;
+  collegeName: string;
   interestedDomain: string;
   isValid: boolean;
   isDuplicate: boolean;
@@ -45,6 +46,7 @@ export default function SalesImport({ embedded = false, targetEmployeeId, onSucc
     studentName: '',
     phone: '',
     email: '',
+    collegeName: '',
     interestedDomain: '',
     isValid: false,
     isDuplicate: false
@@ -80,21 +82,21 @@ export default function SalesImport({ embedded = false, targetEmployeeId, onSucc
   };
 
   const clearEmptyRows = () => {
-    setRows(prev => prev.filter(r => r.studentName.trim() || r.phone.trim() || r.email.trim() || r.interestedDomain.trim()));
+    setRows(prev => prev.filter(r => r.studentName.trim() || r.phone.trim() || r.email.trim() || r.collegeName.trim() || r.interestedDomain.trim()));
   };
 
   const parseMessyData = (text: string) => {
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
     const newRows: LeadRow[] = [];
 
-    const isHeaderRow = (cells: string[]) => {
-      const text = cells.join(' ').toLowerCase();
-      let score = 0;
-      if (text.includes('name')) score++;
-      if (text.includes('phone') || text.includes('mobile')) score++;
-      if (text.includes('email') || (text.includes('mail') && !text.includes('@'))) score++;
-      if (text.includes('domain') || text.includes('course')) score++;
-      return score >= 2;
+    const identifyHeader = (headerText: string) => {
+        const h = headerText.toLowerCase().replace(/[^a-z]/g, '');
+        if (h.includes('name') && !h.includes('college')) return 'studentName';
+        if (h.includes('phone') || h.includes('mobile') || h.includes('contact')) return 'phone';
+        if (h.includes('mail') || h.includes('email')) return 'email';
+        if (h.includes('college') || h.includes('university') || h.includes('institution')) return 'collegeName';
+        if (h.includes('domain') || h.includes('course') || h.includes('website')) return 'interestedDomain';
+        return null;
     };
 
     const extractPhone = (cells: string[]) => {
@@ -120,40 +122,77 @@ export default function SalesImport({ embedded = false, targetEmployeeId, onSucc
       return null;
     };
 
-    for (let i = 0; i < lines.length; i++) {
+    let columnMap: any = null;
+    let startIndex = 0;
+
+    if (lines.length > 0) {
+        let delimiter: string | RegExp = '\t';
+        if (lines[0].includes('\t')) delimiter = '\t';
+        else if (lines[0].includes('|')) delimiter = '|';
+        else if (lines[0].includes(',')) delimiter = ',';
+        else delimiter = /\s{2,}/;
+        
+        let headerCells = lines[0].split(delimiter).map(c => c.trim()).filter(Boolean);
+        
+        let map: any = {};
+        let matches = 0;
+        headerCells.forEach((cell, index) => {
+            const field = identifyHeader(cell);
+            if (field) {
+                map[field] = index;
+                matches++;
+            }
+        });
+
+        if (matches >= 2) {
+            columnMap = map;
+            startIndex = 1;
+        }
+    }
+
+    for (let i = startIndex; i < lines.length; i++) {
       const line = lines[i];
       let delimiter: string | RegExp = '\t';
       if (line.includes('\t')) delimiter = '\t';
+      else if (line.includes('|')) delimiter = '|';
       else if (line.includes(',')) delimiter = ',';
       else delimiter = /\s{2,}/;
       
-      let cells = line.split(delimiter).map(c => c.trim()).filter(Boolean);
-
-      if (isHeaderRow(cells)) continue;
+      let cells = line.split(delimiter).map(c => c.trim());
       
       const row = createEmptyRow();
 
-      const phoneMatch = extractPhone(cells);
-      if (phoneMatch) {
-        row.phone = phoneMatch.value;
-        cells[phoneMatch.index] = '';
+      if (columnMap) {
+          if (columnMap.studentName !== undefined) row.studentName = cells[columnMap.studentName] || '';
+          if (columnMap.phone !== undefined) row.phone = cells[columnMap.phone] || '';
+          if (columnMap.email !== undefined) row.email = cells[columnMap.email] || '';
+          if (columnMap.collegeName !== undefined) row.collegeName = cells[columnMap.collegeName] || '';
+          if (columnMap.interestedDomain !== undefined) row.interestedDomain = cells[columnMap.interestedDomain] || '';
+      } else {
+          let remainingCells = [...cells].filter(Boolean);
+          
+          const phoneMatch = extractPhone(remainingCells);
+          if (phoneMatch) {
+            row.phone = phoneMatch.value;
+            remainingCells[phoneMatch.index] = '';
+          }
+
+          const emailMatch = extractEmail(remainingCells);
+          if (emailMatch) {
+            row.email = emailMatch.value;
+            remainingCells[emailMatch.index] = '';
+          }
+
+          let remaining = remainingCells.filter(Boolean);
+          if (remaining.length > 0) {
+            row.studentName = remaining[0];
+            if (remaining.length > 1) {
+              row.interestedDomain = remaining.slice(1).join(' ');
+            }
+          }
       }
 
-      const emailMatch = extractEmail(cells);
-      if (emailMatch) {
-        row.email = emailMatch.value;
-        cells[emailMatch.index] = '';
-      }
-
-      let remaining = cells.filter(Boolean);
-      if (remaining.length > 0) {
-        row.studentName = remaining[0];
-        if (remaining.length > 1) {
-          row.interestedDomain = remaining.slice(1).join(' ');
-        }
-      }
-
-      if (row.studentName || row.phone || row.email || row.interestedDomain) {
+      if (row.studentName || row.phone || row.email || row.collegeName || row.interestedDomain) {
         newRows.push(validateRow(row));
       }
     }
@@ -168,7 +207,7 @@ export default function SalesImport({ embedded = false, targetEmployeeId, onSucc
       const parsed = parseMessyData(text);
       if (parsed.length > 0) {
         setRows(prev => {
-          const cleaned = prev.filter(r => r.studentName.trim() || r.phone.trim() || r.email.trim() || r.interestedDomain.trim());
+          const cleaned = prev.filter(r => r.studentName.trim() || r.phone.trim() || r.email.trim() || r.collegeName.trim() || r.interestedDomain.trim());
           return [...cleaned, ...parsed];
         });
       }
@@ -178,7 +217,7 @@ export default function SalesImport({ embedded = false, targetEmployeeId, onSucc
   const handleSaveAndAssign = async () => {
     setError('');
     
-    const filledRows = rows.filter(r => r.studentName.trim() || r.phone.trim() || r.email.trim() || r.interestedDomain.trim());
+    const filledRows = rows.filter(r => r.studentName.trim() || r.phone.trim() || r.email.trim() || r.collegeName.trim() || r.interestedDomain.trim());
     
     if (filledRows.length === 0) {
       setError('The sheet is empty.');
@@ -197,6 +236,7 @@ export default function SalesImport({ embedded = false, targetEmployeeId, onSucc
       studentName: r.studentName,
       phone: r.phone,
       email: r.email,
+      collegeName: r.collegeName,
       interestedDomain: r.interestedDomain
     }));
 
@@ -292,6 +332,7 @@ export default function SalesImport({ embedded = false, targetEmployeeId, onSucc
                   <th className="px-4 py-3 font-medium text-gray-700 border-r border-gray-200">Name *</th>
                   <th className="px-4 py-3 font-medium text-gray-700 border-r border-gray-200">Phone *</th>
                   <th className="px-4 py-3 font-medium text-gray-700 border-r border-gray-200">Email</th>
+                  <th className="px-4 py-3 font-medium text-gray-700 border-r border-gray-200">College Name</th>
                   <th className="px-4 py-3 font-medium text-gray-700 border-r border-gray-200">Domain</th>
                   <th className="w-16 px-4 py-3 text-center font-medium text-gray-700">Actions</th>
                 </tr>
@@ -324,6 +365,15 @@ export default function SalesImport({ embedded = false, targetEmployeeId, onSucc
                         value={row.email}
                         onChange={e => handleCellChange(row.id, 'email', e.target.value)}
                         placeholder="Email"
+                        className="w-full h-full min-h-[40px] px-4 py-2 border-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 bg-transparent"
+                      />
+                    </td>
+                    <td className="p-0 border-r border-gray-100 relative">
+                      <input 
+                        type="text" 
+                        value={row.collegeName}
+                        onChange={e => handleCellChange(row.id, 'collegeName', e.target.value)}
+                        placeholder="College Name"
                         className="w-full h-full min-h-[40px] px-4 py-2 border-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 bg-transparent"
                       />
                     </td>
