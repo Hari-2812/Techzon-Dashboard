@@ -51,6 +51,7 @@ export const useAttendance = () => {
     socket.on('attendance:clock-out-approved', handleSocketEvent);
     socket.on('attendance:clock-out-rejected', handleSocketEvent);
     socket.on('attendance:admin-force-clock-out', handleSocketEvent);
+    socket.on('attendance:admin-edit-clock-out', handleSocketEvent);
 
     return () => {
       socket.off('employee:clocked-in', handleSocketEvent);
@@ -62,6 +63,7 @@ export const useAttendance = () => {
       socket.off('attendance:clock-out-approved', handleSocketEvent);
       socket.off('attendance:clock-out-rejected', handleSocketEvent);
       socket.off('attendance:admin-force-clock-out', handleSocketEvent);
+      socket.off('attendance:admin-edit-clock-out', handleSocketEvent);
     };
   }, [user, isAdmin, queryClient]);
 

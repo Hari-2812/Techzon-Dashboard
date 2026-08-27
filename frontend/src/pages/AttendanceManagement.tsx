@@ -58,6 +58,9 @@ const AttendanceManagement = () => {
   const [rejectionReason, setRejectionReason] = useState('');
   
   const [forceClockOutModalOpen, setForceClockOutModalOpen] = useState(false);
+  const [editClockOutModalOpen, setEditClockOutModalOpen] = useState(false);
+  const [newClockOutTime, setNewClockOutTime] = useState('');
+  const [editClockOutReason, setEditClockOutReason] = useState('');
 
   const fetchAdminAttendance = async () => {
     try {
@@ -95,6 +98,7 @@ const AttendanceManagement = () => {
     socket.on('attendance:clock-in-request', fetchAdminAttendance);
     socket.on('attendance:clock-out-request', fetchAdminAttendance);
     socket.on('attendance:admin-force-clock-out', fetchAdminAttendance);
+    socket.on('attendance:admin-edit-clock-out', fetchAdminAttendance);
 
     return () => {
       socket.disconnect();
@@ -439,11 +443,24 @@ const AttendanceManagement = () => {
                             Force Clock Out
                           </Button>
                         )}
+                        { (selectedEmployee.session?.status === 'COMPLETED') && (
+                          <Button variant="outline" size="sm" onClick={() => {
+                             setNewClockOutTime(moment(selectedEmployee.session.clockOutAt).format('YYYY-MM-DDTHH:mm'));
+                             setEditClockOutReason('');
+                             setEditClockOutModalOpen(true);
+                          }}>
+                            Edit Clock Out
+                          </Button>
+                        )}
                      </div>
                    </div>
                    <div className="flex justify-between items-center">
                      <span className="text-[var(--color-text-muted)]">Clock In</span>
                      <span className="font-semibold">{selectedEmployee.session ? moment(selectedEmployee.session.clockInAt).format('hh:mm A') : '—'}</span>
+                   </div>
+                   <div className="flex justify-between items-center">
+                     <span className="text-[var(--color-text-muted)]">Clock Out</span>
+                     <span className="font-semibold">{selectedEmployee.session?.clockOutAt ? moment(selectedEmployee.session.clockOutAt).format('hh:mm A') : '—'}</span>
                    </div>
                    <div className="flex justify-between items-center">
                      <span className="text-[var(--color-text-muted)]">Worked</span>
@@ -631,6 +648,77 @@ const AttendanceManagement = () => {
                         alert('Unable to clock out employee. Please try again.');
                       }
                    }}>Confirm Clock Out</Button>
+               </div>
+             </div>
+          )}
+       </Modal>
+
+       <Modal isOpen={editClockOutModalOpen} onClose={() => setEditClockOutModalOpen(false)} title="Edit Clock-Out Time">
+          {selectedEmployee && (
+             <div className="space-y-4">
+               <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Employee</label>
+                  <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed" value={selectedEmployee.employeeId?.name || ''} disabled />
+               </div>
+               <div className="grid grid-cols-2 gap-4">
+                 <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Clock In Time</label>
+                    <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed" value={selectedEmployee.session ? moment(selectedEmployee.session.clockInAt).format('hh:mm A') : ''} disabled />
+                 </div>
+                 <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Current Clock Out</label>
+                    <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed" value={selectedEmployee.session?.clockOutAt ? moment(selectedEmployee.session.clockOutAt).format('hh:mm A') : ''} disabled />
+                 </div>
+               </div>
+               <div>
+                  <label className="block text-sm font-medium text-[var(--color-primary)] mb-1">New Clock-Out Time</label>
+                  <input 
+                     type="datetime-local" 
+                     className="w-full border-2 border-[var(--color-primary)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
+                     value={newClockOutTime}
+                     onChange={e => setNewClockOutTime(e.target.value)}
+                  />
+               </div>
+               <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Reason (Optional)</label>
+                  <input 
+                     type="text" 
+                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-[var(--color-primary)] outline-none"
+                     placeholder="e.g., Correcting clock out time for early leave"
+                     value={editClockOutReason}
+                     onChange={e => setEditClockOutReason(e.target.value)}
+                  />
+               </div>
+               
+               <div className="flex justify-end gap-3 mt-6">
+                   <Button variant="outline" onClick={() => setEditClockOutModalOpen(false)}>Cancel</Button>
+                   <Button variant="primary" onClick={async () => {
+                      if (!newClockOutTime) return alert("Please select a new clock-out time.");
+                      
+                      // Convert local datetime input strictly to ISO preserving Asia/Kolkata timezone intended selection
+                      const formattedEditedTime = moment.tz(newClockOutTime, 'Asia/Kolkata').toISOString();
+
+                      try {
+                        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+                        const res = await fetch(`${apiUrl}/attendance/admin/edit-clock-out/${selectedEmployee.session._id}`, {
+                           method: 'PUT',
+                           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
+                           body: JSON.stringify({ clockOut: formattedEditedTime, reason: editClockOutReason })
+                        });
+                        const data = await res.json();
+                        
+                        if (data.success) {
+                           setEditClockOutModalOpen(false);
+                           setSelectedEmployee(null);
+                           fetchAdminAttendance();
+                        } else {
+                           alert(data.message || 'Unable to update clock out time.');
+                        }
+                      } catch(e) { 
+                        console.error(e); 
+                        alert('Unable to update clock out time. Please try again.');
+                      }
+                   }}>Save Changes</Button>
                </div>
              </div>
           )}

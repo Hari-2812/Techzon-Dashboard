@@ -558,3 +558,101 @@ exports.adminForceClockOut = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server Error' });
   }
 };
+
+exports.adminEditClockOut = async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ success: false, message: 'Forbidden: Only Admins can edit clock out time' });
+    }
+
+    const { sessionId } = req.params;
+    const { clockOut, reason } = req.body;
+
+    if (!clockOut) {
+      return res.status(400).json({ success: false, message: 'Clock Out time is required' });
+    }
+
+    let session = await WorkSession.findById(sessionId);
+
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Work session not found' });
+    }
+
+    if (session.status !== 'COMPLETED' || !session.clockOutAt) {
+      return res.status(400).json({ success: false, message: 'Only completed sessions can be edited. Please force clock out first if the session is still active.' });
+    }
+
+    const newClockOutTime = new Date(clockOut);
+    if (isNaN(newClockOutTime.getTime())) {
+      return res.status(400).json({ success: false, message: 'Invalid clock-out timestamp provided' });
+    }
+
+    if (newClockOutTime <= session.clockInAt) {
+      return res.status(400).json({ success: false, message: 'Clock-out time must be after clock-in time.' });
+    }
+
+    if (newClockOutTime.getTime() > Date.now() + 5 * 60000) {
+      return res.status(400).json({ success: false, message: 'Clock-out time cannot be in the future.' });
+    }
+
+    const originalClockOutTime = session.clockOutAt;
+    
+    // Check if new clockOut time is before any break ends. If so, adjusting it might corrupt the break durations.
+    // For simplicity, we assume breaks are valid, but if the new clockOut is before the last break ends, we should throw an error.
+    if (session.breaks && session.breaks.length > 0) {
+      const lastBreak = session.breaks[session.breaks.length - 1];
+      if (lastBreak.endAt && newClockOutTime < lastBreak.endAt) {
+         return res.status(400).json({ success: false, message: 'New clock-out time cannot be before the end of the last break.' });
+      }
+    }
+
+    session.clockOutAt = newClockOutTime;
+    await session.save();
+
+    const settings = await AttendanceSettings.findOne() || new AttendanceSettings();
+    const stats = await calculateSessionStats(session, settings);
+
+    const Holiday = require('../models/Holiday');
+    const holiday = await Holiday.findOne({ date: session.date, isActive: true });
+    if (holiday) {
+        stats.status = 'HOLIDAY_WORKED';
+    }
+
+    const daily = await AttendanceDaily.findOneAndUpdate(
+      { employeeId: session.employeeId, date: session.date, isTestSession: session.isTestSession },
+      { ...stats, workedOnHoliday: !!holiday, status: 'COMPLETED' },
+      { returnDocument: 'after', upsert: true }
+    );
+
+    const AuditLog = require('../models/AuditLog');
+    await AuditLog.create({
+      actorId: req.user.id,
+      action: 'ADMIN_EDIT_CLOCK_OUT',
+      entityType: 'WorkSession',
+      entityId: session._id,
+      metadata: { 
+        employeeId: session.employeeId,
+        originalClockOutTime,
+        newClockOutTime,
+        workedMinutes: stats.workedMinutes,
+        reason: reason || 'No reason provided'
+      }
+    });
+
+    const io = req.app.get('io') || require('../server').io;
+    if (io) {
+      io.emit('attendance:admin-edit-clock-out', { 
+        employeeId: session.employeeId, 
+        session, 
+        daily 
+      });
+    }
+
+    res.json({ success: true, message: 'Clock-out time updated successfully.', session, daily });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
