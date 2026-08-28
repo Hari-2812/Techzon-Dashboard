@@ -419,16 +419,24 @@ exports.importEmployeeContacts = async (req, res) => {
             const phone = normalizePhone(contact.phone);
             if (!phone) {
                 failed++;
-                errors.push(`Row ${i+1}: Invalid phone format.`);
+                errors.push(`Row ${i+1}: Invalid phone format (${contact.phone}).`);
                 continue;
             }
 
-            const existingLead = await Lead.findOne({ phone });
+            let existingLead = await Lead.findOne({ phone });
+            
+            // Check email if phone somehow didn't match (though rare since phone is primary)
+            if (!existingLead && contact.email) {
+                existingLead = await Lead.findOne({ email: contact.email });
+            }
 
             if (existingLead) {
-                if (existingLead.salesSource === 'EMPLOYEE_SALES') {
+                // Check if it's already an employee lead
+                if (existingLead.salesSource === 'EMPLOYEE_SALES' || existingLead.assignedEmployeeId) {
                     duplicates++;
+                    errors.push(`Row ${i+1}: Duplicate contact found for ${contact.studentName}. Skipping to prevent mixing assignment.`);
                 } else {
+                    // Lead exists globally without employee assignment, assign it
                     existingLead.salesSource = 'EMPLOYEE_SALES';
                     existingLead.importedBy = req.user.id;
                     existingLead.importedAt = new Date();

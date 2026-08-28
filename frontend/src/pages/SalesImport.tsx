@@ -86,117 +86,135 @@ export default function SalesImport({ embedded = false, targetEmployeeId, onSucc
   };
 
   const parseMessyData = (text: string) => {
-    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    const KNOWN_DOMAINS = ['Python', 'Java', 'Data Science', 'Full Stack Development', 'AI', 'Machine Learning', 'Web Development', 'Full Stack', 'Fullstack', 'MERN'];
     const newRows: LeadRow[] = [];
 
-    const identifyHeader = (headerText: string) => {
-        const h = headerText.toLowerCase().replace(/[^a-z]/g, '');
-        if (h.includes('name') && !h.includes('college')) return 'studentName';
-        if (h.includes('phone') || h.includes('mobile') || h.includes('contact')) return 'phone';
-        if (h.includes('mail') || h.includes('email')) return 'email';
-        if (h.includes('college') || h.includes('university') || h.includes('institution')) return 'collegeName';
-        if (h.includes('domain') || h.includes('course') || h.includes('website')) return 'interestedDomain';
-        return null;
+    // Helper to determine if a string looks like a phone number
+    const extractPhoneMatch = (l: string) => {
+      const clean = l.replace(/[^\d+]/g, '');
+      if (clean.length >= 10 && clean.length <= 14 && /\d{10}/.test(clean)) return true;
+      if (/phone|mobile/i.test(l) && /\d{10}/.test(l.replace(/[^\d]/g, ''))) return true;
+      return false;
     };
+    const hasPhone = (chunk: string[]) => chunk.some(extractPhoneMatch);
 
-    const extractPhone = (cells: string[]) => {
-      for (let i = 0; i < cells.length; i++) {
-        if (!cells[i]) continue;
-        const clean = cells[i].replace(/[^\d+]/g, '');
-        if ((clean.length >= 10 && clean.length <= 14) && /^\+?\d+$/.test(clean)) {
-          if (cells[i].replace(/[^0-9]/g, '').length >= 10) {
-            return { value: clean, index: i };
-          }
+    let chunks: string[][] = [];
+    let lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+    // Chunking strategy
+    if (text.includes('\n\n') || text.includes('\n\r\n')) {
+      // If there are blank lines, use them as clear separators
+      const blocks = text.split(/\n\s*\n/);
+      chunks = blocks.map(b => b.split('\n').map(l => l.trim()).filter(Boolean)).filter(b => b.length > 0);
+    } else {
+      // No blank lines, fallback to heuristic grouping based on phone numbers or single line formats
+      let currentChunk: string[] = [];
+      for (const line of lines) {
+        if (line.includes('\t') || line.split(',').length > 3 || line.split('|').length > 3) {
+           chunks.push([line]); // Single line contact
+        } else {
+           if (extractPhoneMatch(line) && hasPhone(currentChunk)) {
+              // Found a new phone number while already having one -> start new contact
+              chunks.push([...currentChunk]);
+              currentChunk = [line];
+           } else {
+              currentChunk.push(line);
+           }
         }
       }
-      return null;
-    };
-
-    const extractEmail = (cells: string[]) => {
-      for (let i = 0; i < cells.length; i++) {
-        if (!cells[i]) continue;
-        if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cells[i])) {
-          return { value: cells[i].toLowerCase(), index: i };
-        }
-      }
-      return null;
-    };
-
-    let columnMap: any = null;
-    let startIndex = 0;
-
-    if (lines.length > 0) {
-        let delimiter: string | RegExp = '\t';
-        if (lines[0].includes('\t')) delimiter = '\t';
-        else if (lines[0].includes('|')) delimiter = '|';
-        else if (lines[0].includes(',')) delimiter = ',';
-        else delimiter = /\s{2,}/;
-        
-        let headerCells = lines[0].split(delimiter).map(c => c.trim()).filter(Boolean);
-        
-        let map: any = {};
-        let matches = 0;
-        headerCells.forEach((cell, index) => {
-            const field = identifyHeader(cell);
-            if (field) {
-                map[field] = index;
-                matches++;
-            }
-        });
-
-        if (matches >= 2) {
-            columnMap = map;
-            startIndex = 1;
-        }
+      if (currentChunk.length > 0) chunks.push(currentChunk);
     }
 
-    for (let i = startIndex; i < lines.length; i++) {
-      const line = lines[i];
-      let delimiter: string | RegExp = '\t';
-      if (line.includes('\t')) delimiter = '\t';
-      else if (line.includes('|')) delimiter = '|';
-      else if (line.includes(',')) delimiter = ',';
-      else delimiter = /\s{2,}/;
-      
-      let cells = line.split(delimiter).map(c => c.trim());
-      
+    chunks.forEach(chunk => {
       const row = createEmptyRow();
-
-      if (columnMap) {
-          if (columnMap.studentName !== undefined) row.studentName = cells[columnMap.studentName] || '';
-          if (columnMap.phone !== undefined) row.phone = cells[columnMap.phone] || '';
-          if (columnMap.email !== undefined) row.email = cells[columnMap.email] || '';
-          if (columnMap.collegeName !== undefined) row.collegeName = cells[columnMap.collegeName] || '';
-          if (columnMap.interestedDomain !== undefined) row.interestedDomain = cells[columnMap.interestedDomain] || '';
+      
+      let items = [...chunk];
+      // Expand single-line delimited formats
+      if (items.length === 1) {
+        const line = items[0];
+        if (line.includes('\t')) items = line.split('\t').map(c => c.trim()).filter(Boolean);
+        else if (line.includes('|')) items = line.split('|').map(c => c.trim()).filter(Boolean);
+        else if (line.split(',').length > 3) items = line.split(',').map(c => c.trim()).filter(Boolean);
       } else {
-          let remainingCells = [...cells].filter(Boolean);
-          
-          const phoneMatch = extractPhone(remainingCells);
-          if (phoneMatch) {
-            row.phone = phoneMatch.value;
-            remainingCells[phoneMatch.index] = '';
-          }
-
-          const emailMatch = extractEmail(remainingCells);
-          if (emailMatch) {
-            row.email = emailMatch.value;
-            remainingCells[emailMatch.index] = '';
-          }
-
-          let remaining = remainingCells.filter(Boolean);
-          if (remaining.length > 0) {
-            row.studentName = remaining[0];
-            if (remaining.length > 1) {
-              row.interestedDomain = remaining.slice(1).join(' ');
+         // Split items that are like "Name - 9876543210" 
+         let newItems: string[] = [];
+         items.forEach(item => {
+            // Only split if it looks like a separator and not a hyphenated name or college
+            if (item.includes(' - ') && !/college|university|institute/i.test(item)) {
+               newItems.push(...item.split(' - ').map(s => s.trim()));
+            } else if (item.includes(':-')) {
+               // Handles "NAME :- John" if they weren't split properly
+               newItems.push(item);
+            } else {
+               newItems.push(item);
             }
-          }
+         });
+         items = newItems.filter(Boolean);
       }
 
+      items.forEach(item => {
+        const lowerItem = item.toLowerCase();
+        
+        // 1. Explicit Labels
+        if (/^name\s*[:-]*\s*/i.test(item)) {
+          row.studentName = item.replace(/^name\s*[:-]*\s*/i, '').trim();
+          return;
+        }
+        if (/^(phone|mobile)\s*[:-]*\s*/i.test(item)) {
+          row.phone = item.replace(/^(phone|mobile)\s*[:-]*\s*/i, '').replace(/[^\d+]/g, '').trim();
+          return;
+        }
+        if (/^(email|mail)\s*[:-]*\s*/i.test(item)) {
+          row.email = item.replace(/^(email|mail)\s*[:-]*\s*/i, '').trim();
+          return;
+        }
+        if (/^college( name)?\s*[:-]*\s*/i.test(item)) {
+          row.collegeName = item.replace(/^college( name)?\s*[:-]*\s*/i, '').trim();
+          return;
+        }
+        if (/^(domain|course)\s*[:-]*\s*/i.test(item)) {
+          row.interestedDomain = item.replace(/^(domain|course)\s*[:-]*\s*/i, '').trim();
+          return;
+        }
+
+        // 2. Implicit Matching (Unlabeled)
+        
+        // Email
+        if (!row.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(item)) {
+          row.email = item.toLowerCase();
+          return;
+        }
+        
+        // Phone
+        const phoneClean = item.replace(/[^\d+]/g, '');
+        if (!row.phone && phoneClean.length >= 10 && phoneClean.length <= 14 && /\d{10}/.test(phoneClean)) {
+          row.phone = phoneClean;
+          return;
+        }
+        
+        // Domain
+        if (!row.interestedDomain && KNOWN_DOMAINS.some(d => lowerItem === d.toLowerCase() || lowerItem.includes(d.toLowerCase()))) {
+          row.interestedDomain = item;
+          return;
+        }
+        
+        // College
+        if (!row.collegeName && /college|university|institute|tech|engineering|academy/i.test(item)) {
+          row.collegeName = item;
+          return;
+        }
+        
+        // Name (Fallback) - Assign the first remaining non-empty string that looks like a name
+        if (!row.studentName && item.length > 2 && !/^\d+$/.test(item)) {
+          row.studentName = item;
+        }
+      });
+      
       if (row.studentName || row.phone || row.email || row.collegeName || row.interestedDomain) {
         newRows.push(validateRow(row));
       }
-    }
-    
+    });
+
     return newRows;
   };
 
