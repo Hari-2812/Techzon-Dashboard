@@ -656,3 +656,126 @@ exports.adminEditClockOut = async (req, res) => {
   }
 };
 
+exports.adminEditAttendance = async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ success: false, message: 'Forbidden: Only Admins can edit attendance' });
+    }
+
+    const { sessionId } = req.params;
+    const { clockIn, clockOut, clearClockOut, breakDurationMinutes, reason } = req.body;
+
+    if (!clockIn) {
+      return res.status(400).json({ success: false, message: 'Clock In time is required' });
+    }
+
+    let session = await WorkSession.findById(sessionId);
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Work session not found' });
+    }
+
+    const originalClockInTime = session.clockInAt;
+    const originalClockOutTime = session.clockOutAt;
+
+    const newClockInTime = new Date(clockIn);
+    if (isNaN(newClockInTime.getTime())) {
+      return res.status(400).json({ success: false, message: 'Invalid clock-in timestamp provided' });
+    }
+
+    session.clockInAt = newClockInTime;
+
+    if (clearClockOut) {
+      session.clockOutAt = undefined;
+      session.status = 'RUNNING'; // Default to running, though calculateSessionStats might tweak it
+    } else if (clockOut) {
+      const newClockOutTime = new Date(clockOut);
+      if (isNaN(newClockOutTime.getTime())) {
+        return res.status(400).json({ success: false, message: 'Invalid clock-out timestamp provided' });
+      }
+      if (newClockOutTime <= session.clockInAt) {
+        return res.status(400).json({ success: false, message: 'Clock-out time must be after clock-in time.' });
+      }
+      if (newClockOutTime.getTime() > Date.now() + 5 * 60000) {
+        return res.status(400).json({ success: false, message: 'Clock-out time cannot be in the future.' });
+      }
+      session.clockOutAt = newClockOutTime;
+      session.status = 'COMPLETED';
+    }
+
+    // Handle Break Duration Adjustment
+    // To allow arbitrary breakDurationMinutes, we will replace the breaks array with a single manual break
+    // that starts at Clock-In and ends breakDurationMinutes later. 
+    // This avoids complex timezone overlapping logic while still satisfying calculateSessionStats.
+    if (breakDurationMinutes !== undefined && breakDurationMinutes !== null && breakDurationMinutes >= 0) {
+      const moment = require('moment-timezone');
+      if (breakDurationMinutes > 0) {
+        const breakStart = moment(session.clockInAt);
+        const breakEnd = moment(session.clockInAt).add(breakDurationMinutes, 'minutes');
+        
+        session.breaks = [{
+          startAt: breakStart.toDate(),
+          endAt: breakEnd.toDate(),
+          reason: 'Other',
+          comment: 'Admin Adjusted Break',
+          durationMinutes: breakDurationMinutes
+        }];
+      } else {
+        session.breaks = [];
+      }
+    }
+
+    await session.save();
+
+    const settings = await AttendanceSettings.findOne() || new AttendanceSettings();
+    const stats = await calculateSessionStats(session, settings);
+
+    const Holiday = require('../models/Holiday');
+    const holiday = await Holiday.findOne({ date: session.date, isActive: true });
+    if (holiday && session.status === 'COMPLETED') {
+        stats.status = 'HOLIDAY_WORKED';
+    }
+
+    // if clearClockOut is true, the user might still be working
+    const updateStatus = clearClockOut ? 'WORKING' : (session.status === 'COMPLETED' ? 'COMPLETED' : stats.status);
+
+    const daily = await AttendanceDaily.findOneAndUpdate(
+      { employeeId: session.employeeId, date: session.date, isTestSession: session.isTestSession },
+      { ...stats, workedOnHoliday: !!holiday, status: updateStatus },
+      { returnDocument: 'after', upsert: true }
+    );
+
+    const AuditLog = require('../models/AuditLog');
+    await AuditLog.create({
+      actorId: req.user.id,
+      action: 'ADMIN_EDIT_ATTENDANCE',
+      entityType: 'WorkSession',
+      entityId: session._id,
+      metadata: { 
+        employeeId: session.employeeId,
+        originalClockInTime,
+        newClockInTime: session.clockInAt,
+        originalClockOutTime,
+        newClockOutTime: session.clockOutAt,
+        breakDurationMinutes,
+        workedMinutes: stats.workedMinutes,
+        reason: reason || 'No reason provided'
+      }
+    });
+
+    const io = req.app.get('io') || require('../server').io;
+    if (io) {
+      io.emit('attendance:admin-edit-attendance', { 
+        employeeId: session.employeeId, 
+        session, 
+        daily 
+      });
+    }
+
+    res.json({ success: true, message: 'Attendance updated successfully.', session, daily });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+

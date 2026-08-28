@@ -15,7 +15,8 @@ const {
   requestCorrection,
   testReset,
   adminForceClockOut,
-  adminEditClockOut
+  adminEditClockOut,
+  adminEditAttendance
 } = require('../controllers/attendance.controller');
 
 const {
@@ -46,6 +47,7 @@ router.get('/logs', auth, getVerificationLogs);
 router.put('/admin-correct', auth, adminCorrectAttendance);
 router.post('/test-reset', auth, testReset);
 router.post('/admin/force-clock-out/:employeeId', auth, adminForceClockOut);
-router.put('/admin/edit-clock-out/:sessionId', auth, adminEditClockOut);
+router.put('/admin/edit-clock-out/:sessionId', auth, adminEditClockOut); // Keeping for backwards compatibility if needed
+router.put('/admin/edit-attendance/:sessionId', auth, adminEditAttendance);
 
 module.exports = router;

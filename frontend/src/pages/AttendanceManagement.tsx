@@ -58,9 +58,11 @@ const AttendanceManagement = () => {
   const [rejectionReason, setRejectionReason] = useState('');
   
   const [forceClockOutModalOpen, setForceClockOutModalOpen] = useState(false);
-  const [editClockOutModalOpen, setEditClockOutModalOpen] = useState(false);
-  const [newClockOutTime, setNewClockOutTime] = useState('');
-  const [editClockOutReason, setEditClockOutReason] = useState('');
+  const [editAttendanceModalOpen, setEditAttendanceModalOpen] = useState(false);
+  const [editClockInTime, setEditClockInTime] = useState('');
+  const [editClockOutTime, setEditClockOutTime] = useState('');
+  const [editBreakDuration, setEditBreakDuration] = useState('');
+  const [editAttendanceReason, setEditAttendanceReason] = useState('');
 
   const fetchAdminAttendance = async () => {
     try {
@@ -443,13 +445,15 @@ const AttendanceManagement = () => {
                             Force Clock Out
                           </Button>
                         )}
-                        { (selectedEmployee.session?.status === 'COMPLETED') && (
+                        { (selectedEmployee.session) && (
                           <Button variant="outline" size="sm" onClick={() => {
-                             setNewClockOutTime(moment(selectedEmployee.session.clockOutAt).format('YYYY-MM-DDTHH:mm'));
-                             setEditClockOutReason('');
-                             setEditClockOutModalOpen(true);
+                             setEditClockInTime(moment(selectedEmployee.session.clockInAt).format('YYYY-MM-DDTHH:mm'));
+                             setEditClockOutTime(selectedEmployee.session.clockOutAt ? moment(selectedEmployee.session.clockOutAt).format('YYYY-MM-DDTHH:mm') : '');
+                             setEditBreakDuration(selectedEmployee.breakMinutes ? selectedEmployee.breakMinutes.toString() : '0');
+                             setEditAttendanceReason('');
+                             setEditAttendanceModalOpen(true);
                           }}>
-                            Edit Clock Out
+                            Edit Attendance
                           </Button>
                         )}
                      </div>
@@ -653,70 +657,102 @@ const AttendanceManagement = () => {
           )}
        </Modal>
 
-       <Modal isOpen={editClockOutModalOpen} onClose={() => setEditClockOutModalOpen(false)} title="Edit Clock-Out Time">
+       <Modal isOpen={editAttendanceModalOpen} onClose={() => setEditAttendanceModalOpen(false)} title="Edit Attendance">
           {selectedEmployee && (
-             <div className="space-y-4">
+             <div className="space-y-4 max-h-[80vh] overflow-y-auto p-1">
                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Employee</label>
                   <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed" value={selectedEmployee.employeeId?.name || ''} disabled />
                </div>
+               
+               <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                  <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed" value={selectedEmployee.date || ''} disabled />
+               </div>
+
                <div className="grid grid-cols-2 gap-4">
                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Clock In Time</label>
-                    <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed" value={selectedEmployee.session ? moment(selectedEmployee.session.clockInAt).format('hh:mm A') : ''} disabled />
+                    <label className="block text-sm font-medium text-[var(--color-primary)] mb-1">Clock-In Time</label>
+                    <input 
+                       type="datetime-local" 
+                       className="w-full border-2 border-[var(--color-primary)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                       value={editClockInTime}
+                       onChange={e => setEditClockInTime(e.target.value)}
+                    />
                  </div>
                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Current Clock Out</label>
-                    <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed" value={selectedEmployee.session?.clockOutAt ? moment(selectedEmployee.session.clockOutAt).format('hh:mm A') : ''} disabled />
+                    <label className="block text-sm font-medium text-[var(--color-primary)] mb-1">Clock-Out Time</label>
+                    <div className="flex gap-2">
+                      <input 
+                         type="datetime-local" 
+                         className="w-full border-2 border-[var(--color-primary)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                         value={editClockOutTime}
+                         onChange={e => setEditClockOutTime(e.target.value)}
+                      />
+                      <Button variant="outline" size="sm" type="button" onClick={() => setEditClockOutTime('')} title="Clear Clock-Out">
+                        Clear
+                      </Button>
+                    </div>
                  </div>
                </div>
+
                <div>
-                  <label className="block text-sm font-medium text-[var(--color-primary)] mb-1">New Clock-Out Time</label>
+                  <label className="block text-sm font-medium text-[var(--color-primary)] mb-1">Break Duration (Minutes)</label>
                   <input 
-                     type="datetime-local" 
-                     className="w-full border-2 border-[var(--color-primary)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
-                     value={newClockOutTime}
-                     onChange={e => setNewClockOutTime(e.target.value)}
+                     type="number" 
+                     min="0"
+                     className="w-full border-2 border-[var(--color-primary)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                     value={editBreakDuration}
+                     onChange={e => setEditBreakDuration(e.target.value)}
                   />
                </div>
+
                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Reason (Optional)</label>
-                  <input 
-                     type="text" 
-                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-[var(--color-primary)] outline-none"
-                     placeholder="e.g., Correcting clock out time for early leave"
-                     value={editClockOutReason}
-                     onChange={e => setEditClockOutReason(e.target.value)}
-                  />
+                  <label className="block text-sm font-medium text-[var(--color-primary)] mb-1">Reason for Edit</label>
+                  <textarea 
+                     className="w-full border-2 border-[var(--color-primary)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                     placeholder="e.g., Employee forgot to clock out"
+                     rows={3}
+                     value={editAttendanceReason}
+                     onChange={e => setEditAttendanceReason(e.target.value)}
+                  ></textarea>
                </div>
                
                <div className="flex justify-end gap-3 mt-6">
-                   <Button variant="outline" onClick={() => setEditClockOutModalOpen(false)}>Cancel</Button>
+                   <Button variant="outline" onClick={() => setEditAttendanceModalOpen(false)}>Cancel</Button>
                    <Button variant="primary" onClick={async () => {
-                      if (!newClockOutTime) return alert("Please select a new clock-out time.");
+                      if (!editClockInTime) return alert("Please select a clock-in time.");
                       
-                      // Convert local datetime input strictly to ISO preserving Asia/Kolkata timezone intended selection
-                      const formattedEditedTime = moment.tz(newClockOutTime, 'Asia/Kolkata').toISOString();
+                      const formattedClockIn = moment.tz(editClockInTime, 'Asia/Kolkata').toISOString();
+                      const formattedClockOut = editClockOutTime ? moment.tz(editClockOutTime, 'Asia/Kolkata').toISOString() : undefined;
+                      const clearClockOut = !editClockOutTime;
+                      const breakDurationMinutes = editBreakDuration ? parseInt(editBreakDuration, 10) : 0;
 
                       try {
                         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-                        const res = await fetch(`${apiUrl}/attendance/admin/edit-clock-out/${selectedEmployee.session._id}`, {
+                        const res = await fetch(`${apiUrl}/attendance/admin/edit-attendance/${selectedEmployee.session._id}`, {
                            method: 'PUT',
                            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
-                           body: JSON.stringify({ clockOut: formattedEditedTime, reason: editClockOutReason })
+                           body: JSON.stringify({ 
+                             clockIn: formattedClockIn, 
+                             clockOut: formattedClockOut, 
+                             clearClockOut, 
+                             breakDurationMinutes, 
+                             reason: editAttendanceReason 
+                           })
                         });
                         const data = await res.json();
                         
                         if (data.success) {
-                           setEditClockOutModalOpen(false);
+                           setEditAttendanceModalOpen(false);
                            setSelectedEmployee(null);
                            fetchAdminAttendance();
                         } else {
-                           alert(data.message || 'Unable to update clock out time.');
+                           alert(data.message || 'Unable to update attendance.');
                         }
                       } catch(e) { 
                         console.error(e); 
-                        alert('Unable to update clock out time. Please try again.');
+                        alert('Unable to update attendance. Please try again.');
                       }
                    }}>Save Changes</Button>
                </div>
