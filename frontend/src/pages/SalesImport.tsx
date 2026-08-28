@@ -1,15 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { Upload, FileText, CheckCircle, ArrowLeft, AlertCircle, RefreshCw, Trash2, Plus, Copy } from 'lucide-react';
+import { Upload, FileText, CheckCircle, ArrowLeft, AlertCircle, RefreshCw, Trash2, Plus, Copy, ListChecks } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell, TableContainer } from '../components/ui/Table';
 
 interface SalesImportProps {
   embedded?: boolean;
   targetEmployeeId?: string;
+  targetEmployeeName?: string;
   onSuccess?: () => void;
 }
 
@@ -24,22 +24,16 @@ interface LeadRow {
   isDuplicate: boolean;
 }
 
-export default function SalesImport({ embedded = false, targetEmployeeId, onSuccess }: SalesImportProps = {}) {
+export default function SalesImport({ embedded = false, targetEmployeeId, targetEmployeeName, onSuccess }: SalesImportProps = {}) {
   const navigate = useNavigate();
   
+  const [rawText, setRawText] = useState('');
   const [rows, setRows] = useState<LeadRow[]>([]);
-  const [status, setStatus] = useState<'idle' | 'importing' | 'success'>('idle');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  
+  const [status, setStatus] = useState<'input' | 'preview' | 'importing' | 'success'>('input');
   const [error, setError] = useState('');
   const [successStats, setSuccessStats] = useState<any>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // Initialize with empty rows
-  useEffect(() => {
-    if (rows.length === 0 && status === 'idle') {
-      const initialRows = Array.from({ length: 5 }, () => createEmptyRow());
-      setRows(initialRows);
-    }
-  }, []);
 
   const createEmptyRow = (): LeadRow => ({
     id: Math.random().toString(36).substring(7),
@@ -59,7 +53,7 @@ export default function SalesImport({ embedded = false, targetEmployeeId, onSucc
     
     return {
       ...row,
-      phone: phoneClean, // normalize
+      phone: phoneClean,
       isValid: hasValidPhone && hasName
     };
   };
@@ -77,19 +71,48 @@ export default function SalesImport({ embedded = false, targetEmployeeId, onSucc
     setRows(prev => [...prev, createEmptyRow()]);
   };
 
-  const deleteRow = (id: string) => {
+  const removeRow = (id: string) => {
     setRows(prev => prev.filter(r => r.id !== id));
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
   };
 
-  const clearEmptyRows = () => {
-    setRows(prev => prev.filter(r => r.studentName.trim() || r.phone.trim() || r.email.trim() || r.collegeName.trim() || r.interestedDomain.trim()));
+  const removeSelected = () => {
+    setRows(prev => prev.filter(r => !selectedIds.has(r.id)));
+    setSelectedIds(new Set());
+  };
+
+  const clearAll = () => {
+    setRows([]);
+    setSelectedIds(new Set());
+    setStatus('input');
+    setRawText('');
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === rows.length && rows.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(rows.map(r => r.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   const parseMessyData = (text: string) => {
     const KNOWN_DOMAINS = ['Python', 'Java', 'Data Science', 'Full Stack Development', 'AI', 'Machine Learning', 'Web Development', 'Full Stack', 'Fullstack', 'MERN'];
     const newRows: LeadRow[] = [];
 
-    // Helper to determine if a string looks like a phone number
     const extractPhoneMatch = (l: string) => {
       const clean = l.replace(/[^\d+]/g, '');
       if (clean.length >= 10 && clean.length <= 14 && /\d{10}/.test(clean)) return true;
@@ -101,20 +124,16 @@ export default function SalesImport({ embedded = false, targetEmployeeId, onSucc
     let chunks: string[][] = [];
     let lines = text.split('\n').map(l => l.trim()).filter(Boolean);
 
-    // Chunking strategy
     if (text.includes('\n\n') || text.includes('\n\r\n')) {
-      // If there are blank lines, use them as clear separators
       const blocks = text.split(/\n\s*\n/);
       chunks = blocks.map(b => b.split('\n').map(l => l.trim()).filter(Boolean)).filter(b => b.length > 0);
     } else {
-      // No blank lines, fallback to heuristic grouping based on phone numbers or single line formats
       let currentChunk: string[] = [];
       for (const line of lines) {
         if (line.includes('\t') || line.split(',').length > 3 || line.split('|').length > 3) {
-           chunks.push([line]); // Single line contact
+           chunks.push([line]);
         } else {
            if (extractPhoneMatch(line) && hasPhone(currentChunk)) {
-              // Found a new phone number while already having one -> start new contact
               chunks.push([...currentChunk]);
               currentChunk = [line];
            } else {
@@ -129,21 +148,17 @@ export default function SalesImport({ embedded = false, targetEmployeeId, onSucc
       const row = createEmptyRow();
       
       let items = [...chunk];
-      // Expand single-line delimited formats
       if (items.length === 1) {
         const line = items[0];
         if (line.includes('\t')) items = line.split('\t').map(c => c.trim()).filter(Boolean);
         else if (line.includes('|')) items = line.split('|').map(c => c.trim()).filter(Boolean);
         else if (line.split(',').length > 3) items = line.split(',').map(c => c.trim()).filter(Boolean);
       } else {
-         // Split items that are like "Name - 9876543210" 
          let newItems: string[] = [];
          items.forEach(item => {
-            // Only split if it looks like a separator and not a hyphenated name or college
             if (item.includes(' - ') && !/college|university|institute/i.test(item)) {
                newItems.push(...item.split(' - ').map(s => s.trim()));
             } else if (item.includes(':-')) {
-               // Handles "NAME :- John" if they weren't split properly
                newItems.push(item);
             } else {
                newItems.push(item);
@@ -155,7 +170,6 @@ export default function SalesImport({ embedded = false, targetEmployeeId, onSucc
       items.forEach(item => {
         const lowerItem = item.toLowerCase();
         
-        // 1. Explicit Labels
         if (/^name\s*[:-]*\s*/i.test(item)) {
           row.studentName = item.replace(/^name\s*[:-]*\s*/i, '').trim();
           return;
@@ -177,34 +191,27 @@ export default function SalesImport({ embedded = false, targetEmployeeId, onSucc
           return;
         }
 
-        // 2. Implicit Matching (Unlabeled)
-        
-        // Email
         if (!row.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(item)) {
           row.email = item.toLowerCase();
           return;
         }
         
-        // Phone
         const phoneClean = item.replace(/[^\d+]/g, '');
         if (!row.phone && phoneClean.length >= 10 && phoneClean.length <= 14 && /\d{10}/.test(phoneClean)) {
           row.phone = phoneClean;
           return;
         }
         
-        // Domain
         if (!row.interestedDomain && KNOWN_DOMAINS.some(d => lowerItem === d.toLowerCase() || lowerItem.includes(d.toLowerCase()))) {
           row.interestedDomain = item;
           return;
         }
         
-        // College
         if (!row.collegeName && /college|university|institute|tech|engineering|academy/i.test(item)) {
           row.collegeName = item;
           return;
         }
         
-        // Name (Fallback) - Assign the first remaining non-empty string that looks like a name
         if (!row.studentName && item.length > 2 && !/^\d+$/.test(item)) {
           row.studentName = item;
         }
@@ -218,39 +225,26 @@ export default function SalesImport({ embedded = false, targetEmployeeId, onSucc
     return newRows;
   };
 
-  const handlePaste = (e: React.ClipboardEvent) => {
-    const text = e.clipboardData.getData('text');
-    if (text.includes('\n') || text.includes('\t')) {
-      e.preventDefault();
-      const parsed = parseMessyData(text);
-      if (parsed.length > 0) {
-        setRows(prev => {
-          const cleaned = prev.filter(r => r.studentName.trim() || r.phone.trim() || r.email.trim() || r.collegeName.trim() || r.interestedDomain.trim());
-          return [...cleaned, ...parsed];
-        });
-      }
-    }
+  const handleParse = () => {
+    if (!rawText.trim()) return;
+    const parsed = parseMessyData(rawText);
+    setRows(parsed);
+    setSelectedIds(new Set());
+    setStatus('preview');
   };
 
   const handleSaveAndAssign = async () => {
     setError('');
     
-    const filledRows = rows.filter(r => r.studentName.trim() || r.phone.trim() || r.email.trim() || r.collegeName.trim() || r.interestedDomain.trim());
-    
-    if (filledRows.length === 0) {
-      setError('The sheet is empty.');
-      return;
-    }
-
-    const invalidCount = filledRows.filter(r => !r.isValid).length;
-    if (invalidCount > 0) {
-      setError(`There are ${invalidCount} invalid rows. Please ensure all leads have at least a Name and a valid Phone number.`);
+    const validRows = rows.filter(r => r.isValid);
+    if (validRows.length === 0) {
+      setError('There are no valid contacts to import. Please correct the highlighted errors.');
       return;
     }
 
     setStatus('importing');
 
-    const contactsToImport = filledRows.map(r => ({
+    const contactsToImport = validRows.map(r => ({
       studentName: r.studentName,
       phone: r.phone,
       email: r.email,
@@ -276,19 +270,13 @@ export default function SalesImport({ embedded = false, targetEmployeeId, onSucc
       
     } catch (err: any) {
       setError(err.response?.data?.message || 'Error saving leads');
-      setStatus('idle');
+      setStatus('preview');
     }
   };
 
-  const handleReset = () => {
-    setRows(Array.from({ length: 5 }, () => createEmptyRow()));
-    setStatus('idle');
-    setSuccessStats(null);
-    setError('');
-  };
-
   const validCount = rows.filter(r => r.isValid).length;
-  const invalidCount = rows.filter(r => (r.studentName || r.phone) && !r.isValid).length;
+  const invalidCount = rows.filter(r => !r.isValid).length;
+  const hasSelected = selectedIds.size > 0;
 
   return (
     <div className={embedded ? "" : "p-6 max-w-7xl mx-auto pb-24"}>
@@ -298,8 +286,8 @@ export default function SalesImport({ embedded = false, targetEmployeeId, onSucc
             <ArrowLeft size={24} />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Lead Sheet</h1>
-            <p className="text-gray-500 text-sm">Paste unordered contacts to automatically organize and assign them.</p>
+            <h1 className="text-2xl font-bold text-gray-900">BULK ADD LEADS</h1>
+            <p className="text-gray-500 text-sm">Paste unstructured contacts to automatically detect and assign them.</p>
           </div>
         </div>
       )}
@@ -309,12 +297,21 @@ export default function SalesImport({ embedded = false, targetEmployeeId, onSucc
           <div className="flex justify-center mb-4">
             <CheckCircle className="h-16 w-16 text-green-500" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Leads Assigned Successfully!</h2>
-          <p className="text-gray-600 mb-6 max-w-md mx-auto">
-            {successStats?.created} newly created, {successStats?.updated} updated, and {successStats?.duplicates} duplicates skipped.
-          </p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Successfully added {successStats?.created + successStats?.updated} leads {targetEmployeeName ? `and assigned them to ${targetEmployeeName}` : 'and assigned them'}.
+          </h2>
+          <div className="flex flex-col items-center gap-2 mb-6 text-gray-600 max-w-md mx-auto">
+            <div className="flex items-center justify-center gap-4">
+               <span className="font-medium text-green-600">Added: {successStats?.created}</span>
+               <span className="font-medium text-blue-600">Updated: {successStats?.updated}</span>
+            </div>
+            <div className="flex items-center justify-center gap-4">
+               <span className="font-medium text-orange-600">Duplicates (Skipped): {successStats?.duplicates}</span>
+               {successStats?.failed > 0 && <span className="font-medium text-red-600">Failed: {successStats?.failed}</span>}
+            </div>
+          </div>
           <div className="flex gap-4 justify-center">
-            <Button onClick={handleReset}>Import More</Button>
+            <Button onClick={clearAll}>Import More</Button>
             {!embedded && <Button variant="outline" onClick={() => navigate('/sales')}>Go to Sales</Button>}
           </div>
         </Card>
@@ -322,12 +319,8 @@ export default function SalesImport({ embedded = false, targetEmployeeId, onSucc
         <Card className={embedded ? "border border-gray-200 shadow-sm" : "shadow-sm border border-gray-200"}>
           <div className="p-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-4 bg-gray-50/50 rounded-t-xl">
             <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-indigo-600" />
-              <h3 className="font-semibold text-gray-800">Spreadsheet Importer</h3>
-            </div>
-            <div className="flex gap-2">
-              <Badge variant="success">{validCount} Valid</Badge>
-              {invalidCount > 0 && <Badge variant="error">{invalidCount} Invalid</Badge>}
+              <ListChecks className="h-5 w-5 text-indigo-600" />
+              <h3 className="font-semibold text-gray-800 uppercase tracking-wider text-sm">BULK ADD LEADS</h3>
             </div>
           </div>
 
@@ -338,110 +331,175 @@ export default function SalesImport({ embedded = false, targetEmployeeId, onSucc
             </div>
           )}
 
-          <div 
-            className="overflow-x-auto" 
-            ref={containerRef}
-            onPaste={handlePaste}
-          >
-            <table className="w-full text-sm text-left border-collapse">
-              <thead className="bg-gray-50 border-y border-gray-200">
-                <tr>
-                  <th className="w-10 px-4 py-3 text-center text-gray-400 font-medium border-r border-gray-200">#</th>
-                  <th className="px-4 py-3 font-medium text-gray-700 border-r border-gray-200">Name *</th>
-                  <th className="px-4 py-3 font-medium text-gray-700 border-r border-gray-200">Phone *</th>
-                  <th className="px-4 py-3 font-medium text-gray-700 border-r border-gray-200">Email</th>
-                  <th className="px-4 py-3 font-medium text-gray-700 border-r border-gray-200">College Name</th>
-                  <th className="px-4 py-3 font-medium text-gray-700 border-r border-gray-200">Domain</th>
-                  <th className="w-16 px-4 py-3 text-center font-medium text-gray-700">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row, index) => (
-                  <tr key={row.id} className="border-b border-gray-100 hover:bg-gray-50/50 group">
-                    <td className="px-2 py-2 text-center text-gray-400 border-r border-gray-100">{index + 1}</td>
-                    <td className="p-0 border-r border-gray-100 relative">
-                      <input 
-                        type="text" 
-                        value={row.studentName}
-                        onChange={e => handleCellChange(row.id, 'studentName', e.target.value)}
-                        placeholder="Name"
-                        className="w-full h-full min-h-[40px] px-4 py-2 border-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 bg-transparent"
-                      />
-                    </td>
-                    <td className="p-0 border-r border-gray-100 relative">
-                      <input 
-                        type="text" 
-                        value={row.phone}
-                        onChange={e => handleCellChange(row.id, 'phone', e.target.value)}
-                        placeholder="Phone Number"
-                        className={`w-full h-full min-h-[40px] px-4 py-2 border-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 bg-transparent ${row.phone && !validateRow(row).phone.match(/^\d{10,14}$/) ? 'text-red-600 bg-red-50' : ''}`}
-                      />
-                    </td>
-                    <td className="p-0 border-r border-gray-100 relative">
-                      <input 
-                        type="text" 
-                        value={row.email}
-                        onChange={e => handleCellChange(row.id, 'email', e.target.value)}
-                        placeholder="Email"
-                        className="w-full h-full min-h-[40px] px-4 py-2 border-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 bg-transparent"
-                      />
-                    </td>
-                    <td className="p-0 border-r border-gray-100 relative">
-                      <input 
-                        type="text" 
-                        value={row.collegeName}
-                        onChange={e => handleCellChange(row.id, 'collegeName', e.target.value)}
-                        placeholder="College Name"
-                        className="w-full h-full min-h-[40px] px-4 py-2 border-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 bg-transparent"
-                      />
-                    </td>
-                    <td className="p-0 border-r border-gray-100 relative">
-                      <input 
-                        type="text" 
-                        value={row.interestedDomain}
-                        onChange={e => handleCellChange(row.id, 'interestedDomain', e.target.value)}
-                        placeholder="Domain"
-                        className="w-full h-full min-h-[40px] px-4 py-2 border-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 bg-transparent"
-                      />
-                    </td>
-                    <td className="px-2 py-2 text-center">
-                      <button 
-                        onClick={() => deleteRow(row.id)}
-                        className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded hover:bg-red-50 opacity-0 group-hover:opacity-100"
-                        title="Delete Row"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {status === 'input' && (
+            <div className="p-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Paste your lead data here...</label>
+              <textarea 
+                className="w-full min-h-[300px] p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm font-mono shadow-sm"
+                placeholder="John Peter\n9876543210\njohn@gmail.com\nABC College\nPython\n\nPriya Kumar\n9876543211\npriya@gmail.com\nXYZ College\nData Science"
+                value={rawText}
+                onChange={e => setRawText(e.target.value)}
+              />
+              <div className="mt-4 flex justify-end">
+                <Button 
+                  onClick={handleParse} 
+                  disabled={!rawText.trim()}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                >
+                  Parse Contacts
+                </Button>
+              </div>
+            </div>
+          )}
 
-          <div className="p-4 border-t border-gray-100 flex items-center justify-between bg-gray-50 rounded-b-xl">
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={addRow} className="flex items-center gap-1">
-                <Plus size={16} /> Add Row
-              </Button>
-              <Button variant="outline" size="sm" onClick={clearEmptyRows} className="flex items-center gap-1">
-                Clear Empty
-              </Button>
-            </div>
-            
-            <div className="flex gap-3 items-center">
-              <span className="text-xs text-gray-500 mr-2 flex items-center gap-1 hidden sm:flex">
-                <Copy size={14} /> You can paste data anywhere in the table
-              </span>
-              <Button 
-                onClick={handleSaveAndAssign} 
-                disabled={status === 'importing'}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white"
-              >
-                {status === 'importing' ? 'Saving...' : 'Save & Assign Leads'}
-              </Button>
-            </div>
-          </div>
+          {(status === 'preview' || status === 'importing') && (
+            <>
+              <div className="p-4 bg-white flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100">
+                <div className="flex items-center gap-4">
+                  <span className="text-sm font-medium text-gray-700">Contacts detected: <span className="font-bold">{rows.length}</span></span>
+                  <div className="flex gap-2">
+                    <Badge variant="success">{validCount} Valid</Badge>
+                    {invalidCount > 0 && <Badge variant="error">{invalidCount} Invalid</Badge>}
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={addRow} className="flex items-center gap-1 h-9">
+                    <Plus size={16} /> Add Contact
+                  </Button>
+                  {hasSelected && (
+                    <Button variant="outline" size="sm" onClick={removeSelected} className="flex items-center gap-1 text-red-600 border-red-200 hover:bg-red-50 h-9">
+                      <Trash2 size={16} /> Remove Selected
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" onClick={clearAll} className="flex items-center gap-1 h-9">
+                    Clear All
+                  </Button>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left border-collapse">
+                  <thead className="bg-gray-50 border-y border-gray-200">
+                    <tr>
+                      <th className="w-12 px-4 py-3 text-center border-r border-gray-200">
+                        <input 
+                          type="checkbox" 
+                          className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                          checked={rows.length > 0 && selectedIds.size === rows.length}
+                          onChange={toggleSelectAll}
+                        />
+                      </th>
+                      <th className="px-4 py-3 font-medium text-gray-700 border-r border-gray-200">Name *</th>
+                      <th className="px-4 py-3 font-medium text-gray-700 border-r border-gray-200">Phone *</th>
+                      <th className="px-4 py-3 font-medium text-gray-700 border-r border-gray-200">Email</th>
+                      <th className="px-4 py-3 font-medium text-gray-700 border-r border-gray-200">College Name</th>
+                      <th className="px-4 py-3 font-medium text-gray-700 border-r border-gray-200">Domain</th>
+                      <th className="px-4 py-3 font-medium text-gray-700 border-r border-gray-200">Status</th>
+                      <th className="w-20 px-4 py-3 text-center font-medium text-gray-700">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="text-center py-12 text-gray-500">No contacts to display.</td>
+                      </tr>
+                    ) : (
+                      rows.map((row) => (
+                        <tr key={row.id} className={`border-b border-gray-100 hover:bg-gray-50/50 group ${selectedIds.has(row.id) ? 'bg-indigo-50/30' : ''}`}>
+                          <td className="px-4 py-2 text-center border-r border-gray-100">
+                            <input 
+                              type="checkbox"
+                              className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                              checked={selectedIds.has(row.id)}
+                              onChange={() => toggleSelect(row.id)}
+                            />
+                          </td>
+                          <td className="p-0 border-r border-gray-100 relative">
+                            <input 
+                              type="text" 
+                              value={row.studentName}
+                              onChange={e => handleCellChange(row.id, 'studentName', e.target.value)}
+                              placeholder="Name"
+                              className={`w-full h-full min-h-[44px] px-4 py-2 border-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 bg-transparent ${!row.studentName ? 'bg-red-50' : ''}`}
+                            />
+                          </td>
+                          <td className="p-0 border-r border-gray-100 relative">
+                            <input 
+                              type="text" 
+                              value={row.phone}
+                              onChange={e => handleCellChange(row.id, 'phone', e.target.value)}
+                              placeholder="Phone"
+                              className={`w-full h-full min-h-[44px] px-4 py-2 border-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 bg-transparent ${!row.phone.match(/^\d{10,14}$/) ? 'text-red-600 bg-red-50' : ''}`}
+                            />
+                          </td>
+                          <td className="p-0 border-r border-gray-100 relative">
+                            <input 
+                              type="text" 
+                              value={row.email}
+                              onChange={e => handleCellChange(row.id, 'email', e.target.value)}
+                              placeholder="Email"
+                              className="w-full h-full min-h-[44px] px-4 py-2 border-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 bg-transparent"
+                            />
+                          </td>
+                          <td className="p-0 border-r border-gray-100 relative">
+                            <input 
+                              type="text" 
+                              value={row.collegeName}
+                              onChange={e => handleCellChange(row.id, 'collegeName', e.target.value)}
+                              placeholder="College"
+                              className="w-full h-full min-h-[44px] px-4 py-2 border-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 bg-transparent"
+                            />
+                          </td>
+                          <td className="p-0 border-r border-gray-100 relative">
+                            <input 
+                              type="text" 
+                              value={row.interestedDomain}
+                              onChange={e => handleCellChange(row.id, 'interestedDomain', e.target.value)}
+                              placeholder="Domain"
+                              className="w-full h-full min-h-[44px] px-4 py-2 border-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 bg-transparent"
+                            />
+                          </td>
+                          <td className="px-4 py-2 border-r border-gray-100">
+                            {row.isValid ? (
+                              <Badge variant="success">VALID</Badge>
+                            ) : (
+                              <Badge variant="error">
+                                {!row.studentName ? 'MISSING NAME' : 'INVALID PHONE'}
+                              </Badge>
+                            )}
+                          </td>
+                          <td className="px-2 py-2 text-center">
+                            <button 
+                              onClick={() => removeRow(row.id)}
+                              className="text-gray-400 hover:text-red-600 transition-colors p-2 rounded hover:bg-red-50 inline-flex"
+                              title="Remove Contact"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="p-4 border-t border-gray-100 flex items-center justify-between bg-gray-50 rounded-b-xl">
+                <Button variant="outline" onClick={() => setStatus('input')}>
+                  Back to Paste
+                </Button>
+                <div className="flex gap-3 items-center">
+                  <Button 
+                    onClick={handleSaveAndAssign} 
+                    disabled={status === 'importing' || validCount === 0}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                  >
+                    {status === 'importing' ? 'Processing...' : 'Add Leads & Assign'}
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
         </Card>
       )}
     </div>

@@ -94,7 +94,7 @@ export default function LeadAssignment() {
             <>
               {/* Embed SalesImport with an embedded prop if possible, or modify it */}
               <div className="border border-indigo-100 rounded-xl overflow-hidden shadow-sm">
-                <SalesImport embedded targetEmployeeId={selectedEmployeeId} onSuccess={refetchLeads} />
+                <SalesImport embedded targetEmployeeId={selectedEmployeeId} targetEmployeeName={selectedEmployee?.name} onSuccess={refetchLeads} />
               </div>
               
               <Card className="p-6">
