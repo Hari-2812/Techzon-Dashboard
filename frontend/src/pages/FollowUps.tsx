@@ -120,7 +120,7 @@ const FollowUps = () => {
 
       <Card className="overflow-hidden">
         <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-left text-sm text-[var(--color-text-primary)]">
+          <div className="overflow-x-auto w-full"><table className="w-full text-left text-sm text-[var(--color-text-primary)]">
             <thead className="bg-gray-50 text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)]">
               <tr>
                 <th className="px-4 py-3 font-medium">Due Date & Time</th>
@@ -160,7 +160,7 @@ const FollowUps = () => {
                     <td className="px-4 py-4">{f.assignedEmployeeId?.name}</td>
                   )}
                   <td className="px-4 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center justify-end gap-2 flex-wrap">
                       <a href={`tel:${f.crId ? f.crId.phone : (f.leadId ? f.leadId.phone : '')}`} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded" title="Call">
                         <Phone size={16} />
                       </a>
@@ -195,7 +195,7 @@ const FollowUps = () => {
                 </tr>
               )}
             </tbody>
-          </table>
+          </table></div>
         </div>
 
         {/* Mobile Cards */}
@@ -228,7 +228,7 @@ const FollowUps = () => {
                    </div>
                 </div>
                 <div className="space-y-1 mb-4">
-                   <p className="text-sm text-[var(--color-text-secondary)] flex items-center gap-2">
+                   <p className="text-sm text-[var(--color-text-secondary)] flex items-center gap-2 flex-wrap">
                      <Clock size={14} className="text-[var(--color-primary)]"/> 
                      <span className="font-medium text-[var(--color-text-primary)]">{moment(f.dueDate).format('DD MMM, hh:mm A')}</span>
                    </p>
@@ -282,7 +282,7 @@ const FollowUps = () => {
                   rows={3} placeholder="What was discussed?"
                 />
               </div>
-              <div className="flex justify-end gap-2 mt-6">
+              <div className="flex justify-end gap-2 mt-6 flex-wrap">
                 <button type="button" onClick={() => setIsCompleteModalOpen(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded font-medium">Cancel</button>
                 <button type="submit" disabled={completeMutation.isPending} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-medium">
                   {completeMutation.isPending ? 'Saving...' : 'Mark Completed'}
@@ -317,7 +317,7 @@ const FollowUps = () => {
                   rows={2} placeholder="Why is this being rescheduled?"
                 />
               </div>
-              <div className="flex justify-end gap-2 mt-6">
+              <div className="flex justify-end gap-2 mt-6 flex-wrap">
                 <button type="button" onClick={() => setIsRescheduleModalOpen(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded font-medium">Cancel</button>
                 <button type="submit" disabled={rescheduleMutation.isPending} className="px-4 py-2 bg-[var(--color-accent)] hover:bg-orange-600 text-white rounded font-medium">
                   {rescheduleMutation.isPending ? 'Saving...' : 'Reschedule'}

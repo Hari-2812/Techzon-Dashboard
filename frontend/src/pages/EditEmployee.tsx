@@ -150,7 +150,7 @@ const EditEmployee = () => {
                     </button>
                     <h1 className="text-2xl font-bold text-[var(--color-primary)]">Edit Employee</h1>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                     <Badge variant="neutral">ID: {employee.employeeId}</Badge>
                 </div>
             </div>
@@ -176,7 +176,7 @@ const EditEmployee = () => {
                         </div>
                         <div className="flex flex-col justify-center space-y-2">
                             <p className="font-medium text-gray-700">Profile Photo</p>
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-3 flex-wrap">
                                 <label className="bg-white border border-gray-300 px-3 py-1.5 rounded text-sm font-medium cursor-pointer hover:bg-gray-50">
                                     Change Photo
                                     <input type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
@@ -322,7 +322,7 @@ const EditEmployee = () => {
                     </Card>
                 )}
 
-                <div className="flex justify-end gap-4 pt-4 border-t">
+                <div className="flex justify-end gap-4 pt-4 border-t flex-wrap">
                     <Button variant="outline" onClick={() => navigate(`/employees/${id}`)} disabled={loading}>Cancel</Button>
                     <Button onClick={handleSaveInitiated} disabled={!hasChanges || loading || !formData.firstName || !formData.email || !formData.role}>
                         {loading ? 'Saving...' : 'Save Changes'} <Save size={16} className="ml-2"/>
@@ -344,7 +344,7 @@ const EditEmployee = () => {
                         <p className="text-sm text-gray-500 mb-6">
                             This will change the employee's dashboard and system permissions immediately. Historical records and Employee ID will not be affected.
                         </p>
-                        <div className="flex justify-end gap-3">
+                        <div className="flex justify-end gap-3 flex-wrap">
                             <Button variant="outline" onClick={() => setShowRoleWarning(false)}>Cancel</Button>
                             <Button onClick={executeSave}>Confirm Change</Button>
                         </div>
@@ -362,7 +362,7 @@ const EditEmployee = () => {
                         <p className="text-gray-600 mb-4">
                             You are changing the joining date. If this employee already has attendance records before the new joining date, changing this may affect attendance calculations.
                         </p>
-                        <div className="flex justify-end gap-3">
+                        <div className="flex justify-end gap-3 flex-wrap">
                             <Button variant="outline" onClick={() => setShowJoinDateWarning(false)}>Cancel</Button>
                             <Button onClick={executeSave}>Continue</Button>
                         </div>

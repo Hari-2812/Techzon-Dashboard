@@ -68,7 +68,7 @@ export default function CRManagement() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto pb-24">
-      <div className="mb-8 flex justify-between items-center">
+      <div className="mb-8 flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
         <div>
           <h1 className="text-3xl font-bold text-[var(--color-text-primary)]">CR Management</h1>
           <p className="text-[var(--color-text-muted)] mt-1">Manage Class Representatives and their connected WhatsApp groups.</p>
@@ -195,7 +195,7 @@ export default function CRManagement() {
                    <p className="text-sm text-[var(--color-text-secondary)]"><strong>College:</strong> {cr.college}</p>
                    <p className="text-sm text-[var(--color-text-secondary)]"><strong>Department:</strong> {cr.department} • {cr.year}</p>
                    <p className="text-sm text-[var(--color-text-secondary)]"><strong>Phone:</strong> {cr.phone}</p>
-                   <div className="flex items-center gap-2 mt-2 bg-gray-50 p-2 rounded-lg">
+                   <div className="flex items-center gap-2 mt-2 bg-gray-50 p-2 rounded-lg flex-wrap">
                       <div className="flex-1 text-center border-r">
                          <p className="text-xs text-gray-500 font-medium">Expected</p>
                          <p className="font-bold text-gray-700">{cr.expectedStudents || 0}</p>

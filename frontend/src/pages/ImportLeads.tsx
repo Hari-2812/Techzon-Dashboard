@@ -123,7 +123,7 @@ export default function ImportLeads() {
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto pb-24">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-start sm:items-center mb-6">
           <div>
               <h1 className="text-2xl md:text-3xl font-bold text-[var(--color-text-primary)]">
                 {targetEmployee ? `Upload Leads for: ${targetEmployee.name}` : 'Import Leads'}
@@ -158,7 +158,7 @@ export default function ImportLeads() {
                <Card className="lg:col-span-2 p-0 overflow-hidden flex flex-col min-h-[400px]">
                   <div className="bg-gradient-to-r from-green-600 to-green-800 p-6 text-white flex justify-between items-center">
                      <div>
-                        <h2 className="text-xl font-bold flex items-center gap-2"><Table2 size={24} /> Google Sheets Sync</h2>
+                        <h2 className="text-xl font-bold flex items-center gap-2 flex-wrap"><Table2 size={24} /> Google Sheets Sync</h2>
                         <p className="text-green-100 text-sm mt-1">Automatically pull new leads and assign them to your team.</p>
                      </div>
                      <Button 
@@ -221,7 +221,7 @@ export default function ImportLeads() {
                                 <h4 className="font-bold text-sm text-gray-700 mb-3">Missing Environment Variables:</h4>
                                 <ul className="space-y-2">
                                     {configStatus?.missingVariables?.map((v: any, i: number) => (
-                                        <li key={i} className="text-sm text-red-600 flex items-start gap-2">
+                                        <li key={i} className="text-sm text-red-600 flex items-start gap-2 flex-wrap">
                                             <span className="mt-0.5">•</span>
                                             <span><strong>{v.name}</strong>: {v.error}</span>
                                         </li>
@@ -257,7 +257,7 @@ export default function ImportLeads() {
                                         <span className="text-sm font-semibold text-gray-700">Available Sheets:</span>
                                         <button 
                                             onClick={toggleAllSheets}
-                                            className="text-sm text-[var(--color-primary)] font-medium hover:underline flex items-center gap-1"
+                                            className="text-sm text-[var(--color-primary)] font-medium hover:underline flex items-center gap-1 flex-wrap"
                                         >
                                             {selectedSheets.length === sheetsList.length ? <CheckSquare size={16}/> : <Square size={16}/>}
                                             {selectedSheets.length === sheetsList.length ? 'Deselect All' : 'Select All'}
@@ -346,7 +346,7 @@ export default function ImportLeads() {
                <div className="space-y-6">
                   {/* Status Card */}
                   <Card className="p-5">
-                      <h3 className="font-bold text-[var(--color-text-primary)] mb-4 flex items-center gap-2"><Activity size={18}/> Status</h3>
+                      <h3 className="font-bold text-[var(--color-text-primary)] mb-4 flex items-center gap-2 flex-wrap"><Activity size={18}/> Status</h3>
                       <div className="space-y-4">
                           <div className="flex justify-between items-center border-b border-gray-100 pb-3">
                               <span className="text-sm text-gray-600">Connection</span>
@@ -370,7 +370,7 @@ export default function ImportLeads() {
             {/* Sync History Table */}
             <Card className="p-0 overflow-hidden">
                 <div className="p-4 border-b border-[var(--color-border-subtle)] bg-gray-50">
-                    <h3 className="font-bold text-[var(--color-text-primary)] flex items-center gap-2"><Clock size={18}/> Sync History</h3>
+                    <h3 className="font-bold text-[var(--color-text-primary)] flex items-center gap-2 flex-wrap"><Clock size={18}/> Sync History</h3>
                 </div>
                 <TableContainer>
                     <Table>

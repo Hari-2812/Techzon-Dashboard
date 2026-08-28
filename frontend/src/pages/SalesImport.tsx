@@ -281,7 +281,7 @@ export default function SalesImport({ embedded = false, targetEmployeeId, target
   return (
     <div className={embedded ? "" : "p-6 max-w-7xl mx-auto pb-24"}>
       {!embedded && (
-        <div className="flex items-center gap-4 mb-6">
+        <div className="flex items-center gap-4 mb-6 flex-wrap">
           <button onClick={() => navigate('/sales')} className="text-gray-500 hover:text-gray-700">
             <ArrowLeft size={24} />
           </button>
@@ -301,16 +301,16 @@ export default function SalesImport({ embedded = false, targetEmployeeId, target
             Successfully added {successStats?.created + successStats?.updated} leads {targetEmployeeName ? `and assigned them to ${targetEmployeeName}` : 'and assigned them'}.
           </h2>
           <div className="flex flex-col items-center gap-2 mb-6 text-gray-600 max-w-md mx-auto">
-            <div className="flex items-center justify-center gap-4">
+            <div className="flex items-center justify-center gap-4 flex-wrap">
                <span className="font-medium text-green-600">Added: {successStats?.created}</span>
                <span className="font-medium text-blue-600">Updated: {successStats?.updated}</span>
             </div>
-            <div className="flex items-center justify-center gap-4">
+            <div className="flex items-center justify-center gap-4 flex-wrap">
                <span className="font-medium text-orange-600">Duplicates (Skipped): {successStats?.duplicates}</span>
                {successStats?.failed > 0 && <span className="font-medium text-red-600">Failed: {successStats?.failed}</span>}
             </div>
           </div>
-          <div className="flex gap-4 justify-center">
+          <div className="flex gap-4 justify-center flex-wrap">
             <Button onClick={clearAll}>Import More</Button>
             {!embedded && <Button variant="outline" onClick={() => navigate('/sales')}>Go to Sales</Button>}
           </div>
@@ -318,14 +318,14 @@ export default function SalesImport({ embedded = false, targetEmployeeId, target
       ) : (
         <Card className={embedded ? "border border-gray-200 shadow-sm" : "shadow-sm border border-gray-200"}>
           <div className="p-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-4 bg-gray-50/50 rounded-t-xl">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <ListChecks className="h-5 w-5 text-indigo-600" />
               <h3 className="font-semibold text-gray-800 uppercase tracking-wider text-sm">BULK ADD LEADS</h3>
             </div>
           </div>
 
           {error && (
-            <div className="p-4 bg-red-50 border-b border-red-100 flex items-start gap-3">
+            <div className="p-4 bg-red-50 border-b border-red-100 flex items-start gap-3 flex-wrap">
               <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
               <p className="text-red-700 text-sm">{error}</p>
             </div>
@@ -355,30 +355,30 @@ export default function SalesImport({ embedded = false, targetEmployeeId, target
           {(status === 'preview' || status === 'importing') && (
             <>
               <div className="p-4 bg-white flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 flex-wrap">
                   <span className="text-sm font-medium text-gray-700">Contacts detected: <span className="font-bold">{rows.length}</span></span>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <Badge variant="success">{validCount} Valid</Badge>
                     {invalidCount > 0 && <Badge variant="error">{invalidCount} Invalid</Badge>}
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={addRow} className="flex items-center gap-1 h-9">
+                  <Button variant="outline" size="sm" onClick={addRow} className="flex items-center gap-1 h-9 flex-wrap">
                     <Plus size={16} /> Add Contact
                   </Button>
                   {hasSelected && (
-                    <Button variant="outline" size="sm" onClick={removeSelected} className="flex items-center gap-1 text-red-600 border-red-200 hover:bg-red-50 h-9">
+                    <Button variant="outline" size="sm" onClick={removeSelected} className="flex items-center gap-1 text-red-600 border-red-200 hover:bg-red-50 h-9 flex-wrap">
                       <Trash2 size={16} /> Remove Selected
                     </Button>
                   )}
-                  <Button variant="outline" size="sm" onClick={clearAll} className="flex items-center gap-1 h-9">
+                  <Button variant="outline" size="sm" onClick={clearAll} className="flex items-center gap-1 h-9 flex-wrap">
                     Clear All
                   </Button>
                 </div>
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left border-collapse">
+                <div className="overflow-x-auto w-full"><table className="w-full text-sm text-left border-collapse">
                   <thead className="bg-gray-50 border-y border-gray-200">
                     <tr>
                       <th className="w-12 px-4 py-3 text-center border-r border-gray-200">
@@ -481,14 +481,14 @@ export default function SalesImport({ embedded = false, targetEmployeeId, target
                       ))
                     )}
                   </tbody>
-                </table>
+                </table></div>
               </div>
 
               <div className="p-4 border-t border-gray-100 flex items-center justify-between bg-gray-50 rounded-b-xl">
                 <Button variant="outline" onClick={() => setStatus('input')}>
                   Back to Paste
                 </Button>
-                <div className="flex gap-3 items-center">
+                <div className="flex gap-3 items-center flex-wrap">
                   <Button 
                     onClick={handleSaveAndAssign} 
                     disabled={status === 'importing' || validCount === 0}

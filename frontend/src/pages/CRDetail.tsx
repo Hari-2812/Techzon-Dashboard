@@ -96,7 +96,7 @@ const CRDetail = () => {
       </div>
 
       {/* MOBILE STICKY BOTTOM ACTION BAR */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[var(--color-border-subtle)] p-3 flex gap-2 z-40 safe-area-bottom shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[var(--color-border-subtle)] p-3 flex gap-2 z-40 safe-area-bottom shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] flex-wrap">
          <a href={`tel:${cr.phone}`} className="flex-1 flex justify-center items-center bg-[var(--color-primary)] text-white rounded-lg font-semibold hover:bg-indigo-700 py-3">
            <Phone size={18} className="mr-2" /> Call
          </a>
@@ -139,7 +139,7 @@ const CRDetail = () => {
           </div>
 
           <Card className="p-6">
-             <div className="flex justify-between items-center mb-4 border-b pb-2">
+             <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center mb-4 border-b pb-2">
                 <h2 className="text-lg font-bold">WhatsApp Group</h2>
                 {cr.status !== 'Group Created' && cr.status !== 'Students Joining' && cr.status !== 'Completed' && (
                    <Button variant="primary" size="sm" onClick={() => setShowGroupModal(true)}>Create Group</Button>

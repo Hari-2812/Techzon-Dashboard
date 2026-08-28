@@ -56,7 +56,7 @@ const Team = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto pb-24">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+      <div className="flex flex-col sm:flex-row gap-4 md:flex-row justify-between items-start md:items-start sm:items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold text-[var(--color-text-primary)]">Team Directory</h1>
           <p className="text-[var(--color-text-muted)] mt-1">Manage employee access and roles.</p>
@@ -70,7 +70,7 @@ const Team = () => {
         {loading ? (
           <p className="p-6 text-gray-500">Loading employees...</p>
         ) : (
-          <table className="w-full text-left">
+          <div className="overflow-x-auto w-full"><table className="w-full text-left">
             <thead className="bg-gray-50 text-xs text-gray-500 uppercase border-b">
               <tr>
                 <th className="px-6 py-4">Name</th>
@@ -103,7 +103,7 @@ const Team = () => {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
 

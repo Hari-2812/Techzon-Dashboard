@@ -25,8 +25,8 @@ const SalesDashboard = () => {
 
     return (
         <div className="p-6 max-w-7xl mx-auto pb-24">
-            <div className="flex justify-between items-center mb-6">
-                <div className="flex items-center gap-4">
+            <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center mb-6">
+                <div className="flex items-center gap-4 flex-wrap">
                     <h1 className="text-3xl font-bold text-[var(--color-text-primary)]">
                         {user?.role === 'ADMIN' ? 'Sales Management' : 'Sales Contacts'}
                     </h1>
@@ -79,7 +79,7 @@ const SalesDashboard = () => {
                                 <h2 className="text-lg font-bold">Employee Performance</h2>
                             </div>
                             <div className="overflow-x-auto">
-                                <table className="w-full text-sm text-left">
+                                <div className="overflow-x-auto w-full"><table className="w-full text-sm text-left">
                                     <thead className="bg-gray-50 text-gray-500 uppercase">
                                         <tr>
                                             <th className="px-4 py-3">Employee</th>
@@ -102,7 +102,7 @@ const SalesDashboard = () => {
                                             </tr>
                                         ))}
                                     </tbody>
-                                </table>
+                                </table></div>
                             </div>
                         </Card>
                     )}
@@ -124,7 +124,7 @@ const SalesDashboard = () => {
                                 <div className="flex items-center space-x-4">
                                     <div className="text-gray-400 font-bold text-lg w-6">#{idx + 1}</div>
                                     <div>
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2 flex-wrap">
                                             <p className="font-bold text-[var(--color-text-primary)]">{lead.studentName}</p>
                                             {lead.nextFollowUp && new Date(lead.nextFollowUp) < new Date() && (
                                                 <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">OVERDUE</span>
@@ -165,7 +165,7 @@ const SalesDashboard = () => {
                         <h2 className="text-lg font-bold">My Submitted Contacts</h2>
                     </div>
                     <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left">
+                        <div className="overflow-x-auto w-full"><table className="w-full text-sm text-left">
                             <thead className="bg-gray-50 text-gray-500 uppercase">
                                 <tr>
                                     <th className="px-4 py-3">Student</th>
@@ -195,7 +195,7 @@ const SalesDashboard = () => {
                                     </tr>
                                 )}
                             </tbody>
-                        </table>
+                        </table></div>
                     </div>
                 </Card>
             )}

@@ -68,7 +68,7 @@ const DailyUpdates = () => {
             {isAdmin ? "Monitor daily organizational lead activity" : "Manually enter student details or update existing leads."}
           </p>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
+        <div className="flex gap-2 w-full sm:w-auto flex-wrap">
           <input
             type="date"
             value={dateFilter}
@@ -132,12 +132,12 @@ const DailyUpdates = () => {
       {isAdmin && (
         <Card className="p-0 overflow-hidden shadow-sm">
           <div className="p-4 border-b border-[var(--color-border-subtle)] flex justify-between items-center bg-gray-50/50">
-             <h2 className="font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
+             <h2 className="font-semibold text-[var(--color-text-primary)] flex items-center gap-2 flex-wrap">
                <Users size={18} className="text-[var(--color-primary)]" /> Today's Employee Activity
              </h2>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <div className="overflow-x-auto w-full"><table className="w-full text-left text-sm">
               <thead className="bg-[var(--color-surface-hover)] text-[var(--color-text-muted)]">
                 <tr>
                   <th className="p-3 font-medium border-b border-[var(--color-border-subtle)]">Employee</th>
@@ -166,7 +166,7 @@ const DailyUpdates = () => {
                     <td className="p-3 text-center text-orange-500">{emp.followUpsCreated}</td>
                     <td className="p-3 text-center text-green-600 font-bold">{emp.salesConverted}</td>
                     <td className="p-3">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <div className="w-24 bg-gray-200 rounded-full h-2 overflow-hidden shadow-inner">
                           <div 
                             className={`h-2 rounded-full transition-all duration-500 ${emp.activityPercent >= 80 ? 'bg-green-500' : emp.activityPercent >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`} 
@@ -186,7 +186,7 @@ const DailyUpdates = () => {
                   </tr>
                 )}
               </tbody>
-            </table>
+            </table></div>
           </div>
         </Card>
       )}
@@ -198,7 +198,7 @@ const DailyUpdates = () => {
         </div>
         
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto w-full"><table className="w-full text-left text-sm">
             <thead className="bg-[var(--color-surface-hover)] text-[var(--color-text-muted)]">
               <tr>
                 <th className="p-4 font-medium border-b border-[var(--color-border-subtle)]">Student Info</th>
@@ -272,7 +272,7 @@ const DailyUpdates = () => {
                 </tr>
               )}
             </tbody>
-          </table>
+          </table></div>
         </div>
       </Card>
 

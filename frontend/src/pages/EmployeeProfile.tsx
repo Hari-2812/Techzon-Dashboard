@@ -111,7 +111,7 @@ const EmployeeProfile = () => {
                 </button>
                 
                 {user?.role === 'ADMIN' && (
-                    <div className="flex gap-3 relative">
+                    <div className="flex gap-3 relative flex-wrap">
                         <button 
                             onClick={() => navigate(`/employees/${employee._id}/import-leads`)} 
                             className="flex items-center px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:bg-opacity-90 shadow-sm"

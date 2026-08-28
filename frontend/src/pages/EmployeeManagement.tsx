@@ -56,7 +56,7 @@ const EmployeeManagement = () => {
                     </h1>
                     <p className="text-[var(--color-text-muted)] text-sm mt-1">Manage employees, access, roles, attendance and account status.</p>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex gap-3 flex-wrap">
                     <Button variant="outline"><Download size={16} className="mr-2"/> Export</Button>
                     <Button onClick={() => navigate('/employees/create')}><Plus size={16} className="mr-2"/> Create Employee</Button>
                 </div>
@@ -105,7 +105,7 @@ const EmployeeManagement = () => {
                                 {filteredEmployees?.map((emp: any) => (
                                     <TableRow key={emp._id}>
                                         <TableCell>
-                                            <div className="flex items-center gap-3">
+                                            <div className="flex items-center gap-3 flex-wrap">
                                                 {emp.profilePhoto ? (
                                                     <img src={`${import.meta.env.VITE_API_URL?.replace('/api','') || ''}${emp.profilePhoto}`} className="w-10 h-10 rounded-full object-cover border" alt={emp.name} />
                                                 ) : (
@@ -137,7 +137,7 @@ const EmployeeManagement = () => {
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <div className="flex justify-end gap-2">
+                                            <div className="flex justify-end gap-2 flex-wrap">
                                                 {emp.status === 'INVITED' && (
                                                     <button title="Resend Invitation" onClick={() => handleResend(emp._id)} className="text-orange-500 hover:text-orange-700"><Mail size={18}/></button>
                                                 )}
@@ -166,7 +166,7 @@ const EmployeeManagement = () => {
                     {filteredEmployees?.map((emp: any) => (
                         <div key={emp._id} className="p-4 bg-white hover:bg-gray-50">
                             <div className="flex justify-between items-start mb-3">
-                                <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate(`/employees/${emp._id}`)}>
+                                <div className="flex items-center gap-3 cursor-pointer flex-wrap" onClick={() => navigate(`/employees/${emp._id}`)}>
                                     {emp.profilePhoto ? (
                                         <img src={`${import.meta.env.VITE_API_URL?.replace('/api','') || ''}${emp.profilePhoto}`} className="w-12 h-12 rounded-full object-cover border" alt={emp.name} />
                                     ) : (
@@ -196,7 +196,7 @@ const EmployeeManagement = () => {
                             </div>
                             <div className="flex justify-between items-center pt-3 border-t border-gray-100">
                                 <p className="text-xs text-gray-500 truncate max-w-[200px]">{emp.email}</p>
-                                <div className="flex justify-end gap-3">
+                                <div className="flex justify-end gap-3 flex-wrap">
                                     {emp.status === 'INVITED' && (
                                         <button title="Resend Invitation" onClick={() => handleResend(emp._id)} className="text-orange-500 bg-orange-50 p-1.5 rounded"><Mail size={16}/></button>
                                     )}

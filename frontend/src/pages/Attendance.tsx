@@ -153,7 +153,7 @@ const Attendance = () => {
             <p className="text-xs text-gray-400 mt-2">Started {session?.clockInAt ? new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(session.clockInAt)) : '--'}</p>
           </div>
           
-          <div className="flex gap-4">
+          <div className="flex gap-4 flex-wrap">
             <Button variant="outline" size="lg" onClick={() => setIsBreakModalOpen(true)} className="gap-2">
                <Coffee size={18} /> TAKE BREAK
             </Button>
@@ -185,7 +185,7 @@ const Attendance = () => {
           <h1 className="text-3xl font-bold text-[var(--color-primary)] mb-1">
             Good {currentDateTime.hour() < 12 ? 'Morning' : 'Afternoon'}, {user?.name?.split(' ')[0] || 'User'} 👋
           </h1>
-          <p className="text-lg text-[var(--color-text-muted)] flex items-center gap-2">
+          <p className="text-lg text-[var(--color-text-muted)] flex items-center gap-2 flex-wrap">
             <Calendar size={18} />
             {currentDateTime.format('dddd, MMMM D, YYYY')}
           </p>
@@ -230,7 +230,7 @@ const Attendance = () => {
               />
             </div>
           )}
-          <div className="flex justify-end gap-3 mt-6">
+          <div className="flex justify-end gap-3 mt-6 flex-wrap">
             <Button variant="outline" onClick={() => setIsBreakModalOpen(false)}>CANCEL</Button>
             <Button onClick={handleStartBreak}>REQUEST BREAK</Button>
           </div>

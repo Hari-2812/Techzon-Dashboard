@@ -46,7 +46,7 @@ const Leads = () => {
       
       {/* HEADER & KPIs */}
       <div className="mb-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+        <div className="flex flex-col sm:flex-row gap-4 md:flex-row justify-between items-start md:items-start sm:items-center mb-6">
           <div>
             <h1 className="text-3xl font-bold text-[var(--color-text-primary)]">
               {isAdmin ? 'Student Leads' : 'My Student Leads'}
@@ -242,7 +242,7 @@ const Leads = () => {
                    <p className="text-sm text-[var(--color-text-secondary)]"><strong>College:</strong> {lead.college}</p>
                    <p className="text-sm text-[var(--color-text-secondary)]"><strong>Department:</strong> {lead.department} • {lead.year}</p>
                    <p className="text-sm text-[var(--color-text-secondary)]"><strong>Phone:</strong> {lead.phone}</p>
-                   <p className="text-sm text-[var(--color-text-secondary)] flex items-center gap-1">
+                   <p className="text-sm text-[var(--color-text-secondary)] flex items-center gap-1 flex-wrap">
                       <strong>Status:</strong> <Badge variant="neutral">{lead.leadStatus}</Badge>
                    </p>
                    {isAdmin && <p className="text-sm text-[var(--color-text-secondary)]"><strong>Assigned:</strong> {lead.assignedEmployeeId?.name || 'Unassigned'}</p>}

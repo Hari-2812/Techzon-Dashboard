@@ -90,7 +90,7 @@ const HolidayManagement = () => {
           </h1>
           <p className="text-[var(--color-text-muted)] text-sm mt-1">Configure company holidays and manage employee leave requests.</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
           <Button variant="outline" onClick={testHolidayNotification}>
              <Bell size={16} className="mr-2" /> Test 7PM Trigger
           </Button>
@@ -138,7 +138,7 @@ const HolidayManagement = () => {
                         <TableCell><Badge variant="neutral">{h.type}</Badge></TableCell>
                         <TableCell><Badge variant={h.isActive ? 'success' : 'neutral'}>{h.isActive ? 'Active' : 'Disabled'}</Badge></TableCell>
                         <TableCell className="text-right">
-                           <div className="flex justify-end gap-2">
+                           <div className="flex justify-end gap-2 flex-wrap">
                              <button onClick={() => { setEditingHoliday(h); setFormData(h); setIsModalOpen(true); }} className="text-gray-500 hover:text-blue-600"><Edit size={16}/></button>
                              <button onClick={() => handleDelete(h._id)} className="text-gray-500 hover:text-red-600"><Trash2 size={16}/></button>
                            </div>
@@ -228,7 +228,7 @@ const HolidayManagement = () => {
                                     </TableCell>
                                     <TableCell className="text-right">
                                        {r.response === 'TAKE_LEAVE' && r.status === 'PENDING' && (
-                                          <div className="flex justify-end gap-2">
+                                          <div className="flex justify-end gap-2 flex-wrap">
                                              <Button size="sm" variant="primary" onClick={async () => {
                                                 await reviewResponse.mutateAsync({ id: r._id, status: 'APPROVED' });
                                                 fetchResponses(selectedHolidayId);
@@ -280,11 +280,11 @@ const HolidayManagement = () => {
                <label className="block text-sm font-medium text-gray-700 mb-1">Description (Optional)</label>
                <textarea className="w-full border p-2 rounded-lg h-20" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
             </div>
-            <div className="flex items-center gap-2 mt-4">
+            <div className="flex items-center gap-2 mt-4 flex-wrap">
                <input type="checkbox" id="isActive" checked={formData.isActive} onChange={e => setFormData({...formData, isActive: e.target.checked})} />
                <label htmlFor="isActive" className="text-sm font-medium text-gray-700">Active</label>
             </div>
-            <div className="flex justify-end gap-3 mt-6">
+            <div className="flex justify-end gap-3 mt-6 flex-wrap">
                <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
                <Button onClick={handleSave}>{editingHoliday ? 'Save Changes' : 'Create Holiday'}</Button>
             </div>

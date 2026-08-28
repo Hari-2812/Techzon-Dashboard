@@ -33,7 +33,7 @@ export default function LeadAssignment() {
   return (
     <div className="p-6 max-w-7xl mx-auto pb-24">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2 flex-wrap">
           <Users className="h-6 w-6 text-indigo-600" />
           Lead Assignment
         </h1>
@@ -59,7 +59,7 @@ export default function LeadAssignment() {
             
             {selectedEmployee && (
               <div className="mt-6 p-4 bg-indigo-50 rounded-lg border border-indigo-100">
-                <div className="flex items-center gap-3 mb-2">
+                <div className="flex items-center gap-3 mb-2 flex-wrap">
                   <div className="bg-indigo-100 p-2 rounded-full">
                     <User className="h-5 w-5 text-indigo-600" />
                   </div>
@@ -68,7 +68,7 @@ export default function LeadAssignment() {
                     <p className="text-xs text-gray-500">{selectedEmployee.email}</p>
                   </div>
                 </div>
-                <div className="mt-4 flex gap-2">
+                <div className="mt-4 flex gap-2 flex-wrap">
                   <Badge variant={selectedEmployee.isActive ? 'success' : 'error'}>
                     {selectedEmployee.isActive ? 'Active' : 'Inactive'}
                   </Badge>

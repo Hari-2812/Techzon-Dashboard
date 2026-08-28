@@ -69,7 +69,7 @@ const SalesDetail = () => {
                                 <p className="text-gray-500">{lead.phone} • {lead.college}</p>
                                 <p className="text-gray-500 text-sm mt-1">{lead.department} • {lead.year}</p>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 flex-wrap">
                                 <a href={`tel:${lead.phone}`} className="flex items-center px-4 py-2 bg-blue-100 text-blue-700 rounded-lg font-semibold hover:bg-blue-200">
                                     <Phone size={18} className="mr-2" /> Call
                                 </a>
@@ -117,7 +117,7 @@ const SalesDetail = () => {
                         <h2 className="text-xl font-bold mb-4">Activity Timeline</h2>
                         <div className="space-y-4">
                             {activities?.map((act: any) => (
-                                <div key={act._id} className="flex gap-4 p-4 border rounded-lg bg-gray-50">
+                                <div key={act._id} className="flex gap-4 p-4 border rounded-lg bg-gray-50 flex-wrap">
                                     <div className="mt-1">
                                         <Clock size={20} className="text-gray-400" />
                                     </div>
@@ -200,7 +200,7 @@ const SalesDetail = () => {
                             onChange={e => setFormData({ ...formData, remarks: e.target.value })}
                         ></textarea>
                     </div>
-                    <div className="flex justify-end gap-3 mt-6">
+                    <div className="flex justify-end gap-3 mt-6 flex-wrap">
                         <Button variant="outline" onClick={() => setActionModal(null)}>Cancel</Button>
                         <Button variant="primary" onClick={handleLogCall} disabled={!formData.callResult}>Save Call Log</Button>
                     </div>
@@ -240,7 +240,7 @@ const SalesDetail = () => {
                             onChange={e => setFormData({ ...formData, studentResponse: e.target.value })}
                         ></textarea>
                     </div>
-                    <div className="flex justify-end gap-3 mt-6">
+                    <div className="flex justify-end gap-3 mt-6 flex-wrap">
                         <Button variant="outline" onClick={() => setActionModal(null)}>Cancel</Button>
                         <Button variant="primary" onClick={handleAddResponse}>Save Response</Button>
                     </div>
@@ -288,7 +288,7 @@ const SalesDetail = () => {
                             onChange={e => setFormData({ ...formData, remarks: e.target.value })}
                         ></textarea>
                     </div>
-                    <div className="flex justify-end gap-3 mt-6">
+                    <div className="flex justify-end gap-3 mt-6 flex-wrap">
                         <Button variant="outline" onClick={() => setActionModal(null)}>Cancel</Button>
                         <Button variant="primary" className="bg-green-600 hover:bg-green-700" onClick={handleConvert} disabled={!formData.course || !formData.amount}>Confirm Conversion</Button>
                     </div>

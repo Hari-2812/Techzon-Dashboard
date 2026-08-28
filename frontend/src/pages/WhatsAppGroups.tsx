@@ -82,7 +82,7 @@ const WhatsAppGroups = () => {
 
       <Card className="overflow-hidden">
         <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-left text-sm text-[var(--color-text-primary)]">
+          <div className="overflow-x-auto w-full"><table className="w-full text-left text-sm text-[var(--color-text-primary)]">
             <thead className="bg-gray-50 text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)]">
               <tr>
                 <th className="px-4 py-3 font-medium">Group Name & CR</th>
@@ -129,7 +129,7 @@ const WhatsAppGroups = () => {
                       <td className="px-4 py-4">{g.assignedEmployee?.name}</td>
                     )}
                     <td className="px-4 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-2 flex-wrap">
                         {g.cr?.phone && (
                           <a href={`tel:${g.cr.phone}`} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded" title="Call CR">
                             <Phone size={16} />
@@ -166,7 +166,7 @@ const WhatsAppGroups = () => {
                 </tr>
               )}
             </tbody>
-          </table>
+          </table></div>
         </div>
 
         {/* Mobile Cards */}
@@ -283,7 +283,7 @@ const WhatsAppGroups = () => {
                   <p className="text-xs text-red-500 mt-1">Joined cannot exceed expected students ({selectedGroup.expectedStudents})</p>
                 )}
               </div>
-              <div className="flex justify-end gap-2 mt-6">
+              <div className="flex justify-end gap-2 mt-6 flex-wrap">
                 <button type="button" onClick={() => setIsUpdateModalOpen(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded font-medium">Cancel</button>
                 <button type="submit" disabled={updateMutation.isPending || joinedStudents > selectedGroup.expectedStudents} className="px-4 py-2 bg-[var(--color-primary)] hover:bg-indigo-700 text-white rounded font-medium">
                   {updateMutation.isPending ? 'Saving...' : 'Save Updates'}

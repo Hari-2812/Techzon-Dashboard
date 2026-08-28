@@ -144,7 +144,7 @@ const EmployeePerformance = () => {
             </select>
           )}
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-medium text-gray-600">Date:</span>
             <select 
               value={specificDate ? 'Custom' : dateFilter}
@@ -214,7 +214,7 @@ const EmployeePerformance = () => {
       {!isSpecificView && (
         <Card className="overflow-hidden bg-white shadow-sm border border-[var(--color-border-subtle)]">
           <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-left text-sm whitespace-nowrap">
+            <div className="overflow-x-auto w-full"><table className="w-full text-left text-sm whitespace-nowrap">
               <thead className="bg-[#F8F9FA] text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)]">
                 <tr>
                   {[
@@ -237,7 +237,7 @@ const EmployeePerformance = () => {
                       className={`px-4 py-3 font-medium ${col.sortable !== false ? 'cursor-pointer hover:text-gray-900 select-none' : ''}`}
                       onClick={() => col.sortable !== false && requestSort(col.key)}
                     >
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 flex-wrap">
                         {col.label}
                         {col.sortable !== false && sortConfig.key === col.key && (
                           <ArrowUpDown className="h-3 w-3 text-[var(--color-primary)]" />
@@ -261,7 +261,7 @@ const EmployeePerformance = () => {
                       onClick={() => setEmployeeId(row.employee._id)}
                     >
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 flex-wrap">
                           <div className="h-8 w-8 rounded-full bg-[var(--color-primary)] text-white flex items-center justify-center font-bold text-xs shadow-sm">
                             {row.employee.name.charAt(0).toUpperCase()}
                           </div>
@@ -300,7 +300,7 @@ const EmployeePerformance = () => {
                   </tr>
                 )}
               </tbody>
-            </table>
+            </table></div>
           </div>
 
           <div className="md:hidden divide-y divide-gray-100">
@@ -316,7 +316,7 @@ const EmployeePerformance = () => {
                   onClick={() => setEmployeeId(row.employee._id)}
                 >
                   <div className="flex justify-between items-start mb-3">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
                       <div className="h-10 w-10 rounded-full bg-[var(--color-primary)] text-white flex items-center justify-center font-bold shadow-sm">
                         {row.employee.name.charAt(0).toUpperCase()}
                       </div>
@@ -333,7 +333,7 @@ const EmployeePerformance = () => {
                   <div className="grid grid-cols-2 gap-y-3 gap-x-4 bg-gray-50 p-3 rounded-lg border border-gray-100">
                     <div>
                       <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Leads</p>
-                      <div className="flex gap-2 font-mono text-sm">
+                      <div className="flex gap-2 font-mono text-sm flex-wrap">
                         <span className="text-gray-900" title="Assigned">{row.leadsAssigned}</span>
                         <span className="text-gray-400">/</span>
                         <span className="text-green-600 font-bold" title="Completed">{row.leadsCompleted}</span>
@@ -341,7 +341,7 @@ const EmployeePerformance = () => {
                     </div>
                     <div>
                       <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Sales</p>
-                      <div className="flex gap-2 font-mono text-sm">
+                      <div className="flex gap-2 font-mono text-sm flex-wrap">
                         <span className="text-[var(--color-accent)]" title="Assigned">{row.salesAssigned}</span>
                         <span className="text-gray-400">/</span>
                         <span className="text-[var(--color-primary)] font-bold" title="Converted">{row.salesConverted}</span>
@@ -394,7 +394,7 @@ const EmployeePerformance = () => {
       {isSpecificView && agg && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
               <div className="h-14 w-14 rounded-full bg-[var(--color-primary)] text-white flex items-center justify-center font-bold text-2xl shadow-md">
                 {rawData.employee.name.charAt(0).toUpperCase()}
               </div>
@@ -477,7 +477,7 @@ const EmployeePerformance = () => {
                 <h3 className="font-bold text-gray-800">Daily Performance</h3>
               </div>
               <div className="hidden md:block overflow-x-auto max-h-[400px]">
-                <table className="w-full text-left text-sm whitespace-nowrap">
+                <div className="overflow-x-auto w-full"><table className="w-full text-left text-sm whitespace-nowrap">
                   <thead className="bg-white text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)] sticky top-0">
                     <tr>
                       <th className="px-4 py-3 font-medium">Date</th>
@@ -507,7 +507,7 @@ const EmployeePerformance = () => {
                       </tr>
                     )}
                   </tbody>
-                </table>
+                </table></div>
               </div>
 
               <div className="md:hidden divide-y divide-gray-100 max-h-[400px] overflow-y-auto">

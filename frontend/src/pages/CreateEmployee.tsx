@@ -67,7 +67,7 @@ const CreateEmployee = () => {
 
             {/* Stepper Header */}
             {step < 4 && (
-                <div className="flex justify-between items-center mb-8 px-4 relative">
+                <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center mb-8 px-4 relative">
                     <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-gray-200 -z-10 transform -translate-y-1/2"></div>
                     <div className="absolute top-1/2 left-0 h-0.5 bg-blue-600 -z-10 transform -translate-y-1/2 transition-all duration-300" style={{ width: `${((step-1)/2)*100}%`}}></div>
                     
@@ -84,7 +84,7 @@ const CreateEmployee = () => {
                     <div className="space-y-6 animate-in fade-in">
                         <h2 className="text-lg font-semibold border-b pb-2">1. Personal & Contact Information</h2>
                         
-                        <div className="flex gap-6 items-center">
+                        <div className="flex gap-6 items-center flex-wrap">
                             <div className="w-24 h-24 rounded-full bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden relative group">
                                 {photoPreview ? (
                                     <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
@@ -189,12 +189,12 @@ const CreateEmployee = () => {
                         
                         <div className="p-4 bg-orange-50 border border-orange-200 rounded-xl">
                             <p className="text-sm font-semibold text-orange-800 mb-2">Initial Password Setup</p>
-                            <div className="flex gap-4">
-                                <label className="flex items-center gap-2 cursor-pointer">
+                            <div className="flex gap-4 flex-wrap">
+                                <label className="flex items-center gap-2 cursor-pointer flex-wrap">
                                     <input type="radio" checked={formData.passwordMode === 'AUTO'} onChange={() => setFormData({...formData, passwordMode: 'AUTO'})} />
                                     <span className="text-sm text-gray-700">Generate Securely (Recommended)</span>
                                 </label>
-                                <label className="flex items-center gap-2 cursor-pointer">
+                                <label className="flex items-center gap-2 cursor-pointer flex-wrap">
                                     <input type="radio" checked={formData.passwordMode === 'MANUAL'} onChange={() => setFormData({...formData, passwordMode: 'MANUAL'})} />
                                     <span className="text-sm text-gray-700">Set Manually</span>
                                 </label>
@@ -254,7 +254,7 @@ const CreateEmployee = () => {
                                 <span className="font-medium text-green-900">Invitation Sent</span>
                             </div>
                         </div>
-                        <div className="flex justify-center gap-4 mt-8">
+                        <div className="flex justify-center gap-4 mt-8 flex-wrap">
                             <Button variant="outline" onClick={() => navigate('/employees')}>Return to Directory</Button>
                             <Button onClick={() => { setStep(1); setSuccessData(null); setPhoto(null); setPhotoPreview(null); }}>Create Another Employee</Button>
                         </div>
