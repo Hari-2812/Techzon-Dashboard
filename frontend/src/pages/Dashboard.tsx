@@ -27,7 +27,7 @@ const Dashboard = () => {
   const { data: adminAttendance } = useQuery({
       queryKey: ['adminAttendanceTodayDashboard'],
       queryFn: async () => {
-          const res = await api.get('/attendance/admin/today');
+          const res = await api.get('/attendance-management/today');
           return res.data.data;
       },
       enabled: isAdmin,

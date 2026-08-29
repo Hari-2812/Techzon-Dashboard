@@ -82,6 +82,9 @@ Server: Running
 
       // Initialize Holiday Scheduler
       require('./jobs/holidayScheduler')(io);
+
+      // Initialize Automated Attendance Reminders
+      require('./jobs/attendanceReminderJob')(io);
     });
   })
   .catch((error) => {
