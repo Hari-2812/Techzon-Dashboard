@@ -91,10 +91,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, isMobileOpen = fal
           isMobileOpen ? "translate-x-0 w-[var(--spacing-sidebar)]" : "-translate-x-full md:translate-x-0"
         )}
       >
-        <div className="flex items-center justify-between p-4 h-16 border-b border-white/10 shrink-0">
-          <div className="flex items-center justify-center flex-1 h-full max-h-full">
-              <div className={clsx("bg-white rounded p-1 flex items-center justify-center", (isOpen || isMobileOpen) ? "w-full max-w-[140px] h-10" : "w-8 h-8 md:flex hidden")}>
-                  <img src={logo} alt="Techzon Logo" className="w-full h-full object-contain" />
+        <div className="flex items-center justify-between px-4 py-3 h-[76px] border-b border-white/10 shrink-0 bg-[var(--color-primary)]">
+          <div className={clsx("flex items-center h-full transition-all duration-300", (isOpen || isMobileOpen) ? "justify-start flex-1" : "justify-center w-full")}>
+              <div className={clsx(
+                "bg-white shadow-lg shadow-black/20 ring-1 ring-white/10 flex items-center justify-center overflow-hidden transition-all duration-300", 
+                (isOpen || isMobileOpen) ? "w-[170px] h-12 rounded-xl px-4 py-2" : "w-11 h-11 rounded-xl p-2 md:flex hidden"
+              )}>
+                  <img 
+                    src={logo} 
+                    alt="Techzon Logo" 
+                    className="w-full h-full object-contain mix-blend-multiply filter contrast-105"
+                  />
               </div>
           </div>
           {(isOpen || isMobileOpen) && (
@@ -106,7 +113,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, isMobileOpen = fal
                   setIsOpen(false);
                 }
               }}
-              className="p-1 rounded-md hover:bg-white/10 text-white/80 transition-colors ml-2"
+              className="p-1.5 rounded-lg hover:bg-white/10 text-white/80 hover:text-white transition-colors ml-2 shrink-0"
             >
               <ChevronLeft size={20} />
             </button>
@@ -114,7 +121,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, isMobileOpen = fal
           {!isOpen && (
              <button 
                onClick={() => setIsOpen(true)}
-               className="hidden md:flex absolute -right-3 top-5 p-1 rounded-full bg-white text-[var(--color-primary)] shadow-md hover:bg-gray-100 z-10"
+               className="hidden md:flex absolute -right-3.5 top-6 p-1.5 rounded-full bg-white text-[var(--color-primary)] shadow-md hover:shadow-lg hover:scale-105 transition-all z-10 ring-1 ring-black/5"
              >
                <ChevronRight size={14} />
              </button>
