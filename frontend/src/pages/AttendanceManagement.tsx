@@ -682,9 +682,22 @@ const AttendanceManagement = () => {
                        —
                      </TableCell>
                      <TableCell className="text-right">
-                       <Button size="sm" variant="outline" onClick={() => openReminderModalSingle(emp._id)} className="gap-2">
-                         <Mail size={14} /> Send Reminder
-                       </Button>
+                       <div className="flex justify-end gap-2">
+                         <Button size="sm" variant="outline" onClick={() => {
+                             setManualEmployeeId(emp._id);
+                             setManualDate(moment().format('YYYY-MM-DD'));
+                             setManualStatus('PRESENT');
+                             setManualClockIn('');
+                             setManualClockOut('');
+                             setManualStartTime('');
+                             setManualEndTime('');
+                             setManualAdminRemarks('');
+                             setManualCorrectionModalOpen(true);
+                         }}>Update</Button>
+                         <Button size="sm" variant="outline" onClick={() => openReminderModalSingle(emp._id)} className="gap-2">
+                           <Mail size={14} /> Remind
+                         </Button>
+                       </div>
                      </TableCell>
                    </TableRow>
                  ))
@@ -720,6 +733,21 @@ const AttendanceManagement = () => {
                         { (selectedEmployee.session?.status === 'ACTIVE' || selectedEmployee.session?.status === 'RUNNING' || selectedEmployee.session?.status === 'ON_BREAK') && (
                           <Button variant="danger" size="sm" onClick={() => setForceClockOutModalOpen(true)}>
                             Force Clock Out
+                          </Button>
+                        )}
+                        { (!selectedEmployee.session) && (
+                          <Button variant="outline" size="sm" onClick={() => {
+                             setManualEmployeeId(selectedEmployee.employeeId._id || selectedEmployee.employeeId);
+                             setManualDate(moment().format('YYYY-MM-DD'));
+                             setManualStatus('PRESENT');
+                             setManualClockIn('');
+                             setManualClockOut('');
+                             setManualStartTime('');
+                             setManualEndTime('');
+                             setManualAdminRemarks('');
+                             setManualCorrectionModalOpen(true);
+                          }}>
+                            Update Attendance
                           </Button>
                         )}
                         { (selectedEmployee.session) && (

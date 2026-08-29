@@ -142,6 +142,12 @@ exports.manualCorrection = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Employee, date, and status are required.' });
         }
 
+        const AttendanceDaily = require('../models/AttendanceDaily');
+        const WorkSession = require('../models/WorkSession');
+        const LeavePermissionRequest = require('../models/LeavePermissionRequest');
+        const AuditLog = require('../models/AuditLog');
+        const moment = require('moment-timezone');
+
         let daily = await AttendanceDaily.findOne({ employeeId, date, isTestSession: false });
         let session = await WorkSession.findOne({ employeeId, date, isTestSession: false }).sort({ createdAt: -1 });
 
@@ -159,6 +165,28 @@ exports.manualCorrection = async (req, res) => {
         const newClockIn = parseTime(clockInTime);
         const newClockOut = parseTime(clockOutTime);
 
+        // Manage LeavePermissionRequest if status is LEAVE or PERMISSION
+        if (['LEAVE', 'PERMISSION'].includes(status)) {
+            const existingReq = await LeavePermissionRequest.findOne({
+                employeeId, date, requestType: status, status: { $in: ['PENDING', 'APPROVED'] }
+            });
+            if (!existingReq) {
+                const leaveReq = new LeavePermissionRequest({
+                    employeeId,
+                    requestType: status,
+                    date,
+                    startTime: status === 'PERMISSION' ? startTime : undefined,
+                    endTime: status === 'PERMISSION' ? endTime : undefined,
+                    reason: reason || 'Manually updated by Admin',
+                    status: 'APPROVED',
+                    adminRemarks: adminRemarks || 'Created via Admin Manual Correction',
+                    approvedBy: req.user.id,
+                    approvedAt: new Date()
+                });
+                await leaveReq.save();
+            }
+        }
+
         // AttendanceDaily logic
         if (!daily) {
             daily = new AttendanceDaily({ employeeId, date, isTestSession: false });
@@ -175,7 +203,7 @@ exports.manualCorrection = async (req, res) => {
         } else if (['PRESENT', 'LATE', 'PERMISSION'].includes(status)) {
             daily.status = status === 'PERMISSION' ? (daily.status === 'PENDING' ? 'WORKING' : daily.status) : (status === 'PRESENT' ? 'WORKING' : 'LATE');
             
-            // Manage WorkSession
+            // Manage WorkSession for PRESENT and LATE
             if (newClockIn) {
                 if (!session) {
                     session = new WorkSession({ employeeId, date, isTestSession: false });
@@ -210,7 +238,9 @@ exports.manualCorrection = async (req, res) => {
                 oldClockOut,
                 newClockOut,
                 reason,
-                adminRemarks
+                adminRemarks,
+                startTime,
+                endTime
             },
             timestamp: new Date()
         });
