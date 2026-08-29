@@ -131,3 +131,100 @@ exports.getEmployeeAttendanceDetail = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server Error' });
   }
 };
+
+const AuditLog = require('../models/AuditLog');
+const moment = require('moment-timezone');
+
+exports.manualCorrection = async (req, res) => {
+    try {
+        const { employeeId, date, status, clockInTime, clockOutTime, reason, adminRemarks, startTime, endTime } = req.body;
+        
+        if (!employeeId || !date || !status) {
+            return res.status(400).json({ success: false, message: 'Employee, date, and status are required.' });
+        }
+
+        let daily = await AttendanceDaily.findOne({ employeeId, date, isTestSession: false });
+        let session = await WorkSession.findOne({ employeeId, date, isTestSession: false }).sort({ createdAt: -1 });
+
+        const oldStatus = daily ? daily.status : 'Not Clocked In';
+        const oldClockIn = session ? session.clockInAt : null;
+        const oldClockOut = session ? session.clockOutAt : null;
+
+        // Date/Time Parsing Logic
+        const parseTime = (timeStr) => {
+            if (!timeStr) return null;
+            const [hours, minutes] = timeStr.split(':');
+            return moment.tz(date, 'Asia/Kolkata').set({ hour: parseInt(hours), minute: parseInt(minutes), second: 0 }).toDate();
+        };
+
+        const newClockIn = parseTime(clockInTime);
+        const newClockOut = parseTime(clockOutTime);
+
+        // AttendanceDaily logic
+        if (!daily) {
+            daily = new AttendanceDaily({ employeeId, date, isTestSession: false });
+        }
+
+        if (['LEAVE', 'ABSENT'].includes(status)) {
+            daily.status = status;
+            // End active session if any
+            if (session && !session.clockOutAt) {
+                session.clockOutAt = moment.tz('Asia/Kolkata').toDate();
+                session.status = 'COMPLETED';
+                await session.save();
+            }
+        } else if (['PRESENT', 'LATE', 'PERMISSION'].includes(status)) {
+            daily.status = status === 'PERMISSION' ? (daily.status === 'PENDING' ? 'WORKING' : daily.status) : (status === 'PRESENT' ? 'WORKING' : 'LATE');
+            
+            // Manage WorkSession
+            if (newClockIn) {
+                if (!session) {
+                    session = new WorkSession({ employeeId, date, isTestSession: false });
+                }
+                session.clockInAt = newClockIn;
+                if (newClockOut) {
+                    session.clockOutAt = newClockOut;
+                    session.status = 'COMPLETED';
+                } else {
+                    session.clockOutAt = null;
+                    session.status = 'RUNNING';
+                }
+                await session.save();
+            }
+        }
+
+        await daily.save();
+
+        // Save AuditLog
+        const logEntry = new AuditLog({
+            actorId: req.user._id,
+            action: 'ADMIN_MANUAL_ATTENDANCE_CORRECTION',
+            entityType: 'Attendance',
+            entityId: daily._id,
+            details: {
+                employeeId,
+                date,
+                oldStatus,
+                newStatus: status,
+                oldClockIn,
+                newClockIn,
+                oldClockOut,
+                newClockOut,
+                reason,
+                adminRemarks
+            },
+            timestamp: new Date()
+        });
+        await logEntry.save();
+
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('attendance:admin-edit-attendance', { employeeId, date, status });
+        }
+
+        res.json({ success: true, message: 'Attendance manually corrected successfully.' });
+    } catch (err) {
+        console.error('Manual Correction error:', err);
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+};

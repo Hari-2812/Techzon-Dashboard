@@ -24,6 +24,7 @@ const Attendance = () => {
   const [leaveStartTime, setLeaveStartTime] = useState('');
   const [leaveEndTime, setLeaveEndTime] = useState('');
   const [leaveReason, setLeaveReason] = useState('');
+  const [leaveClockInTime, setLeaveClockInTime] = useState('');
   
   const [isClockInModalOpen, setIsClockInModalOpen] = useState(false);
   const [lateLoginReason, setLateLoginReason] = useState('');
@@ -39,6 +40,7 @@ const Attendance = () => {
         date: leaveDate,
         startTime: leaveType === 'PERMISSION' ? leaveStartTime : undefined,
         endTime: leaveType === 'PERMISSION' ? leaveEndTime : undefined,
+        clockInTime: leaveType === 'LATE' ? leaveClockInTime : undefined,
         reason: leaveReason
       });
       setIsLeaveModalOpen(false);
@@ -253,7 +255,7 @@ const Attendance = () => {
       {/* My Requests Section */}
       <Card className="shadow-sm border-0 overflow-hidden bg-white mt-8">
         <CardContent className="p-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><FileText size={20}/> My Leave & Permission Requests</h2>
+          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><FileText size={20}/> My Requests History</h2>
           <TableContainer>
             <Table>
               <TableHeader>
@@ -272,7 +274,7 @@ const Attendance = () => {
                     <TableRow key={req._id}>
                       <TableCell className="font-medium">{req.requestType}</TableCell>
                       <TableCell>{new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium' }).format(new Date(req.date))}</TableCell>
-                      <TableCell>{req.requestType === 'PERMISSION' ? `${req.startTime} - ${req.endTime}` : '--'}</TableCell>
+                      <TableCell>{req.requestType === 'PERMISSION' ? `${req.startTime} - ${req.endTime}` : req.requestType === 'LATE' ? req.clockInTime : '--'}</TableCell>
                       <TableCell>{req.reason}</TableCell>
                       <TableCell>
                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
@@ -296,6 +298,79 @@ const Attendance = () => {
           </TableContainer>
         </CardContent>
       </Card>
+
+      <Modal isOpen={isLeaveModalOpen} onClose={() => setIsLeaveModalOpen(false)} title="Today's Attendance Request">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Request Type *</label>
+            <select
+              className="w-full border border-gray-300 rounded-md p-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)]"
+              value={leaveType}
+              onChange={(e) => setLeaveType(e.target.value)}
+            >
+              <option value="LATE">Late Arrival</option>
+              <option value="LEAVE">Leave</option>
+              <option value="PERMISSION">Permission (Short Leave)</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
+            <input
+              type="date"
+              className="w-full border border-gray-300 rounded-md p-2"
+              value={leaveDate}
+              onChange={(e) => setLeaveDate(e.target.value)}
+            />
+          </div>
+          {leaveType === 'PERMISSION' && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Start Time *</label>
+                <input
+                  type="time"
+                  className="w-full border border-gray-300 rounded-md p-2"
+                  value={leaveStartTime}
+                  onChange={(e) => setLeaveStartTime(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">End Time *</label>
+                <input
+                  type="time"
+                  className="w-full border border-gray-300 rounded-md p-2"
+                  value={leaveEndTime}
+                  onChange={(e) => setLeaveEndTime(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+          {leaveType === 'LATE' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Expected / Actual Clock-In Time *</label>
+              <input
+                type="time"
+                className="w-full border border-gray-300 rounded-md p-2"
+                value={leaveClockInTime}
+                onChange={(e) => setLeaveClockInTime(e.target.value)}
+              />
+            </div>
+          )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Reason *</label>
+            <textarea
+              className="w-full border border-gray-300 rounded-md p-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)]"
+              rows={3}
+              placeholder="Please explain the reason..."
+              value={leaveReason}
+              onChange={(e) => setLeaveReason(e.target.value)}
+            />
+          </div>
+          <div className="flex justify-end gap-3 mt-6">
+            <Button variant="outline" onClick={() => setIsLeaveModalOpen(false)}>CANCEL</Button>
+            <Button onClick={handleSubmitLeave}>SUBMIT REQUEST</Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal isOpen={isBreakModalOpen} onClose={() => setIsBreakModalOpen(false)} title="Request Break">
         <div className="space-y-4">

@@ -7,7 +7,7 @@ exports.submitRequest = async (req, res) => {
     try {
         const { requestType, date, startTime, endTime, reason } = req.body;
         
-        if (!['LEAVE', 'PERMISSION'].includes(requestType)) {
+        if (!['LEAVE', 'PERMISSION', 'LATE'].includes(requestType)) {
             return res.status(400).json({ success: false, message: 'Invalid request type' });
         }
         
@@ -17,6 +17,10 @@ exports.submitRequest = async (req, res) => {
 
         if (requestType === 'PERMISSION' && (!startTime || !endTime)) {
             return res.status(400).json({ success: false, message: 'Start time and end time are required for permission' });
+        }
+        
+        if (requestType === 'LATE' && !req.body.clockInTime) {
+            return res.status(400).json({ success: false, message: 'Clock-in time is required for late request' });
         }
 
         // Check for duplicate pending or approved requests for the same date/type
@@ -38,6 +42,7 @@ exports.submitRequest = async (req, res) => {
             date,
             startTime,
             endTime,
+            clockInTime: req.body.clockInTime,
             reason,
             status: 'PENDING'
         });
@@ -89,11 +94,10 @@ exports.approveRequest = async (req, res) => {
         leaveReq.approvedAt = new Date();
         await leaveReq.save();
 
-        // Dynamic Attendance Logic for LEAVE
+        // Dynamic Attendance Logic for LEAVE & LATE
+        const dateStr = leaveReq.date; // already YYYY-MM-DD in Asia/Kolkata
+        
         if (leaveReq.requestType === 'LEAVE') {
-            const dateStr = leaveReq.date; // already YYYY-MM-DD in Asia/Kolkata
-            
-            // Check if AttendanceDaily exists for this date
             let daily = await AttendanceDaily.findOne({ employeeId: leaveReq.employeeId, date: dateStr, isTestSession: false });
             if (!daily) {
                 daily = new AttendanceDaily({
@@ -104,6 +108,44 @@ exports.approveRequest = async (req, res) => {
                 });
             } else {
                 daily.status = 'LEAVE';
+            }
+            await daily.save();
+        } else if (leaveReq.requestType === 'LATE' && leaveReq.clockInTime) {
+            // Check if a WorkSession already exists for today
+            let session = await WorkSession.findOne({ employeeId: leaveReq.employeeId, date: dateStr, isTestSession: false });
+            
+            // Convert clockInTime (HH:mm) to full Date in Asia/Kolkata
+            const [hours, minutes] = leaveReq.clockInTime.split(':');
+            const clockInAt = moment.tz(dateStr, 'Asia/Kolkata').set({ hour: parseInt(hours), minute: parseInt(minutes), second: 0 }).toDate();
+
+            if (!session) {
+                session = new WorkSession({
+                    employeeId: leaveReq.employeeId,
+                    date: dateStr,
+                    clockInAt,
+                    isTestSession: false,
+                    status: 'RUNNING'
+                });
+                await session.save();
+            } else if (!session.clockInAt) {
+                session.clockInAt = clockInAt;
+                session.status = 'RUNNING';
+                await session.save();
+            }
+
+            let daily = await AttendanceDaily.findOne({ employeeId: leaveReq.employeeId, date: dateStr, isTestSession: false });
+            if (!daily) {
+                daily = new AttendanceDaily({
+                    employeeId: leaveReq.employeeId,
+                    date: dateStr,
+                    status: 'WORKING', // Or LATE if that's the preferred active status
+                    isTestSession: false
+                });
+            } else {
+                // If it was PENDING or ABSENT, make it WORKING
+                if (['PENDING', 'ABSENT', 'LEAVE'].includes(daily.status)) {
+                    daily.status = 'WORKING';
+                }
             }
             await daily.save();
         }

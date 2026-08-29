@@ -37,6 +37,9 @@ router.post('/requests/:requestId/approve', auth, approveRequest);
 router.post('/requests/:requestId/reject', auth, rejectRequest);
 router.post('/manual', auth, createManualAttendance);
 
+const { manualCorrection } = require('../controllers/admin-attendance.controller');
+router.post('/admin/manual-correction', auth, manualCorrection);
+
 const {
   submitRequest,
   getMyRequests,

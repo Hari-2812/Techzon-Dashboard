@@ -66,6 +66,17 @@ const AttendanceManagement = () => {
   const [editBreakDuration, setEditBreakDuration] = useState('');
   const [editAttendanceReason, setEditAttendanceReason] = useState('');
 
+  const [manualCorrectionModalOpen, setManualCorrectionModalOpen] = useState(false);
+  const [manualEmployeeId, setManualEmployeeId] = useState('');
+  const [manualDate, setManualDate] = useState(moment().format('YYYY-MM-DD'));
+  const [manualStatus, setManualStatus] = useState('PRESENT');
+  const [manualClockIn, setManualClockIn] = useState('');
+  const [manualClockOut, setManualClockOut] = useState('');
+  const [manualStartTime, setManualStartTime] = useState('');
+  const [manualEndTime, setManualEndTime] = useState('');
+  const [manualReason, setManualReason] = useState('');
+  const [manualAdminRemarks, setManualAdminRemarks] = useState('');
+
   const [activeTab, setActiveTab] = useState<'LOGS' | 'LEAVE_PERMISSION'>('LOGS');
   const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
   const [selectedLeaveRequest, setSelectedLeaveRequest] = useState<any>(null);

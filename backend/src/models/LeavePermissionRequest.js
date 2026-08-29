@@ -4,13 +4,14 @@ const LeavePermissionRequestSchema = new mongoose.Schema({
     employeeId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     requestType: {
         type: String,
-        enum: ['LEAVE', 'PERMISSION'],
+        enum: ['LEAVE', 'PERMISSION', 'LATE'],
         required: true,
         index: true
     },
     date: { type: String, required: true, index: true }, // Format: YYYY-MM-DD
     startTime: { type: String }, // Format: HH:mm (Required for PERMISSION)
     endTime: { type: String }, // Format: HH:mm (Required for PERMISSION)
+    clockInTime: { type: String }, // Format: HH:mm (Required for LATE)
     reason: { type: String, required: true },
     status: {
         type: String,
