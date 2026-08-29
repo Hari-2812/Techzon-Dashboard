@@ -17,7 +17,7 @@ exports.getTodayAdminAttendance = async (req, res) => {
     const existingDailies = await AttendanceDaily.find({ date: dateStr }).populate('employeeId', 'name email role');
     
     // Get all active employees (excluding ADMINs)
-    const employees = await User.find({ status: 'ACTIVE', role: { $ne: 'ADMIN' } }).select('_id name email role employeeId department');
+    const employees = await User.find({ isActive: true, role: { $ne: 'ADMIN' } }).select('_id name email role employeeId department');
     
     // Get all leave/permission requests for today
     const todayRequests = await LeavePermissionRequest.find({
@@ -85,7 +85,7 @@ exports.getTodayAdminAttendance = async (req, res) => {
     };
 
     dailies.forEach(d => {
-      if (d.status === 'PRESENT') summary.present++;
+      if (['PRESENT', 'LATE', 'HALF_DAY', 'WORKING', 'ON_BREAK', 'COMPLETED', 'EARLY_LEAVE', 'OVERTIME'].includes(d.status)) summary.present++;
       if (d.status === 'LATE') summary.late++;
       if (d.status === 'HALF_DAY') summary.halfDay++;
       if (d.status === 'ABSENT') summary.absent++;
