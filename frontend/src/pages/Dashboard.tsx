@@ -12,7 +12,8 @@ import { HolidayPopup } from '../components/ui/HolidayPopup';
 import { useHolidays } from '../hooks/useHolidays';
 import { useDailyUpdates } from '../hooks/useDailyUpdates';
 import socket from '../services/socket';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
+import api from '../services/api';
 
 const Dashboard = () => {
   const { user } = useAuthStore();
@@ -21,6 +22,27 @@ const Dashboard = () => {
   const queryClient = useQueryClient();
 
   const { data: metrics, isLoading: dashboardLoading } = useDashboard(user?.role);
+
+  // Admin Attendance Stats
+  const { data: adminAttendance } = useQuery({
+      queryKey: ['adminAttendanceTodayDashboard'],
+      queryFn: async () => {
+          const res = await api.get('/attendance/admin/today');
+          return res.data.data;
+      },
+      enabled: isAdmin,
+      refetchInterval: 30000 // Refresh every 30s
+  });
+
+  const { data: notLoggedIn } = useQuery({
+      queryKey: ['notLoggedInEmployeesDashboard'],
+      queryFn: async () => {
+          const res = await api.get('/attendance/not-logged-in');
+          return res.data.data;
+      },
+      enabled: isAdmin,
+      refetchInterval: 30000 // Refresh every 30s
+  });
   
   // Daily Updates
   const { getAnalytics } = useDailyUpdates();
@@ -58,17 +80,17 @@ const Dashboard = () => {
   const { data: attData, isLoading: attLoading, isClockedIn, isOnBreak, isCompleted, isTestSession, getLiveTimer, testReset } = attendance;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-8 max-w-7xl mx-auto pb-12">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">
+          <h1 className="text-3xl font-extrabold tracking-tight text-gray-900">
             Good Morning, {user?.name.split(' ')[0] || (isAdmin ? 'Admin' : 'Employee')} 👋
           </h1>
-          <p className="text-[var(--color-text-muted)] mt-1">Here is what's happening with your workflow today.</p>
+          <p className="text-gray-500 font-medium mt-1">Here is what's happening with your workflow today.</p>
         </div>
         
         {isAdmin && (
-          <Button onClick={() => navigate('/leads')}>
+          <Button onClick={() => navigate('/leads')} className="shadow-sm">
             + Add New Lead
           </Button>
         )}
@@ -95,23 +117,64 @@ const Dashboard = () => {
 
       {/* ADMIN ONLY: ATTENDANCE WIDGET */}
       {isAdmin && (
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-[var(--color-primary)] flex items-center">
-              <Clock className="mr-2" size={20} /> LIVE ATTENDANCE
+        <Card className="p-0 overflow-hidden border border-gray-200 shadow-sm">
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-white">
+            <h2 className="text-lg font-bold text-gray-900 flex items-center">
+              <Clock className="mr-2 text-[var(--color-primary)]" size={20} /> LIVE ATTENDANCE
             </h2>
+          </div>
+          <div className="p-6 bg-gray-50/50">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              
+              <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm flex flex-col justify-between hover:border-green-300 transition-colors">
+                 <div className="flex justify-between items-center mb-2">
+                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Present</p>
+                    <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                       <UserCheck size={16} className="text-green-600" />
+                    </div>
+                 </div>
+                 <p className="text-3xl font-black text-gray-900">{adminAttendance?.summary?.present || 0}</p>
+              </div>
+
+              <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm flex flex-col justify-between hover:border-blue-300 transition-colors">
+                 <div className="flex justify-between items-center mb-2">
+                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Working</p>
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                       <TrendingUp size={16} className="text-blue-600" />
+                    </div>
+                 </div>
+                 <p className="text-3xl font-black text-gray-900">{adminAttendance?.summary?.currentlyWorking || 0}</p>
+              </div>
+
+              <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm flex flex-col justify-between hover:border-orange-300 transition-colors">
+                 <div className="flex justify-between items-center mb-2">
+                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">On Break</p>
+                    <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
+                       <Clock size={16} className="text-orange-600" />
+                    </div>
+                 </div>
+                 <p className="text-3xl font-black text-gray-900">{(adminAttendance?.dailies || []).filter((d: any) => d.status === 'ON_BREAK').length || 0}</p>
+              </div>
+
+              <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm flex flex-col justify-between hover:border-red-300 transition-colors">
+                 <div className="flex justify-between items-center mb-2">
+                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Not Clocked In</p>
+                    <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+                       <AlertCircle size={16} className="text-red-600" />
+                    </div>
+                 </div>
+                 <p className="text-3xl font-black text-gray-900">{notLoggedIn?.length || 0}</p>
+              </div>
+
+            </div>
+          </div>
+          <div className="px-6 py-3 bg-white border-t border-gray-100 flex justify-end">
             <button 
               onClick={() => navigate('/attendance-management')}
-              className="text-sm font-medium text-[var(--color-accent)] hover:text-[var(--color-accent-light)] transition-colors"
+              className="text-sm font-semibold text-[var(--color-primary)] hover:text-[var(--color-primary-dark)] transition-colors flex items-center gap-1"
             >
-              View Attendance &rarr;
+              View Full Attendance List <span aria-hidden="true">&rarr;</span>
             </button>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="p-4 bg-[var(--color-surface-light)] rounded-xl text-center">
-                <p className="text-xs text-[var(--color-text-muted)] font-medium mb-1 uppercase tracking-wide">Present</p>
-                <p className="text-2xl font-bold text-[var(--color-text-primary)]">View in Admin Panel</p>
-              </div>
           </div>
         </Card>
       )}

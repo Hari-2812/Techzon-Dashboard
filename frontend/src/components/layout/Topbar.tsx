@@ -31,13 +31,13 @@ const Topbar: React.FC<TopbarProps> = ({ isSidebarOpen, toggleSidebar, toggleMob
         </div>
 
         {/* Global Search */}
-        <div className="max-w-md w-full relative hidden md:block">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+        <div className="max-w-xl w-full relative hidden md:block">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
             <Search size={18} className="text-gray-400" />
           </div>
           <input 
             type="text" 
-            className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-1 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] sm:text-sm transition-colors" 
+            className="block w-full pl-11 pr-4 py-2 border border-gray-200 rounded-xl leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 sm:text-sm transition-all duration-200" 
             placeholder="Search leads, CRs, groups..." 
           />
         </div>
@@ -52,15 +52,15 @@ const Topbar: React.FC<TopbarProps> = ({ isSidebarOpen, toggleSidebar, toggleMob
 
         
         {isAdmin && (
-           <div className="hidden md:flex items-center gap-3 bg-[var(--color-surface-light)] px-3 py-1.5 rounded-full border border-[var(--color-border-subtle)] text-sm font-medium text-gray-600">
+           <div className="hidden md:flex items-center justify-center bg-indigo-50 px-4 py-2 rounded-xl border border-indigo-100 text-sm font-semibold text-indigo-700 shadow-sm">
              Admin Mode
            </div>
         )}
 
         {/* Notifications */}
-        <button className="p-2 relative text-gray-500 hover:bg-gray-100 rounded-full transition-colors">
+        <button className="p-2.5 relative text-gray-500 hover:text-[var(--color-primary)] hover:bg-indigo-50 rounded-xl transition-colors">
           <Bell size={20} />
-          <span className="absolute top-1.5 right-1.5 block w-2 h-2 rounded-full bg-[var(--color-accent)] ring-2 ring-white"></span>
+          <span className="absolute top-2 right-2 block w-2 h-2 rounded-full bg-red-500 ring-2 ring-white"></span>
         </button>
 
         {/* Mobile Profile Avatar */}
