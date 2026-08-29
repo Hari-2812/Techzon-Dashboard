@@ -125,7 +125,7 @@ const Dashboard = () => {
             </h2>
             {isDev && (
                <button 
-                 onClick={() => attendance.clockIn.mutateAsync()}
+                 onClick={() => attendance.clockIn.mutateAsync({})}
                  className="text-xs text-[var(--color-accent)] hover:underline"
                  disabled={attendance.clockIn.isPending}
                >

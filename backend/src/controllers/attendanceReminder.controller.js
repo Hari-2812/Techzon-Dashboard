@@ -107,6 +107,14 @@ exports.sendRemindersBulk = async (req, res) => {
     try {
         const { employeeIds, reason, message } = req.body;
 
+        if (!req.user || !req.user.id) {
+            return res.status(401).json({ success: false, message: 'Unauthorized. Actor ID not found.' });
+        }
+
+        if (req.user.role !== 'ADMIN') {
+            return res.status(403).json({ success: false, message: 'Permission denied: Admin only' });
+        }
+
         if (!employeeIds || !Array.isArray(employeeIds) || employeeIds.length === 0) {
             return res.status(400).json({ success: false, message: 'Please select at least one employee.' });
         }
@@ -115,13 +123,20 @@ exports.sendRemindersBulk = async (req, res) => {
         }
 
         const todayStr = moment().tz('Asia/Kolkata').format('YYYY-MM-DD');
-        const employees = await User.find({ _id: { $in: employeeIds } }).select('name email');
+        const employees = await User.find({ _id: { $in: employeeIds } }).select('name email employeeId');
 
         let successCount = 0;
         let failCount = 0;
+        const results = [];
 
         for (const emp of employees) {
             try {
+                // Validate email
+                if (!emp.email) {
+                    throw new Error('Employee email not found');
+                }
+
+                // Send email
                 await sendAttendanceReminderEmail({
                     email: emp.email,
                     name: emp.name,
@@ -130,29 +145,40 @@ exports.sendRemindersBulk = async (req, res) => {
                     date: todayStr
                 });
 
-                // Audit Log
+                // Audit Log (Using req.user.id securely)
                 await new AuditLog({
-                    actorId: req.user._id,
+                    actorId: req.user.id,
                     action: 'SEND_ATTENDANCE_REMINDER',
                     entityType: 'User',
                     entityId: emp._id,
-                    metadata: { reason, message, sentAt: new Date() }
+                    metadata: { 
+                        employeeId: emp.employeeId,
+                        employeeEmail: emp.email,
+                        reason, 
+                        adminMessage: message, 
+                        sentAt: new Date(),
+                        emailStatus: 'SENT'
+                    }
                 }).save();
 
                 successCount++;
+                results.push({ employeeId: emp._id, success: true });
             } catch (err) {
                 console.error(`Failed to send email to ${emp.email}:`, err);
                 failCount++;
+                results.push({ employeeId: emp._id, success: false, error: err.message });
+                
+                // Note: We don't fail the entire request if one email/audit fails.
             }
         }
 
-        if (failCount === 0) {
-            res.json({ success: true, message: 'Emails sent successfully.' });
-        } else if (successCount > 0) {
-            res.json({ success: true, message: `Sent ${successCount} emails, failed to send ${failCount}.` });
-        } else {
-            res.status(500).json({ success: false, message: 'Unable to send the attendance reminder.' });
-        }
+        res.json({ 
+            success: true, 
+            sent: successCount,
+            failed: failCount,
+            results,
+            message: failCount === 0 ? 'Emails sent successfully.' : `Sent ${successCount} emails, failed to send ${failCount}.` 
+        });
     } catch (error) {
         console.error('Error sending bulk reminders:', error);
         res.status(500).json({ success: false, message: 'Internal server error while sending reminders.' });

@@ -37,7 +37,20 @@ exports.getTodayAttendance = async (req, res) => {
     }
 
     const settings = await AttendanceSettings.findOne() || new AttendanceSettings();
-    res.json({ success: true, data: { session, daily, settings, serverTime: new Date() } });
+    
+    let hasReminder = false;
+    const AuditLog = require('../models/AuditLog');
+    const todayStart = moment().tz('Asia/Kolkata').startOf('day').toDate();
+    const reminderLog = await AuditLog.findOne({
+       entityId: req.user.id,
+       action: 'SEND_ATTENDANCE_REMINDER',
+       timestamp: { $gte: todayStart }
+    });
+    if (reminderLog) {
+       hasReminder = true;
+    }
+
+    res.json({ success: true, data: { session, daily, settings, serverTime: new Date(), hasReminder } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server Error' });
@@ -46,7 +59,7 @@ exports.getTodayAttendance = async (req, res) => {
 
 exports.clockIn = async (req, res) => {
   try {
-    const { isTest } = req.body;
+    const { isTest, lateReason } = req.body || {};
     const dateStr = getBusinessDateIST();
     
     const isTestMode = (process.env.NODE_ENV === 'development' || req.headers.host?.includes('localhost')) && isTest === true;
@@ -71,7 +84,8 @@ exports.clockIn = async (req, res) => {
         requestType: 'CHECK_IN',
         status: 'PENDING',
         requestedTime: new Date(),
-        isTestSession: isTestMode
+        isTestSession: isTestMode,
+        reason: lateReason || ''
     });
     
     let daily = await AttendanceDaily.findOne({ employeeId: req.user.id, date: dateStr, isTestSession: isTestMode });

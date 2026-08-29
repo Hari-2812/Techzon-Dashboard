@@ -177,15 +177,22 @@ exports.sendNotificationEmail = async (email, name, subject, message) => {
  */
 exports.sendAttendanceReminderEmail = async (employeeData) => {
     const { email, name, reason, message, date } = employeeData;
+    const dashboardUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:5173/dashboard';
+    const attendanceUrl = dashboardUrl.replace('/dashboard', '/attendance');
     
     const textContent = `Dear ${name},
 
-Our attendance system shows that you have not clocked in today, ${date}.
+Your attendance for today (${date}) has not been recorded.
 
-Reason/Status:
+Reason:
 ${reason}
 
-${message ? message + '\n\n' : ''}Please report your attendance status and complete the required attendance process as soon as possible.
+${message ? 'Message from Admin:\n' + message + '\n\n' : ''}Please complete the appropriate attendance action in the employee portal.
+
+If you are unable to clock in because you require leave or permission, submit the appropriate request from the Attendance section.
+
+Complete your attendance here:
+${attendanceUrl}
 
 If you are on approved leave or permission, no action is required if your request has already been approved.
 
@@ -195,21 +202,32 @@ Techzon Administrator`;
     const htmlContent = baseHtmlTemplate('Attendance Update Required', `
         <h2 style="color: #3525CD; margin-top: 0;">Attendance Reminder</h2>
         <p>Dear ${name},</p>
-        <p>Our attendance system shows that you have not clocked in today, <strong>${date}</strong>.</p>
+        <p>Your attendance for today (<strong>${date}</strong>) has not been recorded.</p>
         
         <div style="background-color: #F8F9FA; padding: 16px; border-radius: 6px; border-left: 4px solid #FD761A; margin: 24px 0;">
-            <p style="margin: 0; font-size: 14px; color: #6B7280;">Reason / Status</p>
+            <p style="margin: 0; font-size: 14px; color: #6B7280;">Reason</p>
             <p style="margin: 8px 0 0 0; font-size: 16px; font-weight: bold; color: #191C1D;">${reason}</p>
         </div>
 
-        ${message ? `<p style="white-space: pre-wrap; margin-bottom: 24px;">${message}</p>` : ''}
+        ${message ? `
+        <div style="background-color: #EEF2FF; padding: 16px; border-radius: 6px; border-left: 4px solid #3525CD; margin: 24px 0;">
+            <p style="margin: 0; font-size: 14px; color: #6B7280;">Message from Admin</p>
+            <p style="white-space: pre-wrap; margin: 8px 0 0 0; font-size: 14px; color: #191C1D;">${message}</p>
+        </div>
+        ` : ''}
         
-        <p>Please report your attendance status and complete the required attendance process as soon as possible.</p>
+        <p>Please complete the appropriate attendance action in the employee portal.</p>
+        <p>If you are unable to clock in because you require leave or permission, submit the appropriate request from the Attendance section.</p>
+
+        <div style="text-align: center; margin-top: 32px; margin-bottom: 32px;">
+            <a href="${attendanceUrl}" style="background-color: #3525CD; color: #FFFFFF; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Update Attendance</a>
+        </div>
+
         <p style="font-size: 14px; color: #6B7280; margin-top: 24px;">If you are on approved leave or permission, no action is required if your request has already been approved.</p>
         <p style="margin-top: 24px;">Regards,<br/><strong>Techzon Administrator</strong></p>
     `);
 
-    return sendEmail(email, name, `Attendance Update Required – ${date}`, htmlContent, textContent);
+    return sendEmail(email, name, `Attendance Action Required - ${date}`, htmlContent, textContent);
 };
 
 /**

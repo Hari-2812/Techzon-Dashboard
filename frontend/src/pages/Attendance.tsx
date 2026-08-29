@@ -24,6 +24,9 @@ const Attendance = () => {
   const [leaveStartTime, setLeaveStartTime] = useState('');
   const [leaveEndTime, setLeaveEndTime] = useState('');
   const [leaveReason, setLeaveReason] = useState('');
+  
+  const [isClockInModalOpen, setIsClockInModalOpen] = useState(false);
+  const [lateLoginReason, setLateLoginReason] = useState('');
 
   const handleSubmitLeave = async () => {
     try {
@@ -56,8 +59,18 @@ const Attendance = () => {
   }, []);
 
   const handleClockIn = async () => {
+    if (attendance.data?.hasReminder) {
+        setIsClockInModalOpen(true);
+        return;
+    }
+    await executeClockIn();
+  };
+
+  const executeClockIn = async (reason?: string) => {
     try {
-      await attendance.clockIn.mutateAsync();
+      await attendance.clockIn.mutateAsync({ lateReason: reason });
+      setIsClockInModalOpen(false);
+      setLateLoginReason('');
     } catch (err: any) {
       alert(err.response?.data?.message || 'Failed to request check-in');
     }

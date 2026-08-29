@@ -72,8 +72,8 @@ export const useAttendance = () => {
 
   // 3. Mutations
   const clockIn = useMutation({
-    mutationFn: async () => {
-      const res = await api.post('/attendance/clock-in', {});
+    mutationFn: async (payload?: { lateReason?: string }) => {
+      const res = await api.post('/attendance/clock-in', payload || {});
       return res.data;
     },
     onSuccess: () => {

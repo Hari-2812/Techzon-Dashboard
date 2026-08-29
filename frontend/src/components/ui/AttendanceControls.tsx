@@ -28,7 +28,7 @@ export const AttendanceControls: React.FC<AttendanceControlsProps> = ({ layout =
 
   const handleAction = (actionStr: 'CLOCK_IN' | 'CLOCK_OUT') => {
     const action = actionStr === 'CLOCK_IN' 
-      ? attendance.clockIn.mutateAsync()
+      ? attendance.clockIn.mutateAsync({})
       : attendance.clockOut.mutateAsync();
       
     action.catch((e: any) => {

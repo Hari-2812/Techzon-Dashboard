@@ -121,18 +121,18 @@ const AttendanceManagement = () => {
               })
           });
           const data = await res.json();
-          if (data.success) {
-              alert(data.message || 'Email sent successfully.');
+          if (res.ok && data.success) {
+              alert(`Attendance reminder sent successfully. ${data.message || ''}`);
               setReminderModalOpen(false);
               setSelectedEmployeesForReminder([]);
               setReminderMessage('');
               setReminderReason('Late Login');
               setReminderCustomReason('');
           } else {
-              alert(data.message || 'Unable to send the attendance reminder.');
+              alert(`Unable to send reminder. ${data.message || 'Please try again.'}`);
           }
       } catch (err) {
-          alert('Unable to send the attendance reminder.');
+          alert('Unable to send the attendance reminder. Please check your network connection.');
       }
   };
 
@@ -823,9 +823,10 @@ const AttendanceManagement = () => {
                   onChange={e => setReminderReason(e.target.value)}
                >
                   <option value="Late Login">Late Login</option>
-                  <option value="Missing Attendance">Missing Attendance</option>
-                  <option value="Pending Leave Update">Pending Leave Update</option>
-                  <option value="Other">Other (Custom)</option>
+                  <option value="Leave Request">Leave Request</option>
+                  <option value="Permission Request">Permission Request</option>
+                  <option value="No Prior Information">No Prior Information</option>
+                  <option value="Other">Other</option>
                </select>
             </div>
             {reminderReason === 'Other' && (
