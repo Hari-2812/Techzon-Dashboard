@@ -713,6 +713,124 @@ const AttendanceManagement = () => {
          </TableContainer>
       </Card>
 
+      {/* Manual Correction Modal */}
+      <Modal isOpen={manualCorrectionModalOpen} onClose={() => setManualCorrectionModalOpen(false)} title="Update Today's Attendance">
+         <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Status</label>
+              <select 
+                value={manualStatus}
+                onChange={(e) => setManualStatus(e.target.value)}
+                className="w-full px-3 py-2 border border-[var(--color-border-subtle)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] bg-[var(--color-surface)] text-[var(--color-text-primary)]"
+              >
+                <option value="PRESENT">Present</option>
+                <option value="LATE">Late</option>
+                <option value="ABSENT">Absent</option>
+                <option value="LEAVE">Leave</option>
+                <option value="PERMISSION">Permission</option>
+              </select>
+            </div>
+
+            {(manualStatus === 'PRESENT' || manualStatus === 'LATE') && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Clock In Time</label>
+                  <input
+                    type="time"
+                    value={manualClockIn}
+                    onChange={(e) => setManualClockIn(e.target.value)}
+                    className="w-full px-3 py-2 border border-[var(--color-border-subtle)] rounded-lg bg-[var(--color-surface)] text-[var(--color-text-primary)]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Clock Out Time (Optional)</label>
+                  <input
+                    type="time"
+                    value={manualClockOut}
+                    onChange={(e) => setManualClockOut(e.target.value)}
+                    className="w-full px-3 py-2 border border-[var(--color-border-subtle)] rounded-lg bg-[var(--color-surface)] text-[var(--color-text-primary)]"
+                  />
+                </div>
+              </div>
+            )}
+
+            {manualStatus === 'PERMISSION' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Start Time</label>
+                  <input
+                    type="time"
+                    value={manualStartTime}
+                    onChange={(e) => setManualStartTime(e.target.value)}
+                    className="w-full px-3 py-2 border border-[var(--color-border-subtle)] rounded-lg bg-[var(--color-surface)] text-[var(--color-text-primary)]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-1">End Time</label>
+                  <input
+                    type="time"
+                    value={manualEndTime}
+                    onChange={(e) => setManualEndTime(e.target.value)}
+                    className="w-full px-3 py-2 border border-[var(--color-border-subtle)] rounded-lg bg-[var(--color-surface)] text-[var(--color-text-primary)]"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Admin Remarks / Reason</label>
+              <textarea
+                value={manualAdminRemarks}
+                onChange={(e) => setManualAdminRemarks(e.target.value)}
+                placeholder="Reason for manual update"
+                className="w-full px-3 py-2 border border-[var(--color-border-subtle)] rounded-lg h-24 resize-none bg-[var(--color-surface)] text-[var(--color-text-primary)]"
+              ></textarea>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <Button variant="outline" onClick={() => setManualCorrectionModalOpen(false)}>Cancel</Button>
+              <Button onClick={async () => {
+                 try {
+                     if (!manualStatus) return alert('Status is required');
+                     if (manualStatus === 'PERMISSION' && (!manualStartTime || !manualEndTime)) return alert('Start and End time are required for permission');
+                     if ((manualStatus === 'PRESENT' || manualStatus === 'LATE') && !manualClockIn) return alert('Clock In time is required for Present/Late');
+
+                     const token = localStorage.getItem('token') || '';
+                     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+                     
+                     const res = await fetch(`${apiUrl}/attendance/admin/manual-correction`, {
+                         method: 'POST',
+                         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                         body: JSON.stringify({
+                             employeeId: manualEmployeeId,
+                             date: manualDate,
+                             status: manualStatus,
+                             clockInTime: manualClockIn,
+                             clockOutTime: manualClockOut,
+                             startTime: manualStartTime,
+                             endTime: manualEndTime,
+                             reason: manualAdminRemarks,
+                             adminRemarks: manualAdminRemarks
+                         })
+                     });
+                     
+                     const data = await res.json();
+                     if (data.success) {
+                         alert('Attendance updated successfully');
+                         setManualCorrectionModalOpen(false);
+                         fetchAdminAttendance();
+                         fetchNotLoggedIn();
+                     } else {
+                         alert(data.message || 'Error updating attendance');
+                     }
+                 } catch (err) {
+                     alert('Failed to update attendance');
+                 }
+              }}>Update</Button>
+            </div>
+         </div>
+      </Modal>
+
       {/* Detail Drawer overlay */}
       <Drawer isOpen={!!selectedEmployee} onClose={() => setSelectedEmployee(null)} title={selectedEmployee?.employeeId?.name || ''}>
         {selectedEmployee && (
