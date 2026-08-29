@@ -53,38 +53,46 @@ const Dashboard = () => {
         queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     };
 
-    const handleAttendanceUpdate = () => {
+    const refreshAttendanceDashboard = () => {
+        console.log('[Dashboard Attendance] Received event, forcing refetch.');
+        // Explicitly invalidate and forcefully refetch the precise query key
         queryClient.invalidateQueries({ queryKey: ['adminAttendanceTodayDashboard'] });
+        queryClient.refetchQueries({ queryKey: ['adminAttendanceTodayDashboard'] });
     };
 
     socket.on('leads:synced', handleLeadsSynced);
     
     // Attendance Socket Events
     if (isAdmin) {
-        socket.on('attendance:clock-in-approved', handleAttendanceUpdate);
-        socket.on('attendance:clock-out-approved', handleAttendanceUpdate);
-        socket.on('attendance:break-approved', handleAttendanceUpdate);
-        socket.on('employee:break-ended', handleAttendanceUpdate);
-        socket.on('attendance:admin-force-clock-out', handleAttendanceUpdate);
-        socket.on('attendance:admin-edit-clock-out', handleAttendanceUpdate);
-        socket.on('attendance:admin-edit-attendance', handleAttendanceUpdate);
-        socket.on('attendance:request-rejected', handleAttendanceUpdate);
-        socket.on('leaveRequest:updated', handleAttendanceUpdate);
+        socket.on('attendance:clock-in-request', refreshAttendanceDashboard);
+        socket.on('attendance:clock-out-request', refreshAttendanceDashboard);
+        socket.on('attendance:break-request', refreshAttendanceDashboard);
+        socket.on('attendance:clock-in-approved', refreshAttendanceDashboard);
+        socket.on('attendance:clock-out-approved', refreshAttendanceDashboard);
+        socket.on('attendance:break-approved', refreshAttendanceDashboard);
+        socket.on('employee:break-ended', refreshAttendanceDashboard);
+        socket.on('attendance:admin-force-clock-out', refreshAttendanceDashboard);
+        socket.on('attendance:admin-edit-clock-out', refreshAttendanceDashboard);
+        socket.on('attendance:admin-edit-attendance', refreshAttendanceDashboard);
+        socket.on('attendance:request-rejected', refreshAttendanceDashboard);
+        socket.on('leaveRequest:updated', refreshAttendanceDashboard);
     }
 
     return () => {
       socket.off('leads:synced', handleLeadsSynced);
       if (isAdmin) {
-          socket.off('employee:clocked-in', handleAttendanceUpdate);
-          socket.off('employee:clocked-out', handleAttendanceUpdate);
-          socket.off('employee:on-break', handleAttendanceUpdate);
-          socket.off('employee:resumed', handleAttendanceUpdate);
-          socket.off('attendance:clock-in-request', handleAttendanceUpdate);
-          socket.off('attendance:clock-out-request', handleAttendanceUpdate);
-          socket.off('attendance:admin-force-clock-out', handleAttendanceUpdate);
-          socket.off('attendance:admin-edit-clock-out', handleAttendanceUpdate);
-          socket.off('attendance:admin-edit-attendance', handleAttendanceUpdate);
-          socket.off('leaveRequest:updated', handleAttendanceUpdate);
+          socket.off('attendance:clock-in-request', refreshAttendanceDashboard);
+          socket.off('attendance:clock-out-request', refreshAttendanceDashboard);
+          socket.off('attendance:break-request', refreshAttendanceDashboard);
+          socket.off('attendance:clock-in-approved', refreshAttendanceDashboard);
+          socket.off('attendance:clock-out-approved', refreshAttendanceDashboard);
+          socket.off('attendance:break-approved', refreshAttendanceDashboard);
+          socket.off('employee:break-ended', refreshAttendanceDashboard);
+          socket.off('attendance:admin-force-clock-out', refreshAttendanceDashboard);
+          socket.off('attendance:admin-edit-clock-out', refreshAttendanceDashboard);
+          socket.off('attendance:admin-edit-attendance', refreshAttendanceDashboard);
+          socket.off('attendance:request-rejected', refreshAttendanceDashboard);
+          socket.off('leaveRequest:updated', refreshAttendanceDashboard);
       }
     };
   }, [queryClient, isAdmin]);
