@@ -87,7 +87,7 @@ const AttendanceManagement = () => {
   const [reminderCustomReason, setReminderCustomReason] = useState('');
   const [reminderMessage, setReminderMessage] = useState('');
 
-  const { data: notLoggedInEmployees, refetch: fetchNotLoggedIn } = useQuery({
+  const { data: notLoggedInEmployees, refetch: fetchNotLoggedIn, isError: notLoggedInError } = useQuery({
       queryKey: ['notLoggedInEmployees'],
       queryFn: async () => {
           const token = localStorage.getItem('token') || '';
@@ -310,9 +310,17 @@ const AttendanceManagement = () => {
       if (statusFilter === 'Working' && (!isActive || isOnBreak)) return false;
       if (statusFilter === 'On Break' && !isOnBreak) return false;
       if (statusFilter === 'Completed' && !isCompleted) return false;
-      if (statusFilter === 'Not Clocked In' && item.session) return false;
+      
       if (statusFilter === 'Late' && item.status !== 'LATE') return false;
       if (statusFilter === 'Absent' && item.status !== 'ABSENT') return false;
+      
+      // Synthesized statuses for not clocked in
+      if (statusFilter === 'Not Clocked In' && item.session) return false;
+      if (statusFilter === 'Leave Requested' && item.status !== 'Leave Requested') return false;
+      if (statusFilter === 'Permission Requested' && item.status !== 'Permission Requested') return false;
+      if (statusFilter === 'Leave Approved' && item.status !== 'Leave Approved' && item.status !== 'PAID_LEAVE') return false;
+      if (statusFilter === 'Permission Approved' && item.status !== 'Permission Approved') return false;
+      if (statusFilter === 'No Prior Information' && item.status !== 'No Prior Information') return false;
     }
     return true;
   });
@@ -454,6 +462,11 @@ const AttendanceManagement = () => {
                   <option value="Not Clocked In">Not Clocked In</option>
                   <option value="Late">Late</option>
                   <option value="Absent">Absent</option>
+                  <option value="Leave Requested">Leave Requested</option>
+                  <option value="Permission Requested">Permission Requested</option>
+                  <option value="Leave Approved">Leave Approved</option>
+                  <option value="Permission Approved">Permission Approved</option>
+                  <option value="No Prior Information">No Prior Information</option>
                 </select>
               </div>
             </div>
@@ -513,7 +526,12 @@ const AttendanceManagement = () => {
                       <TableCell className="text-[var(--color-text-muted)] font-medium">
                          {session ? moment(session.clockInAt).add(8, 'hours').format('hh:mm A') : '—'}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right whitespace-nowrap">
+                        {item.isSynthesized && (
+                          <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); openReminderModalSingle(item.employeeId._id); }} className="gap-2 mr-2">
+                            <Mail size={14} /> Reminder
+                          </Button>
+                        )}
                         <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedEmployee(item); }}>
                           <ChevronRight size={20} />
                         </Button>
@@ -592,6 +610,83 @@ const AttendanceManagement = () => {
 
         </div>
       </div>
+
+
+      {/* Not Logged In Today Section */}
+      <Card className="mt-8 border-red-100 shadow-sm overflow-hidden">
+         <div className="bg-red-50 p-4 border-b border-red-100 flex justify-between items-center flex-wrap gap-4">
+           <div className="flex items-center gap-2">
+             <AlertCircle className="text-red-600" size={20} />
+             <h2 className="text-lg font-bold text-red-900">Not Logged In Today</h2>
+             <Badge variant="error" className="ml-2">{notLoggedInEmployees?.length || 0}</Badge>
+           </div>
+           <Button variant="outline" size="sm" onClick={openReminderModalBulk} className="border-red-200 text-red-700 hover:bg-red-100">
+             <Mail size={16} className="mr-2" /> Remind All
+           </Button>
+         </div>
+         <TableContainer>
+           <Table>
+             <TableHeader>
+               <TableRow>
+                 <TableHead>Employee</TableHead>
+                 <TableHead>Department</TableHead>
+                 <TableHead>Status/Reason</TableHead>
+                 <TableHead>Clock In</TableHead>
+                 <TableHead className="text-right">Action</TableHead>
+               </TableRow>
+             </TableHeader>
+             <TableBody>
+               {notLoggedInError ? (
+                 <TableRow>
+                   <TableCell colSpan={5} className="py-8 text-center text-red-500 font-medium">
+                     Failed to load employees who have not clocked in.
+                   </TableCell>
+                 </TableRow>
+               ) : notLoggedInEmployees?.length > 0 ? (
+                 notLoggedInEmployees.map((emp: any) => (
+                   <TableRow key={emp._id}>
+                     <TableCell>
+                       <p className="font-bold text-[var(--color-text-primary)]">{emp.name}</p>
+                       <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{emp.employeeId}</p>
+                     </TableCell>
+                     <TableCell className="text-[var(--color-text-muted)] font-medium">
+                       {emp.department || '—'}
+                     </TableCell>
+                     <TableCell>
+                       <div className="flex flex-col gap-1">
+                          <span className={`px-2 py-1 text-xs font-bold rounded-md inline-block w-max ${
+                             emp.status === 'Leave Requested' ? 'bg-orange-100 text-orange-700' :
+                             emp.status === 'Leave Approved' ? 'bg-green-100 text-green-700' :
+                             emp.status === 'Permission Requested' ? 'bg-purple-100 text-purple-700' :
+                             emp.status === 'Permission Approved' ? 'bg-blue-100 text-blue-700' :
+                             'bg-gray-100 text-gray-700'
+                          }`}>
+                            {emp.status}
+                          </span>
+                          {emp.requestStatus && <span className="text-[10px] text-gray-500 font-medium">{emp.requestStatus}</span>}
+                       </div>
+                     </TableCell>
+                     <TableCell className="text-[var(--color-text-muted)]">
+                       —
+                     </TableCell>
+                     <TableCell className="text-right">
+                       <Button size="sm" variant="outline" onClick={() => openReminderModalSingle(emp._id)} className="gap-2">
+                         <Mail size={14} /> Send Reminder
+                       </Button>
+                     </TableCell>
+                   </TableRow>
+                 ))
+               ) : (
+                 <TableRow>
+                   <TableCell colSpan={5} className="py-8 text-center text-[var(--color-text-muted)]">
+                     No employees found in this category.
+                   </TableCell>
+                 </TableRow>
+               )}
+             </TableBody>
+           </Table>
+         </TableContainer>
+      </Card>
 
       {/* Detail Drawer overlay */}
       <Drawer isOpen={!!selectedEmployee} onClose={() => setSelectedEmployee(null)} title={selectedEmployee?.employeeId?.name || ''}>
@@ -714,6 +809,52 @@ const AttendanceManagement = () => {
             </div>
         )}
       </Drawer>
+
+      <Modal isOpen={reminderModalOpen} onClose={() => setReminderModalOpen(false)} title="Send Attendance Reminder">
+         <div className="space-y-4">
+            <div className="p-3 bg-blue-50 text-blue-800 rounded-lg text-sm border border-blue-100">
+               You are about to send an email reminder to <strong>{selectedEmployeesForReminder.length}</strong> employee(s).
+            </div>
+            <div>
+               <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
+               <select 
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-[var(--color-primary)] outline-none bg-white"
+                  value={reminderReason}
+                  onChange={e => setReminderReason(e.target.value)}
+               >
+                  <option value="Late Login">Late Login</option>
+                  <option value="Missing Attendance">Missing Attendance</option>
+                  <option value="Pending Leave Update">Pending Leave Update</option>
+                  <option value="Other">Other (Custom)</option>
+               </select>
+            </div>
+            {reminderReason === 'Other' && (
+               <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Custom Reason</label>
+                  <input 
+                     type="text" 
+                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-[var(--color-primary)] outline-none"
+                     value={reminderCustomReason}
+                     onChange={e => setReminderCustomReason(e.target.value)}
+                     placeholder="Enter custom reason..."
+                  />
+               </div>
+            )}
+            <div>
+               <label className="block text-sm font-medium text-gray-700 mb-1">Additional Message (Optional)</label>
+               <textarea 
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-[var(--color-primary)] outline-none min-h-[80px]"
+                  value={reminderMessage}
+                  onChange={e => setReminderMessage(e.target.value)}
+                  placeholder="e.g., Please log in immediately or update your leave status."
+               />
+            </div>
+            <div className="flex justify-end gap-3 mt-6 flex-wrap">
+                <Button variant="outline" onClick={() => setReminderModalOpen(false)}>Cancel</Button>
+                <Button variant="primary" onClick={handleSendReminder} className="gap-2"><Mail size={16}/> Send Email</Button>
+            </div>
+         </div>
+      </Modal>
 
       <Modal isOpen={!!selectedRequest && requestAction === 'APPROVE'} onClose={() => setSelectedRequest(null)} title="Approve Request">
          <div className="space-y-4">
