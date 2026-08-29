@@ -79,7 +79,9 @@ exports.getTodayAdminAttendance = async (req, res) => {
       absent: 0,
       onLeave: 0,
       currentlyWorking: 0,
-      missingClockOut: 0
+      missingClockOut: 0,
+      onBreak: 0,
+      notClockedIn: 0
     };
 
     dailies.forEach(d => {
@@ -88,10 +90,12 @@ exports.getTodayAdminAttendance = async (req, res) => {
       if (d.status === 'HALF_DAY') summary.halfDay++;
       if (d.status === 'ABSENT') summary.absent++;
       if (d.status === 'PAID_LEAVE' || d.status === 'Leave Approved') summary.onLeave++;
+      if (d.isSynthesized && (d.status === 'No Prior Information' || d.status === 'Not Clocked In')) summary.notClockedIn++;
     });
 
     sessions.forEach(s => {
       if (s.status === 'RUNNING' || s.status === 'ACTIVE') summary.currentlyWorking++;
+      if (s.status === 'ON_BREAK' || s.status === 'PENDING_BREAK_APPROVAL') summary.onBreak++;
       if (s.status === 'MISSING_CLOCK_OUT') summary.missingClockOut++;
     });
 

@@ -34,15 +34,7 @@ const Dashboard = () => {
       refetchInterval: 30000 // Refresh every 30s
   });
 
-  const { data: notLoggedIn } = useQuery({
-      queryKey: ['notLoggedInEmployeesDashboard'],
-      queryFn: async () => {
-          const res = await api.get('/attendance/not-logged-in');
-          return res.data.data;
-      },
-      enabled: isAdmin,
-      refetchInterval: 30000 // Refresh every 30s
-  });
+
   
   // Daily Updates
   const { getAnalytics } = useDailyUpdates();
@@ -61,12 +53,42 @@ const Dashboard = () => {
         queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     };
 
+    const handleAttendanceUpdate = () => {
+        queryClient.invalidateQueries({ queryKey: ['adminAttendanceTodayDashboard'] });
+    };
+
     socket.on('leads:synced', handleLeadsSynced);
+    
+    // Attendance Socket Events
+    if (isAdmin) {
+        socket.on('employee:clocked-in', handleAttendanceUpdate);
+        socket.on('employee:clocked-out', handleAttendanceUpdate);
+        socket.on('employee:on-break', handleAttendanceUpdate);
+        socket.on('employee:resumed', handleAttendanceUpdate);
+        socket.on('attendance:clock-in-request', handleAttendanceUpdate);
+        socket.on('attendance:clock-out-request', handleAttendanceUpdate);
+        socket.on('attendance:admin-force-clock-out', handleAttendanceUpdate);
+        socket.on('attendance:admin-edit-clock-out', handleAttendanceUpdate);
+        socket.on('attendance:admin-edit-attendance', handleAttendanceUpdate);
+        socket.on('leaveRequest:updated', handleAttendanceUpdate);
+    }
 
     return () => {
       socket.off('leads:synced', handleLeadsSynced);
+      if (isAdmin) {
+          socket.off('employee:clocked-in', handleAttendanceUpdate);
+          socket.off('employee:clocked-out', handleAttendanceUpdate);
+          socket.off('employee:on-break', handleAttendanceUpdate);
+          socket.off('employee:resumed', handleAttendanceUpdate);
+          socket.off('attendance:clock-in-request', handleAttendanceUpdate);
+          socket.off('attendance:clock-out-request', handleAttendanceUpdate);
+          socket.off('attendance:admin-force-clock-out', handleAttendanceUpdate);
+          socket.off('attendance:admin-edit-clock-out', handleAttendanceUpdate);
+          socket.off('attendance:admin-edit-attendance', handleAttendanceUpdate);
+          socket.off('leaveRequest:updated', handleAttendanceUpdate);
+      }
     };
-  }, [queryClient]);
+  }, [queryClient, isAdmin]);
 
   const [now, setNow] = useState(Date.now());
   
@@ -153,7 +175,7 @@ const Dashboard = () => {
                        <Clock size={16} className="text-orange-600" />
                     </div>
                  </div>
-                 <p className="text-3xl font-black text-gray-900">{(adminAttendance?.dailies || []).filter((d: any) => d.status === 'ON_BREAK').length || 0}</p>
+                 <p className="text-3xl font-black text-gray-900">{adminAttendance?.summary?.onBreak || 0}</p>
               </div>
 
               <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm flex flex-col justify-between hover:border-red-300 transition-colors">
@@ -163,7 +185,7 @@ const Dashboard = () => {
                        <AlertCircle size={16} className="text-red-600" />
                     </div>
                  </div>
-                 <p className="text-3xl font-black text-gray-900">{notLoggedIn?.length || 0}</p>
+                 <p className="text-3xl font-black text-gray-900">{adminAttendance?.summary?.notClockedIn || 0}</p>
               </div>
 
             </div>
