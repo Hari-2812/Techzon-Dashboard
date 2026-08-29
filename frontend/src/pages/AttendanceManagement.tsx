@@ -1,7 +1,8 @@
+import { useQuery } from '@tanstack/react-query';
 import React, { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from 'recharts';
 import { io, Socket } from 'socket.io-client';
-import { Users, Clock, AlertCircle, CalendarX2, Search, Filter, X, Calendar, ChevronRight, Play, Square, Coffee, Plus } from 'lucide-react';
+import { Users, Clock, AlertCircle, CalendarX2, Search, Filter, X, Calendar, ChevronRight, Play, Square, Coffee, Plus, Mail } from 'lucide-react';
 import moment from 'moment-timezone';
 import { useEmployees } from '../hooks/useEmployees';
 import { Card, CardContent } from '../components/ui/Card';
@@ -79,6 +80,73 @@ const AttendanceManagement = () => {
   const [adminLeaveStartTime, setAdminLeaveStartTime] = useState('');
   const [adminLeaveEndTime, setAdminLeaveEndTime] = useState('');
   const [adminLeaveReason, setAdminLeaveReason] = useState('');
+
+  const [reminderModalOpen, setReminderModalOpen] = useState(false);
+  const [selectedEmployeesForReminder, setSelectedEmployeesForReminder] = useState<string[]>([]);
+  const [reminderReason, setReminderReason] = useState('Late Login');
+  const [reminderCustomReason, setReminderCustomReason] = useState('');
+  const [reminderMessage, setReminderMessage] = useState('');
+
+  const { data: notLoggedInEmployees, refetch: fetchNotLoggedIn } = useQuery({
+      queryKey: ['notLoggedInEmployees'],
+      queryFn: async () => {
+          const token = localStorage.getItem('token') || '';
+          const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+          const res = await fetch(`${apiUrl}/attendance/not-logged-in`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await res.json();
+          return data.data || [];
+      }
+  });
+
+  const handleSendReminder = async () => {
+      try {
+          if (selectedEmployeesForReminder.length === 0) return alert('Select employees to remind.');
+          const finalReason = reminderReason === 'Other' ? reminderCustomReason : reminderReason;
+          if (!finalReason) return alert('Reason is required.');
+          
+          if (!window.confirm(`You are about to send an attendance reminder to ${selectedEmployeesForReminder.length} employee(s). Continue?`)) return;
+
+          const token = localStorage.getItem('token') || '';
+          const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+          
+          const res = await fetch(`${apiUrl}/attendance/send-reminders-bulk`, {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  employeeIds: selectedEmployeesForReminder,
+                  reason: finalReason,
+                  message: reminderMessage
+              })
+          });
+          const data = await res.json();
+          if (data.success) {
+              alert(data.message || 'Email sent successfully.');
+              setReminderModalOpen(false);
+              setSelectedEmployeesForReminder([]);
+              setReminderMessage('');
+              setReminderReason('Late Login');
+              setReminderCustomReason('');
+          } else {
+              alert(data.message || 'Unable to send the attendance reminder.');
+          }
+      } catch (err) {
+          alert('Unable to send the attendance reminder.');
+      }
+  };
+
+  const openReminderModalSingle = (empId: string) => {
+      setSelectedEmployeesForReminder([empId]);
+      setReminderModalOpen(true);
+  };
+
+  const openReminderModalBulk = () => {
+      if (!notLoggedInEmployees || notLoggedInEmployees.length === 0) return alert('No employees available to remind.');
+      setSelectedEmployeesForReminder(notLoggedInEmployees.map((e: any) => e._id));
+      setReminderModalOpen(true);
+  };
+
 
   const handleAdminCreateLeave = async () => {
     try {
@@ -199,6 +267,10 @@ const AttendanceManagement = () => {
     socket.on('attendance:admin-force-clock-out', fetchAdminAttendance);
     socket.on('attendance:admin-edit-clock-out', fetchAdminAttendance);
     socket.on('leaveRequest:updated', fetchAdminAttendance);
+
+    socket.on('employee:clocked-in', () => { fetchAdminAttendance(); fetchNotLoggedIn(); });
+    socket.on('leaveRequest:updated', () => { fetchAdminAttendance(); fetchNotLoggedIn(); });
+
 
     return () => {
       socket.disconnect();

@@ -173,6 +173,46 @@ exports.sendNotificationEmail = async (email, name, subject, message) => {
 };
 
 /**
+ * Send Attendance Reminder Email
+ */
+exports.sendAttendanceReminderEmail = async (employeeData) => {
+    const { email, name, reason, message, date } = employeeData;
+    
+    const textContent = `Dear ${name},
+
+Our attendance system shows that you have not clocked in today, ${date}.
+
+Reason/Status:
+${reason}
+
+${message ? message + '\n\n' : ''}Please report your attendance status and complete the required attendance process as soon as possible.
+
+If you are on approved leave or permission, no action is required if your request has already been approved.
+
+Regards,
+Techzon Administrator`;
+
+    const htmlContent = baseHtmlTemplate('Attendance Update Required', `
+        <h2 style="color: #3525CD; margin-top: 0;">Attendance Reminder</h2>
+        <p>Dear ${name},</p>
+        <p>Our attendance system shows that you have not clocked in today, <strong>${date}</strong>.</p>
+        
+        <div style="background-color: #F8F9FA; padding: 16px; border-radius: 6px; border-left: 4px solid #FD761A; margin: 24px 0;">
+            <p style="margin: 0; font-size: 14px; color: #6B7280;">Reason / Status</p>
+            <p style="margin: 8px 0 0 0; font-size: 16px; font-weight: bold; color: #191C1D;">${reason}</p>
+        </div>
+
+        ${message ? `<p style="white-space: pre-wrap; margin-bottom: 24px;">${message}</p>` : ''}
+        
+        <p>Please report your attendance status and complete the required attendance process as soon as possible.</p>
+        <p style="font-size: 14px; color: #6B7280; margin-top: 24px;">If you are on approved leave or permission, no action is required if your request has already been approved.</p>
+        <p style="margin-top: 24px;">Regards,<br/><strong>Techzon Administrator</strong></p>
+    `);
+
+    return sendEmail(email, name, `Attendance Update Required – ${date}`, htmlContent, textContent);
+};
+
+/**
  * Test Endpoint Handler logic
  */
 exports.testEmail = async (toEmail) => {

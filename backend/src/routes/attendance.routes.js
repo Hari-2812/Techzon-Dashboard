@@ -53,6 +53,10 @@ router.put('/leave-permission/:id/approve', auth, approveLeaveRequest);
 router.put('/leave-permission/:id/reject', auth, rejectLeaveRequest);
 router.post('/leave-permission/admin', auth, adminCreateLeave);
 
+const { getNotLoggedInEmployees, sendRemindersBulk } = require('../controllers/attendanceReminder.controller');
+router.get('/not-logged-in', auth, getNotLoggedInEmployees);
+router.post('/send-reminders-bulk', auth, sendRemindersBulk);
+
 router.post('/break/start', auth, startBreak);
 router.post('/break/end', auth, endBreak);
 router.post('/correction', auth, requestCorrection);
