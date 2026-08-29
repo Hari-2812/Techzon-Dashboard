@@ -37,6 +37,22 @@ router.post('/requests/:requestId/approve', auth, approveRequest);
 router.post('/requests/:requestId/reject', auth, rejectRequest);
 router.post('/manual', auth, createManualAttendance);
 
+const {
+  submitRequest,
+  getMyRequests,
+  getAllRequests,
+  approveRequest: approveLeaveRequest,
+  rejectRequest: rejectLeaveRequest,
+  adminCreateLeave
+} = require('../controllers/leavePermission.controller');
+
+router.post('/leave-permission', auth, submitRequest);
+router.get('/leave-permission/my', auth, getMyRequests);
+router.get('/leave-permission/all', auth, getAllRequests); // Admin only conceptually
+router.put('/leave-permission/:id/approve', auth, approveLeaveRequest);
+router.put('/leave-permission/:id/reject', auth, rejectLeaveRequest);
+router.post('/leave-permission/admin', auth, adminCreateLeave);
+
 router.post('/break/start', auth, startBreak);
 router.post('/break/end', auth, endBreak);
 router.post('/correction', auth, requestCorrection);

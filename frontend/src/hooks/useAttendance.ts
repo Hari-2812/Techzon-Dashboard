@@ -39,6 +39,7 @@ export const useAttendance = () => {
         queryClient.invalidateQueries({ queryKey: ['attendanceToday'] });
         queryClient.invalidateQueries({ queryKey: ['attendanceMonthly'] });
         queryClient.invalidateQueries({ queryKey: ['myPendingRequests'] });
+        queryClient.invalidateQueries({ queryKey: ['myLeaveRequests'] });
       }
     };
 
@@ -52,6 +53,7 @@ export const useAttendance = () => {
     socket.on('attendance:clock-out-rejected', handleSocketEvent);
     socket.on('attendance:admin-force-clock-out', handleSocketEvent);
     socket.on('attendance:admin-edit-clock-out', handleSocketEvent);
+    socket.on('leaveRequest:updated', handleSocketEvent);
 
     return () => {
       socket.off('employee:clocked-in', handleSocketEvent);
@@ -64,6 +66,7 @@ export const useAttendance = () => {
       socket.off('attendance:clock-out-rejected', handleSocketEvent);
       socket.off('attendance:admin-force-clock-out', handleSocketEvent);
       socket.off('attendance:admin-edit-clock-out', handleSocketEvent);
+      socket.off('leaveRequest:updated', handleSocketEvent);
     };
   }, [user, isAdmin, queryClient]);
 
@@ -146,6 +149,26 @@ export const useAttendance = () => {
   const isWorking = session?.status === 'WORKING';
   const isTestSession = session?.isTestSession;
 
+  // 3.5 Leave & Permission Mutations & Queries
+  const { data: myLeaveRequests, refetch: refetchLeaveRequests } = useQuery({
+    queryKey: ['myLeaveRequests'],
+    queryFn: async () => {
+      const res = await api.get('/attendance/leave-permission/my');
+      return res.data.requests;
+    },
+    enabled: !!user && !isAdmin,
+  });
+
+  const submitLeaveRequest = useMutation({
+    mutationFn: async (payload: any) => {
+      const res = await api.post('/attendance/leave-permission', payload);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['myLeaveRequests'] });
+    },
+  });
+
   // Calculate live working timer logic wrapper
   const getLiveTimer = (currentTimeMs: number) => {
     if (!session || !session.clockInAt) return '00h 00m 00s';
@@ -202,6 +225,8 @@ export const useAttendance = () => {
     clockOut,
     startBreak,
     endBreak,
-    testReset
+    testReset,
+    myLeaveRequests,
+    submitLeaveRequest
   };
 };

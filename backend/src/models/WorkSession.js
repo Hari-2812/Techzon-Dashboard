@@ -8,7 +8,7 @@ const WorkSessionSchema = new mongoose.Schema({
     clockOutAt: { type: Date },
     status: {
         type: String,
-        enum: ['RUNNING', 'ON_BREAK', 'COMPLETED', 'MISSING_CLOCK_OUT', 'REQUIRES_REVIEW', 'ACTIVE', 'WORKING', 'PENDING_CHECK_IN_APPROVAL', 'PENDING_BREAK_APPROVAL', 'PENDING_CHECK_OUT_APPROVAL', 'REJECTED'],
+        enum: ['RUNNING', 'ON_BREAK', 'COMPLETED', 'MISSING_CLOCK_OUT', 'REQUIRES_REVIEW', 'ACTIVE', 'WORKING', 'PENDING_CHECK_IN_APPROVAL', 'PENDING_BREAK_APPROVAL', 'PENDING_CHECK_OUT_APPROVAL', 'REJECTED', 'LEAVE'],
         default: 'RUNNING',
         index: true
     },

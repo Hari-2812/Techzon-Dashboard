@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { useAuthStore } from '../store/authStore';
-import { Calendar, Clock, Coffee, LogOut, CheckCircle2 } from 'lucide-react';
+import { Calendar, Clock, Coffee, LogOut, CheckCircle2, FileText, Plus } from 'lucide-react';
 import moment from 'moment-timezone';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent } from '../components/ui/Card';
 import { Modal } from '../components/ui/Modal';
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell, TableContainer } from '../components/ui/Table';
 import { useAttendance } from '../hooks/useAttendance';
 
 const Attendance = () => {
@@ -16,6 +17,36 @@ const Attendance = () => {
   const [isBreakModalOpen, setIsBreakModalOpen] = useState(false);
   const [breakReason, setBreakReason] = useState('Lunch');
   const [breakComment, setBreakComment] = useState('');
+
+  const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
+  const [leaveType, setLeaveType] = useState('LEAVE');
+  const [leaveDate, setLeaveDate] = useState(moment().format('YYYY-MM-DD'));
+  const [leaveStartTime, setLeaveStartTime] = useState('');
+  const [leaveEndTime, setLeaveEndTime] = useState('');
+  const [leaveReason, setLeaveReason] = useState('');
+
+  const handleSubmitLeave = async () => {
+    try {
+      if (!leaveDate || !leaveReason) return alert('Date and Reason are required.');
+      if (leaveType === 'PERMISSION' && (!leaveStartTime || !leaveEndTime)) return alert('Start and End time are required for permissions.');
+      if (leaveType === 'PERMISSION' && leaveStartTime >= leaveEndTime) return alert('End time must be after start time.');
+      
+      await attendance.submitLeaveRequest.mutateAsync({
+        requestType: leaveType,
+        date: leaveDate,
+        startTime: leaveType === 'PERMISSION' ? leaveStartTime : undefined,
+        endTime: leaveType === 'PERMISSION' ? leaveEndTime : undefined,
+        reason: leaveReason
+      });
+      setIsLeaveModalOpen(false);
+      setLeaveReason('');
+      setLeaveStartTime('');
+      setLeaveEndTime('');
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to submit request');
+    }
+  };
+
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -61,7 +92,7 @@ const Attendance = () => {
 
   if (attendance.isLoading && !attendance.data) return <div className="p-8 text-[var(--color-text-muted)]">Loading attendance profile...</div>;
 
-  const { isClockedIn, isOnBreak, isCompleted, activeBreak, getLiveTimer, session, isPendingClockIn, isPendingClockOut, isPendingBreak } = attendance;
+  const { isClockedIn, isOnBreak, isCompleted, activeBreak, getLiveTimer, session, isPendingClockIn, isPendingClockOut, isPendingBreak, myLeaveRequests } = attendance;
   const timerStr = getLiveTimer(currentDateTime.valueOf());
 
   const renderContent = () => {
@@ -170,9 +201,14 @@ const Attendance = () => {
       <div className="flex flex-col items-center justify-center p-12 text-center">
         <h2 className="text-2xl font-bold text-gray-800 mb-2">Ready to start your day?</h2>
         <p className="text-gray-500 mb-8">Click below to send a check-in request to your admin.</p>
-        <Button size="lg" className="w-full max-w-sm h-14 text-lg" onClick={handleClockIn}>
-          CHECK IN
-        </Button>
+        <div className="flex flex-col gap-4 w-full max-w-sm mx-auto">
+          <Button size="lg" className="w-full h-14 text-lg" onClick={handleClockIn}>
+            CHECK IN
+          </Button>
+          <Button size="lg" variant="outline" className="w-full h-12" onClick={() => setIsLeaveModalOpen(true)}>
+            REQUEST LEAVE / PERMISSION
+          </Button>
+        </div>
       </div>
     );
   };
@@ -190,11 +226,61 @@ const Attendance = () => {
             {currentDateTime.format('dddd, MMMM D, YYYY')}
           </p>
         </div>
+        <Button variant="outline" className="gap-2" onClick={() => setIsLeaveModalOpen(true)}>
+          <Plus size={18} /> Request Leave / Permission
+        </Button>
       </div>
 
       <Card className="shadow-lg border-0 overflow-hidden bg-white/50 backdrop-blur-xl">
         <CardContent className="p-0">
            {renderContent()}
+        </CardContent>
+      </Card>
+
+      {/* My Requests Section */}
+      <Card className="shadow-sm border-0 overflow-hidden bg-white mt-8">
+        <CardContent className="p-6">
+          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><FileText size={20}/> My Leave & Permission Requests</h2>
+          <TableContainer>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Time</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Admin Remarks</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {myLeaveRequests?.length ? (
+                  myLeaveRequests.map((req: any) => (
+                    <TableRow key={req._id}>
+                      <TableCell className="font-medium">{req.requestType}</TableCell>
+                      <TableCell>{new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium' }).format(new Date(req.date))}</TableCell>
+                      <TableCell>{req.requestType === 'PERMISSION' ? `${req.startTime} - ${req.endTime}` : '--'}</TableCell>
+                      <TableCell>{req.reason}</TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          req.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
+                          req.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
+                          'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {req.status}
+                        </span>
+                      </TableCell>
+                      <TableCell>{req.adminRemarks || '--'}</TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-6 text-gray-500">No requests found</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
         </CardContent>
       </Card>
 

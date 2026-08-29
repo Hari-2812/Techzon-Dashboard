@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from 'recharts';
 import { io, Socket } from 'socket.io-client';
-import { Users, Clock, AlertCircle, CalendarX2, Search, Filter, X, Calendar, ChevronRight, Play, Square, Coffee } from 'lucide-react';
+import { Users, Clock, AlertCircle, CalendarX2, Search, Filter, X, Calendar, ChevronRight, Play, Square, Coffee, Plus } from 'lucide-react';
 import moment from 'moment-timezone';
+import { useEmployees } from '../hooks/useEmployees';
 import { Card, CardContent } from '../components/ui/Card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell, TableContainer } from '../components/ui/Table';
 import { Badge } from '../components/ui/Badge';
@@ -64,19 +65,115 @@ const AttendanceManagement = () => {
   const [editBreakDuration, setEditBreakDuration] = useState('');
   const [editAttendanceReason, setEditAttendanceReason] = useState('');
 
+  const [activeTab, setActiveTab] = useState<'LOGS' | 'LEAVE_PERMISSION'>('LOGS');
+  const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
+  const [selectedLeaveRequest, setSelectedLeaveRequest] = useState<any>(null);
+  const [leaveRequestAction, setLeaveRequestAction] = useState<'APPROVE'|'REJECT'|null>(null);
+  const [leaveRejectReason, setLeaveRejectReason] = useState('');
+
+  const { allEmployees } = useEmployees();
+  const [adminCreateLeaveModalOpen, setAdminCreateLeaveModalOpen] = useState(false);
+  const [adminLeaveEmployeeId, setAdminLeaveEmployeeId] = useState('');
+  const [adminLeaveType, setAdminLeaveType] = useState('LEAVE');
+  const [adminLeaveDate, setAdminLeaveDate] = useState(moment().format('YYYY-MM-DD'));
+  const [adminLeaveStartTime, setAdminLeaveStartTime] = useState('');
+  const [adminLeaveEndTime, setAdminLeaveEndTime] = useState('');
+  const [adminLeaveReason, setAdminLeaveReason] = useState('');
+
+  const handleAdminCreateLeave = async () => {
+    try {
+      if (!adminLeaveEmployeeId || !adminLeaveDate || !adminLeaveReason) {
+         return alert('Employee, Date, and Reason are required.');
+      }
+      if (adminLeaveType === 'PERMISSION' && (!adminLeaveStartTime || !adminLeaveEndTime)) {
+         return alert('Start Time and End Time are required for permissions.');
+      }
+      
+      const token = localStorage.getItem('token') || '';
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+      
+      const payload = {
+         employeeId: adminLeaveEmployeeId,
+         requestType: adminLeaveType,
+         date: adminLeaveDate,
+         startTime: adminLeaveType === 'PERMISSION' ? adminLeaveStartTime : undefined,
+         endTime: adminLeaveType === 'PERMISSION' ? adminLeaveEndTime : undefined,
+         reason: adminLeaveReason
+      };
+
+      const res = await fetch(`${apiUrl}/attendance/leave-permission/admin`, {
+         method: 'POST',
+         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+         body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+         setAdminCreateLeaveModalOpen(false);
+         setAdminLeaveEmployeeId('');
+         setAdminLeaveReason('');
+         setAdminLeaveStartTime('');
+         setAdminLeaveEndTime('');
+         fetchAdminAttendance();
+      } else {
+         alert(data.message || 'Error processing request');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to create leave.');
+    }
+  };
+
+
+  const handleLeaveAction = async () => {
+    try {
+      const token = localStorage.getItem('token') || '';
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+      const endpoint = leaveRequestAction === 'APPROVE' ? 'approve' : 'reject';
+      
+      if (leaveRequestAction === 'REJECT' && !leaveRejectReason) {
+         return alert('Rejection reason is required.');
+      }
+
+      const res = await fetch(`${apiUrl}/attendance/leave-permission/${selectedLeaveRequest._id}/${endpoint}`, {
+         method: 'PUT',
+         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+         body: JSON.stringify({ reason: leaveRejectReason })
+      });
+      const data = await res.json();
+      if (data.success) {
+         setSelectedLeaveRequest(null);
+         setLeaveRequestAction(null);
+         setLeaveRejectReason('');
+         fetchAdminAttendance();
+      } else {
+         alert(data.message || 'Error processing request');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to process leave request.');
+    }
+  };
+
+
   const fetchAdminAttendance = async () => {
     try {
       const token = localStorage.getItem('token') || '';
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-      const [res, reqRes] = await Promise.all([
+      
+      const [res, reqRes, leaveRes] = await Promise.all([
          fetch(`${apiUrl}/attendance-management/today`, { headers: { 'Authorization': `Bearer ${token}` } }),
-         fetch(`${apiUrl}/attendance/requests/pending`, { headers: { 'Authorization': `Bearer ${token}` } })
+         fetch(`${apiUrl}/attendance/requests/pending`, { headers: { 'Authorization': `Bearer ${token}` } }),
+         fetch(`${apiUrl}/attendance/leave-permission/all`, { headers: { 'Authorization': `Bearer ${token}` } })
       ]);
       const result = await res.json();
       const reqResult = await reqRes.json();
+      const leaveResult = await leaveRes.json();
 
       if (result.success) setData(result.data);
       if (reqResult.success) setPendingRequests(reqResult.data);
+      if (leaveResult.success) setLeaveRequests(leaveResult.requests);
+
     } catch (err) {
       console.error(err);
     } finally {
@@ -101,6 +198,7 @@ const AttendanceManagement = () => {
     socket.on('attendance:clock-out-request', fetchAdminAttendance);
     socket.on('attendance:admin-force-clock-out', fetchAdminAttendance);
     socket.on('attendance:admin-edit-clock-out', fetchAdminAttendance);
+    socket.on('leaveRequest:updated', fetchAdminAttendance);
 
     return () => {
       socket.disconnect();
