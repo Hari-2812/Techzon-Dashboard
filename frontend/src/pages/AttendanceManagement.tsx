@@ -277,6 +277,7 @@ const AttendanceManagement = () => {
     socket.on('attendance:clock-out-request', fetchAdminAttendance);
     socket.on('attendance:admin-force-clock-out', fetchAdminAttendance);
     socket.on('attendance:admin-edit-clock-out', fetchAdminAttendance);
+    socket.on('attendance:admin-edit-attendance', fetchAdminAttendance);
     socket.on('leaveRequest:updated', fetchAdminAttendance);
 
     socket.on('employee:clocked-in', () => { fetchAdminAttendance(); fetchNotLoggedIn(); });

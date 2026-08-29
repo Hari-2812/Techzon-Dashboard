@@ -16,7 +16,7 @@ exports.createHoliday = async (req, res) => {
   try {
     const { name, date, description, type, isActive } = req.body;
     const holiday = await Holiday.create({
-      name, date, description, type, isActive, createdBy: req.user._id
+      name, date, description, type, isActive, createdBy: req.user.id
     });
     res.status(201).json({ success: true, data: holiday });
   } catch (error) {

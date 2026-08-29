@@ -25,7 +25,7 @@ exports.submitRequest = async (req, res) => {
 
         // Check for duplicate pending or approved requests for the same date/type
         const existingRequest = await LeavePermissionRequest.findOne({
-            employeeId: req.user._id,
+            employeeId: req.user.id,
             date,
             status: { $in: ['PENDING', 'APPROVED'] }
         });
@@ -37,7 +37,7 @@ exports.submitRequest = async (req, res) => {
         }
 
         const newReq = new LeavePermissionRequest({
-            employeeId: req.user._id,
+            employeeId: req.user.id,
             requestType,
             date,
             startTime,
@@ -49,6 +49,11 @@ exports.submitRequest = async (req, res) => {
 
         await newReq.save();
 
+        const io = req.app.get('io') || require('../server').io;
+        if (io) {
+            io.emit('leaveRequest:updated', { requestId: newReq._id });
+        }
+
         res.status(201).json({ success: true, request: newReq });
     } catch (err) {
         console.error('Submit Leave/Permission error:', err);
@@ -58,7 +63,7 @@ exports.submitRequest = async (req, res) => {
 
 exports.getMyRequests = async (req, res) => {
     try {
-        const requests = await LeavePermissionRequest.find({ employeeId: req.user._id }).sort({ createdAt: -1 });
+        const requests = await LeavePermissionRequest.find({ employeeId: req.user.id }).sort({ createdAt: -1 });
         res.json({ success: true, requests });
     } catch (err) {
         console.error('Get My Requests error:', err);
@@ -90,7 +95,7 @@ exports.approveRequest = async (req, res) => {
         if (!leaveReq) return res.status(404).json({ success: false, message: 'Request not found' });
         
         leaveReq.status = 'APPROVED';
-        leaveReq.approvedBy = req.user._id;
+        leaveReq.approvedBy = req.user.id;
         leaveReq.approvedAt = new Date();
         await leaveReq.save();
 
@@ -179,7 +184,7 @@ exports.rejectRequest = async (req, res) => {
         
         leaveReq.status = 'REJECTED';
         leaveReq.adminRemarks = reason;
-        leaveReq.rejectedBy = req.user._id;
+        leaveReq.rejectedBy = req.user.id;
         leaveReq.rejectedAt = new Date();
         await leaveReq.save();
 
@@ -256,7 +261,7 @@ exports.adminCreateLeave = async (req, res) => {
             reason,
             status: 'APPROVED',
             adminRemarks: 'Created by Admin',
-            approvedBy: req.user._id,
+            approvedBy: req.user.id,
             approvedAt: new Date()
         });
 

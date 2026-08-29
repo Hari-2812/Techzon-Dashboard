@@ -1,5 +1,6 @@
 const LeavePermissionRequest = require('../models/LeavePermissionRequest');
 const User = require('../models/User');
+const AuditLog = require('../models/AuditLog');
 const moment = require('moment-timezone');
 const WorkSession = require('../models/WorkSession');
 const AttendanceDaily = require('../models/AttendanceDaily');
@@ -132,8 +133,6 @@ exports.getEmployeeAttendanceDetail = async (req, res) => {
   }
 };
 
-const AuditLog = require('../models/AuditLog');
-const moment = require('moment-timezone');
 
 exports.manualCorrection = async (req, res) => {
     try {
@@ -197,7 +196,7 @@ exports.manualCorrection = async (req, res) => {
 
         // Save AuditLog
         const logEntry = new AuditLog({
-            actorId: req.user._id,
+            actorId: req.user.id,
             action: 'ADMIN_MANUAL_ATTENDANCE_CORRECTION',
             entityType: 'Attendance',
             entityId: daily._id,

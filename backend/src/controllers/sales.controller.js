@@ -5,7 +5,7 @@ const LeadActivity = require('../models/LeadActivity');
 const User = require('../models/User');
 
 const buildAccessQuery = (req) => {
-    return req.user.role === 'ADMIN' ? {} : { assignedEmployeeId: req.user._id };
+    return req.user.role === 'ADMIN' ? {} : { assignedEmployeeId: req.user.id };
 };
 
 exports.getDashboard = async (req, res) => {
@@ -219,7 +219,7 @@ exports.addResponse = async (req, res) => {
 
         await LeadActivity.create({
             leadId: lead._id,
-            employeeId: req.user._id,
+            employeeId: req.user.id,
             activityType: 'Sales Response',
             description: 'Added student response',
             metadata: { studentResponse, remarks }
@@ -255,7 +255,7 @@ exports.logCall = async (req, res) => {
 
         await LeadActivity.create({
             leadId: lead._id,
-            employeeId: req.user._id,
+            employeeId: req.user.id,
             activityType: 'Sales Call',
             description: `Logged call: ${callResult}`,
             metadata: { callResult, remarks }
@@ -281,7 +281,7 @@ exports.convertSale = async (req, res) => {
 
         const sale = await Sale.create({
             leadId: lead._id,
-            employeeId: req.user._id,
+            employeeId: req.user.id,
             course: course || lead.course,
             amount,
             paymentStatus,
@@ -291,7 +291,7 @@ exports.convertSale = async (req, res) => {
 
         await LeadActivity.create({
             leadId: lead._id,
-            employeeId: req.user._id,
+            employeeId: req.user.id,
             activityType: 'Sales Conversion',
             description: `Converted sale for ${course}`,
             metadata: { saleId: sale._id }

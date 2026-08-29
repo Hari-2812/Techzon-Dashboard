@@ -10,7 +10,7 @@ exports.submitResponse = async (req, res) => {
     const holiday = await Holiday.findById(holidayId);
     if (!holiday) return res.status(404).json({ success: false, message: 'Holiday not found' });
 
-    const existingResponse = await HolidayResponse.findOne({ employeeId: req.user._id, holidayId });
+    const existingResponse = await HolidayResponse.findOne({ employeeId: req.user.id, holidayId });
     if (existingResponse) {
       return res.status(400).json({ success: false, message: 'You have already responded for this holiday.' });
     }
@@ -18,7 +18,7 @@ exports.submitResponse = async (req, res) => {
     const status = response === 'WILL_WORK' ? 'CONFIRMED' : 'PENDING';
 
     const holidayResponse = await HolidayResponse.create({
-      employeeId: req.user._id,
+      employeeId: req.user.id,
       holidayId,
       holidayDate: holiday.date,
       response,
@@ -41,7 +41,7 @@ exports.submitResponse = async (req, res) => {
 // Get my responses (Employee)
 exports.getMyResponses = async (req, res) => {
   try {
-    const responses = await HolidayResponse.find({ employeeId: req.user._id }).populate('holidayId');
+    const responses = await HolidayResponse.find({ employeeId: req.user.id }).populate('holidayId');
     res.json({ success: true, data: responses });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -73,7 +73,7 @@ exports.reviewResponse = async (req, res) => {
     if (!response) return res.status(404).json({ success: false, message: 'Response not found' });
 
     response.status = status;
-    response.reviewedBy = req.user._id;
+    response.reviewedBy = req.user.id;
     response.reviewedAt = new Date();
     await response.save();
 
