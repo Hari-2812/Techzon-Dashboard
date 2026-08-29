@@ -11,10 +11,12 @@ exports.getTodayAdminAttendance = async (req, res) => {
   try {
     const settings = await AttendanceSettings.findOne() || new AttendanceSettings();
     const dateStr = getTodayDateString(settings.timezone);
+    const isTestMode = (process.env.NODE_ENV === 'development' || req.headers.host?.includes('localhost'));
+    const queryCondition = { date: dateStr, ...(isTestMode ? {} : { isTestSession: false }) };
     
     // Get all sessions and daily records for today
-    const sessions = await WorkSession.find({ date: dateStr }).populate('employeeId', 'name email role');
-    const existingDailies = await AttendanceDaily.find({ date: dateStr }).populate('employeeId', 'name email role');
+    const sessions = await WorkSession.find(queryCondition).populate('employeeId', 'name email role');
+    const existingDailies = await AttendanceDaily.find(queryCondition).populate('employeeId', 'name email role');
     
     // Get all active employees (excluding ADMINs)
     const employees = await User.find({ isActive: true, role: { $ne: 'ADMIN' } }).select('_id name email role employeeId department');
@@ -85,18 +87,21 @@ exports.getTodayAdminAttendance = async (req, res) => {
     };
 
     dailies.forEach(d => {
-      if (['PRESENT', 'LATE', 'HALF_DAY', 'WORKING', 'ON_BREAK', 'COMPLETED', 'EARLY_LEAVE', 'OVERTIME'].includes(d.status)) summary.present++;
+      if (['PRESENT', 'LATE', 'HALF_DAY', 'WORKING', 'ON_BREAK', 'COMPLETED', 'EARLY_LEAVE', 'OVERTIME', 'PENDING_BREAK_APPROVAL', 'PENDING_CHECK_OUT_APPROVAL'].includes(d.status)) summary.present++;
+      
+      if (d.status === 'WORKING' || d.status === 'PENDING_BREAK_APPROVAL' || d.status === 'PENDING_CHECK_OUT_APPROVAL') summary.currentlyWorking++;
+      if (d.status === 'ON_BREAK') summary.onBreak++;
       if (d.status === 'LATE') summary.late++;
       if (d.status === 'HALF_DAY') summary.halfDay++;
       if (d.status === 'ABSENT') summary.absent++;
       if (d.status === 'PAID_LEAVE' || d.status === 'Leave Approved') summary.onLeave++;
-      if (d.isSynthesized && (d.status === 'No Prior Information' || d.status === 'Not Clocked In')) summary.notClockedIn++;
-    });
-
-    sessions.forEach(s => {
-      if (s.status === 'RUNNING' || s.status === 'ACTIVE') summary.currentlyWorking++;
-      if (s.status === 'ON_BREAK' || s.status === 'PENDING_BREAK_APPROVAL') summary.onBreak++;
-      if (s.status === 'MISSING_CLOCK_OUT') summary.missingClockOut++;
+      if (d.status === 'MISSING_CLOCK_OUT') summary.missingClockOut++;
+      
+      if (d.isSynthesized && (d.status === 'No Prior Information' || d.status === 'Not Clocked In')) {
+          summary.notClockedIn++;
+      } else if (!d.isSynthesized && ['PENDING', 'PENDING_CHECK_IN_APPROVAL', 'REJECTED'].includes(d.status)) {
+          summary.notClockedIn++;
+      }
     });
 
     res.json({ success: true, data: { summary, sessions, dailies, date: dateStr } });

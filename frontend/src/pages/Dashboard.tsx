@@ -61,18 +61,14 @@ const Dashboard = () => {
     
     // Attendance Socket Events
     if (isAdmin) {
-        socket.on('employee:clocked-in', handleAttendanceUpdate);
-        socket.on('employee:clocked-out', handleAttendanceUpdate);
-        socket.on('employee:on-break', handleAttendanceUpdate);
-        socket.on('employee:resumed', handleAttendanceUpdate);
-        socket.on('attendance:clock-in-request', handleAttendanceUpdate);
         socket.on('attendance:clock-in-approved', handleAttendanceUpdate);
-        socket.on('attendance:clock-out-request', handleAttendanceUpdate);
         socket.on('attendance:clock-out-approved', handleAttendanceUpdate);
         socket.on('attendance:break-approved', handleAttendanceUpdate);
+        socket.on('employee:break-ended', handleAttendanceUpdate);
         socket.on('attendance:admin-force-clock-out', handleAttendanceUpdate);
         socket.on('attendance:admin-edit-clock-out', handleAttendanceUpdate);
         socket.on('attendance:admin-edit-attendance', handleAttendanceUpdate);
+        socket.on('attendance:request-rejected', handleAttendanceUpdate);
         socket.on('leaveRequest:updated', handleAttendanceUpdate);
     }
 
