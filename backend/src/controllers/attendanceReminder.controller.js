@@ -184,3 +184,94 @@ exports.sendRemindersBulk = async (req, res) => {
         res.status(500).json({ success: false, message: 'Internal server error while sending reminders.' });
     }
 };
+
+exports.getRemindersToday = async (req, res) => {
+    try {
+        if (!req.user || req.user.role !== 'ADMIN') {
+            return res.status(403).json({ success: false, message: 'Unauthorized' });
+        }
+
+        const todayStr = moment().tz('Asia/Kolkata').format('YYYY-MM-DD');
+        
+        // Load all active employees (excluding ADMIN)
+        const employees = await User.find({ status: 'ACTIVE', role: { $ne: 'ADMIN' } }).select('_id name email employeeId department');
+        
+        // Load today's reminder logs
+        const AttendanceReminderLog = require('../models/AttendanceReminderLog');
+        const logs = await AttendanceReminderLog.find({ date: todayStr });
+        
+        // Load today's actual attendance (for "Current Status")
+        const todaySessions = await WorkSession.find({ date: todayStr, isTestSession: false }).select('employeeId status clockInAt');
+        const todayDailies = await AttendanceDaily.find({ date: todayStr, isTestSession: false }).select('employeeId status');
+        
+        let summary = {
+            totalNotClockedIn: 0,
+            sent: 0,
+            failed: 0,
+            pending: 0,
+            notRequired: 0
+        };
+
+        const resultEmployees = [];
+
+        for (const emp of employees) {
+            const empIdStr = emp._id.toString();
+            
+            // Determine Current Attendance Status (just for display context)
+            const session = todaySessions.find(s => s.employeeId.toString() === empIdStr);
+            const daily = todayDailies.find(d => d.employeeId.toString() === empIdStr);
+            let currentStatus = 'Not Clocked In';
+            
+            if (session) {
+                currentStatus = session.status === 'ACTIVE' ? 'Working' : 'On Break';
+                if (daily && daily.status === 'COMPLETED') currentStatus = 'Completed';
+            } else if (daily && daily.status !== 'PENDING') {
+                currentStatus = daily.status; // e.g. LEAVE, HOLIDAY, ABSENT
+            }
+
+            // Find reminder log
+            const log = logs.find(l => l.employeeId.toString() === empIdStr);
+            
+            let reminderStatus = 'PENDING';
+            if (log) {
+                reminderStatus = log.status;
+            } else {
+                // If there's no log and they are clocked in or on leave, it's virtually NOT_REQUIRED
+                if (currentStatus !== 'Not Clocked In' && currentStatus !== 'ABSENT') {
+                    reminderStatus = 'NOT_REQUIRED';
+                }
+            }
+
+            if (currentStatus === 'Not Clocked In') {
+                summary.totalNotClockedIn++;
+            }
+
+            if (reminderStatus === 'SENT') summary.sent++;
+            else if (reminderStatus === 'FAILED') summary.failed++;
+            else if (reminderStatus === 'PENDING') summary.pending++;
+            else if (reminderStatus === 'NOT_REQUIRED') summary.notRequired++;
+
+            resultEmployees.push({
+                employeeId: emp._id,
+                employeeDisplayId: emp.employeeId,
+                employeeName: emp.name,
+                email: emp.email,
+                currentStatus,
+                status: reminderStatus,
+                sentAt: log?.sentAt || null,
+                failureReason: log?.failureReason || null
+            });
+        }
+
+        res.json({
+            success: true,
+            data: {
+                summary,
+                employees: resultEmployees
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching reminders today:', error);
+        res.status(500).json({ success: false, message: 'Internal server error while fetching reminders.' });
+    }
+};

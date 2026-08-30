@@ -34,6 +34,17 @@ const Dashboard = () => {
       refetchInterval: 30000 // Refresh every 30s
   });
 
+  // Admin Attendance Reminders
+  const { data: attendanceReminders } = useQuery({
+      queryKey: ['adminAttendanceRemindersDashboard'],
+      queryFn: async () => {
+          const res = await api.get('/attendance/reminders/today');
+          return res.data.data;
+      },
+      enabled: isAdmin,
+      refetchInterval: 60000 // Refresh every 60s
+  });
+
 
   
   // Daily Updates
@@ -58,11 +69,14 @@ const Dashboard = () => {
         // Explicitly invalidate and forcefully refetch the precise query key
         queryClient.invalidateQueries({ queryKey: ['adminAttendanceTodayDashboard'] });
         queryClient.refetchQueries({ queryKey: ['adminAttendanceTodayDashboard'] });
+        queryClient.invalidateQueries({ queryKey: ['adminAttendanceRemindersDashboard'] });
+        queryClient.refetchQueries({ queryKey: ['adminAttendanceRemindersDashboard'] });
     };
 
     socket.on('leads:synced', handleLeadsSynced);
     
     const attendanceEvents = [
+        'attendance:reminder-status-updated',
         'attendance:clock-in-request',
         'attendance:clock-out-request',
         'attendance:break-request',
@@ -196,6 +210,112 @@ const Dashboard = () => {
             >
               View Full Attendance List <span aria-hidden="true">&rarr;</span>
             </button>
+          </div>
+        </Card>
+      )}
+
+      {/* ADMIN ONLY: ATTENDANCE REMINDERS WIDGET */}
+      {isAdmin && attendanceReminders && (
+        <Card className="p-0 overflow-hidden border border-gray-200 shadow-sm">
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-white">
+            <h2 className="text-lg font-bold text-gray-900 flex items-center">
+              <ClipboardList className="mr-2 text-[var(--color-primary)]" size={20} /> ATTENDANCE REMINDERS
+            </h2>
+          </div>
+          <div className="p-6 bg-gray-50/50">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+              
+              <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm flex flex-col justify-between hover:border-gray-300 transition-colors">
+                 <div className="flex justify-between items-center mb-2">
+                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Not Clocked In</p>
+                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                       <Users size={16} className="text-gray-600" />
+                    </div>
+                 </div>
+                 <p className="text-3xl font-black text-gray-900">{attendanceReminders.summary.totalNotClockedIn}</p>
+              </div>
+
+              <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm flex flex-col justify-between hover:border-green-300 transition-colors">
+                 <div className="flex justify-between items-center mb-2">
+                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Reminder Sent</p>
+                    <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                       <UserCheck size={16} className="text-green-600" />
+                    </div>
+                 </div>
+                 <p className="text-3xl font-black text-gray-900">{attendanceReminders.summary.sent}</p>
+              </div>
+
+              <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm flex flex-col justify-between hover:border-red-300 transition-colors">
+                 <div className="flex justify-between items-center mb-2">
+                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Failed</p>
+                    <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+                       <AlertCircle size={16} className="text-red-600" />
+                    </div>
+                 </div>
+                 <p className="text-3xl font-black text-gray-900">{attendanceReminders.summary.failed}</p>
+              </div>
+
+              <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm flex flex-col justify-between hover:border-orange-300 transition-colors">
+                 <div className="flex justify-between items-center mb-2">
+                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Pending</p>
+                    <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
+                       <Clock size={16} className="text-orange-600" />
+                    </div>
+                 </div>
+                 <p className="text-3xl font-black text-gray-900">{attendanceReminders.summary.pending}</p>
+              </div>
+
+            </div>
+
+            {attendanceReminders.employees && attendanceReminders.employees.length > 0 && (
+               <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                 <div className="overflow-x-auto">
+                   <table className="min-w-full divide-y divide-gray-200">
+                     <thead className="bg-gray-50">
+                       <tr>
+                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
+                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reminder</th>
+                       </tr>
+                     </thead>
+                     <tbody className="bg-white divide-y divide-gray-200">
+                       {attendanceReminders.employees.map((emp: any) => (
+                         <tr key={emp.employeeId} className="hover:bg-gray-50">
+                           <td className="px-6 py-4 whitespace-nowrap">
+                             <div className="flex flex-col">
+                               <span className="text-sm font-medium text-gray-900">{emp.employeeName}</span>
+                               <span className="text-xs text-gray-500">{emp.employeeDisplayId}</span>
+                             </div>
+                           </td>
+                           <td className="px-6 py-4 whitespace-nowrap">
+                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                               ${emp.currentStatus === 'Not Clocked In' || emp.currentStatus === 'ABSENT' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}
+                             `}>
+                               {emp.currentStatus}
+                             </span>
+                           </td>
+                           <td className="px-6 py-4">
+                             <div className="flex flex-col">
+                               <div className="flex items-center">
+                                 {emp.status === 'SENT' && <span className="inline-flex items-center text-sm text-green-600 font-medium"><UserCheck size={16} className="mr-1"/> ✓ Sent</span>}
+                                 {emp.status === 'FAILED' && <span className="inline-flex items-center text-sm text-red-600 font-medium"><AlertCircle size={16} className="mr-1"/> ✕ Failed</span>}
+                                 {emp.status === 'PENDING' && <span className="inline-flex items-center text-sm text-orange-600 font-medium"><Clock size={16} className="mr-1"/> ○ Pending</span>}
+                                 {emp.status === 'NOT_REQUIRED' && <span className="inline-flex items-center text-sm text-gray-500 font-medium">— Not Required</span>}
+                               </div>
+                               {emp.status === 'FAILED' && emp.failureReason && (
+                                 <span className="text-xs text-red-500 mt-1 truncate max-w-xs block" title={emp.failureReason}>
+                                   "{emp.failureReason}"
+                                 </span>
+                               )}
+                             </div>
+                           </td>
+                         </tr>
+                       ))}
+                     </tbody>
+                   </table>
+                 </div>
+               </div>
+            )}
           </div>
         </Card>
       )}

@@ -5,8 +5,10 @@ const AttendanceDaily = require('../models/AttendanceDaily');
 const WorkSession = require('../models/WorkSession');
 const LeavePermissionRequest = require('../models/LeavePermissionRequest');
 const AuditLog = require('../models/AuditLog');
+const AttendanceReminderLog = require('../models/AttendanceReminderLog');
 const AttendanceSettings = require('../models/AttendanceSettings');
 const { sendAttendanceReminderEmail } = require('../services/email.service');
+let globalIo = null;
 
 const runReminderJob = async () => {
     console.log(`\n[CRON] Attendance reminder job started`);
@@ -53,13 +55,6 @@ const runReminderJob = async () => {
             status: { $in: ['PENDING', 'APPROVED'] }
         });
 
-        // 5. Get today's sent reminder audit logs to prevent duplicates
-        const todayLogs = await AuditLog.find({
-            action: 'SEND_ATTENDANCE_REMINDER',
-            'metadata.date': todayStr
-        }).select('entityId');
-        const alreadyRemindedEmployeeIds = todayLogs.map(log => log.entityId.toString());
-
         let sentCount = 0;
         let failCount = 0;
         let auditFailCount = 0;
@@ -75,62 +70,97 @@ const runReminderJob = async () => {
                 skippedCount++;
                 continue;
             }
-            if (alreadyRemindedEmployeeIds.includes(empIdStr)) {
+
+            // Check if already sent today
+            const existingLog = await AttendanceReminderLog.findOne({ employeeId: emp._id, date: todayStr });
+            if (existingLog && existingLog.status === 'SENT') {
                 skippedCount++;
                 continue; // Prevent duplicates
             }
+
+            let isNotRequired = false;
+
             if (clockedInEmployeeIds.includes(empIdStr)) {
                 clockedInCount++;
-                skippedCount++;
-                continue; // Already clocked in
-            }
-
-            // Check their AttendanceDaily record
-            const daily = todayDailies.find(d => d.employeeId.toString() === empIdStr);
-            if (daily && ['LEAVE', 'PAID_LEAVE', 'HOLIDAY', 'WEEK_OFF'].includes(daily.status)) {
-                leavePermissionCount++;
-                skippedCount++;
-                continue; // Skip if on full-day leave, holiday, or week off (ABSENT/LATE are NOT skipped if not clocked in)
-            }
-
-            // Check their Leave/Permission requests for today
-            const requests = todayRequests.filter(r => r.employeeId.toString() === empIdStr);
-            let hasExcludingRequest = false;
-            
-            for (const r of requests) {
-                if (r.requestType === 'LEAVE') {
-                    hasExcludingRequest = true; // Full day leave excludes them
-                    break;
-                }
-                
-                if (r.requestType === 'LATE' && r.clockInTime) {
-                    const expectedLateTime = moment.tz(`${todayStr} ${r.clockInTime}`, 'YYYY-MM-DD HH:mm', 'Asia/Kolkata');
-                    if (currentTime.isBefore(expectedLateTime)) {
-                        hasExcludingRequest = true; // They are expected to be late and it's not time yet
-                        break;
+                isNotRequired = true;
+            } else {
+                // Check their AttendanceDaily record
+                const daily = todayDailies.find(d => d.employeeId.toString() === empIdStr);
+                if (daily && ['LEAVE', 'PAID_LEAVE', 'HOLIDAY', 'WEEK_OFF'].includes(daily.status)) {
+                    leavePermissionCount++;
+                    isNotRequired = true;
+                } else {
+                    // Check their Leave/Permission requests for today
+                    const requests = todayRequests.filter(r => r.employeeId.toString() === empIdStr);
+                    let hasExcludingRequest = false;
+                    
+                    for (const r of requests) {
+                        if (r.requestType === 'LEAVE') {
+                            hasExcludingRequest = true; // Full day leave excludes them
+                            break;
+                        }
+                        
+                        if (r.requestType === 'LATE' && r.clockInTime) {
+                            const expectedLateTime = moment.tz(`${todayStr} ${r.clockInTime}`, 'YYYY-MM-DD HH:mm', 'Asia/Kolkata');
+                            if (currentTime.isBefore(expectedLateTime)) {
+                                hasExcludingRequest = true; // They are expected to be late and it's not time yet
+                                break;
+                            }
+                        }
+                        
+                        if (r.requestType === 'PERMISSION' && r.startTime && r.endTime) {
+                            const permStart = moment.tz(`${todayStr} ${r.startTime}`, 'YYYY-MM-DD HH:mm', 'Asia/Kolkata');
+                            if (permStart.isSameOrBefore(currentTime)) {
+                                hasExcludingRequest = true;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (hasExcludingRequest) {
+                        leavePermissionCount++;
+                        isNotRequired = true;
                     }
                 }
-                
-                if (r.requestType === 'PERMISSION' && r.startTime && r.endTime) {
-                    const permStart = moment.tz(`${todayStr} ${r.startTime}`, 'YYYY-MM-DD HH:mm', 'Asia/Kolkata');
-                    // If permission starts before or exactly at 11:30 AM, exclude them. If permission is in the afternoon, DO NOT exclude them.
-                    if (permStart.isSameOrBefore(currentTime)) {
-                        hasExcludingRequest = true;
-                        break;
-                    }
-                }
             }
-            
-            if (hasExcludingRequest) {
-                leavePermissionCount++;
+
+            if (isNotRequired) {
+                // Optionally save NOT_REQUIRED state for clarity if not already logged
+                if (!existingLog) {
+                    await AttendanceReminderLog.create({
+                        employeeId: emp._id,
+                        date: todayStr,
+                        email: emp.email,
+                        status: 'NOT_REQUIRED',
+                        reason: 'Not required due to existing attendance status'
+                    });
+                }
                 skippedCount++;
                 continue;
             }
 
             eligibleCount++;
 
+            // Create or update PENDING log
+            let reminderLog = existingLog;
+            if (!reminderLog) {
+                reminderLog = new AttendanceReminderLog({
+                    employeeId: emp._id,
+                    date: todayStr,
+                    email: emp.email,
+                    status: 'PENDING',
+                    reason: 'No Prior Information',
+                    expectedLoginTime
+                });
+                await reminderLog.save();
+            } else {
+                reminderLog.status = 'PENDING';
+                await reminderLog.save();
+            }
+
             // Send email
             let emailSent = false;
+            let emailErrorMsg = '';
             try {
                 await sendAttendanceReminderEmail({
                     email: emp.email,
@@ -143,9 +173,18 @@ const runReminderJob = async () => {
                 });
                 emailSent = true;
                 sentCount++;
+                
+                reminderLog.status = 'SENT';
+                reminderLog.sentAt = new Date();
+                await reminderLog.save();
             } catch (emailErr) {
-                console.error(`[CRON] Failed to send reminder email via Brevo to ${emp.email}:`, emailErr.message);
+                emailErrorMsg = emailErr.message || 'Unknown Brevo Error';
+                console.error(`[CRON] Failed to send reminder email via Brevo to ${emp.email}:`, emailErrorMsg);
                 failCount++;
+                
+                reminderLog.status = 'FAILED';
+                reminderLog.failureReason = emailErrorMsg.substring(0, 200); // Safe truncation
+                await reminderLog.save();
             }
 
             // Audit Log - Only if email was successful!
@@ -177,6 +216,11 @@ const runReminderJob = async () => {
         console.log(`[CRON] Emails failed: ${failCount}`);
         if (auditFailCount > 0) console.log(`[CRON] Audit logs failed: ${auditFailCount}`);
         console.log(`[CRON] Attendance reminder job completed`);
+
+        // Emit socket event to refresh frontend dashboard
+        if (globalIo) {
+            globalIo.emit('attendance:reminder-status-updated', { date: todayStr });
+        }
         
     } catch (error) {
         console.error('[CRON] Attendance reminder job encountered a fatal error:', error);
@@ -184,6 +228,7 @@ const runReminderJob = async () => {
 };
 
 module.exports = (io) => {
+    globalIo = io; // Store for the background job
     console.log('[CRON] Attendance reminder scheduler initialized');
     console.log('[CRON] Schedule: 11:30 AM Asia/Kolkata');
     console.log('[CRON] Weekdays: Monday-Saturday');
