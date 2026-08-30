@@ -34,7 +34,7 @@ io.on('connection', (socket) => {
     console.log(`User disconnected: ${socket.id}`);
   });
 
-  // Test Mode Trigger
+  // Test Mode Trigger for Holiday
   socket.on('test:holiday-trigger', async () => {
       console.log('TEST TRIGGER: Simulating Holiday notification');
       const Holiday = require('./models/Holiday');
@@ -48,6 +48,12 @@ io.on('connection', (socket) => {
       } else {
          console.log('TEST FAILED: No active holidays exist in DB to simulate.');
       }
+  });
+
+  // Test Mode Trigger for Attendance Reminder
+  socket.on('test:reminder-trigger', async () => {
+      console.log('TEST TRIGGER: Simulating Attendance Reminder Job');
+      require('./jobs/attendanceReminderJob').runReminderJob(); 
   });
 });
 
