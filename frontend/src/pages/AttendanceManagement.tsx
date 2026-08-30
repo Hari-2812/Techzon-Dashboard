@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import React, { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from 'recharts';
 import socket from '../services/socket';
-import { Users, Clock, AlertCircle, CalendarX2, Search, Filter, X, Calendar, ChevronRight, Play, Square, Coffee, Plus, Mail } from 'lucide-react';
+import { Users, Clock, AlertCircle, CalendarX2, Search, Filter, X, Calendar, ChevronRight, Play, Square, Coffee, Plus, Mail, UserCheck } from 'lucide-react';
 import moment from 'moment-timezone';
 import { useEmployees } from '../hooks/useEmployees';
 import { Card, CardContent } from '../components/ui/Card';
@@ -279,7 +279,8 @@ const AttendanceManagement = () => {
         'attendance:admin-edit-clock-out',
         'attendance:admin-edit-attendance',
         'attendance:request-rejected',
-        'leaveRequest:updated'
+        'leaveRequest:updated',
+        'attendance:reminder-status-updated'
     ];
 
     const handleAttendanceEvent = () => {
@@ -492,13 +493,14 @@ const AttendanceManagement = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Clock In</TableHead>
-                  <TableHead>Break Count</TableHead>
-                  <TableHead>Break Time</TableHead>
-                  <TableHead>Expected Out</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="whitespace-nowrap">Employee</TableHead>
+                  <TableHead className="whitespace-nowrap">Status</TableHead>
+                  <TableHead className="whitespace-nowrap">Clock In</TableHead>
+                  <TableHead className="whitespace-nowrap">Worked Time</TableHead>
+                  <TableHead className="whitespace-nowrap">Break Count</TableHead>
+                  <TableHead className="whitespace-nowrap">Break Time</TableHead>
+                  <TableHead className="whitespace-nowrap">Expected Out</TableHead>
+                  <TableHead className="text-right whitespace-nowrap">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -510,11 +512,11 @@ const AttendanceManagement = () => {
 
                   return (
                     <TableRow key={item._id} className="cursor-pointer" onClick={() => setSelectedEmployee(item)}>
-                      <TableCell>
+                      <TableCell className="whitespace-nowrap">
                         <p className="font-bold text-[var(--color-text-primary)]">{item.employeeId?.name}</p>
                         <p className="text-xs text-[var(--color-text-muted)] font-medium mt-0.5">{item.employeeId?.role}</p>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="whitespace-nowrap">
                         <StatusBadge 
                           isActive={isActive && !isOnBreak} 
                           isOnBreak={isOnBreak} 
@@ -522,10 +524,10 @@ const AttendanceManagement = () => {
                           dailyStatus={item.status} 
                         />
                       </TableCell>
-                      <TableCell className="text-[var(--color-text-muted)] font-medium">
+                      <TableCell className="text-[var(--color-text-muted)] font-medium whitespace-nowrap">
                         {session ? moment(session.clockInAt).format('hh:mm A') : '—'}
                       </TableCell>
-                      <TableCell className="text-[var(--color-text-primary)]">
+                      <TableCell className="text-[var(--color-text-primary)] whitespace-nowrap">
                         {isActive ? (
                           <LiveTimer startTime={session.clockInAt} breaks={session.breaks} />
                         ) : isCompleted ? (
@@ -534,13 +536,13 @@ const AttendanceManagement = () => {
                           <span className="text-[var(--color-text-muted)]">—</span>
                         )}
                       </TableCell>
-                      <TableCell className="font-mono text-center">
+                      <TableCell className="font-mono text-center whitespace-nowrap">
                         <Badge variant="neutral">{session?.breaks?.length || 0}</Badge>
                       </TableCell>
-                      <TableCell className="text-[var(--color-text-muted)] font-mono">
+                      <TableCell className="text-[var(--color-text-muted)] font-mono whitespace-nowrap">
                         {session ? `${Math.floor(item.breakMinutes/60) || 0}h ${item.breakMinutes%60 || 0}m` : '—'}
                       </TableCell>
-                      <TableCell className="text-[var(--color-text-muted)] font-medium">
+                      <TableCell className="text-[var(--color-text-muted)] font-medium whitespace-nowrap">
                          {session ? moment(session.clockInAt).add(8, 'hours').format('hh:mm A') : '—'}
                       </TableCell>
                       <TableCell className="text-right whitespace-nowrap">
@@ -558,7 +560,7 @@ const AttendanceManagement = () => {
                 })}
                 {mergedData.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="py-12 text-center text-[var(--color-text-muted)]">
+                    <TableCell colSpan={8} className="py-12 text-center text-[var(--color-text-muted)]">
                       No employees found matching filters.
                     </TableCell>
                   </TableRow>
@@ -649,13 +651,14 @@ const AttendanceManagement = () => {
                  <TableHead>Department</TableHead>
                  <TableHead>Status/Reason</TableHead>
                  <TableHead>Clock In</TableHead>
+                 <TableHead>Reminder Status</TableHead>
                  <TableHead className="text-right">Action</TableHead>
                </TableRow>
              </TableHeader>
              <TableBody>
                {notLoggedInError ? (
                  <TableRow>
-                   <TableCell colSpan={5} className="py-8 text-center text-red-500 font-medium">
+                   <TableCell colSpan={6} className="py-8 text-center text-red-500 font-medium">
                      Failed to load employees who have not clocked in.
                    </TableCell>
                  </TableRow>
@@ -686,6 +689,18 @@ const AttendanceManagement = () => {
                      <TableCell className="text-[var(--color-text-muted)]">
                        —
                      </TableCell>
+                     <TableCell>
+                       <div className="flex flex-col">
+                         <div className="flex items-center gap-1">
+                           {emp.reminderStatus === 'SENT' && emp.triggerType === 'AUTOMATIC' && <span className="inline-flex items-center text-[10px] font-bold px-2 py-1 bg-green-100 text-green-700 rounded-md whitespace-nowrap"><UserCheck size={12} className="mr-1"/> SENT AUTOMATICALLY</span>}
+                           {emp.reminderStatus === 'SENT' && emp.triggerType === 'MANUAL' && <span className="inline-flex items-center text-[10px] font-bold px-2 py-1 bg-blue-100 text-blue-700 rounded-md whitespace-nowrap"><UserCheck size={12} className="mr-1"/> SENT MANUALLY</span>}
+                           {emp.reminderStatus === 'FAILED' && <span className="inline-flex items-center text-[10px] font-bold px-2 py-1 bg-red-100 text-red-700 rounded-md whitespace-nowrap" title={emp.failureReason}><AlertCircle size={12} className="mr-1"/> FAILED</span>}
+                           {emp.reminderStatus === 'PENDING' && <span className="inline-flex items-center text-[10px] font-bold px-2 py-1 bg-orange-100 text-orange-700 rounded-md whitespace-nowrap"><Clock size={12} className="mr-1"/> PENDING</span>}
+                           {emp.reminderStatus === 'NOT SENT' && <span className="inline-flex items-center text-[10px] font-bold px-2 py-1 bg-gray-100 text-gray-700 rounded-md whitespace-nowrap">NOT SENT</span>}
+                         </div>
+                         {emp.reminderStatus === 'SENT' && emp.sentAt && <span className="text-[10px] text-gray-500 mt-1">{moment(emp.sentAt).format('h:mm A')}</span>}
+                       </div>
+                     </TableCell>
                      <TableCell className="text-right">
                        <div className="flex justify-end gap-2">
                          <Button size="sm" variant="outline" onClick={() => {
@@ -708,7 +723,7 @@ const AttendanceManagement = () => {
                  ))
                ) : (
                  <TableRow>
-                   <TableCell colSpan={5} className="py-8 text-center text-[var(--color-text-muted)]">
+                   <TableCell colSpan={6} className="py-8 text-center text-[var(--color-text-muted)]">
                      No employees found in this category.
                    </TableCell>
                  </TableRow>

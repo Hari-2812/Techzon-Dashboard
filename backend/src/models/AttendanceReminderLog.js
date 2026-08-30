@@ -10,6 +10,11 @@ const AttendanceReminderLogSchema = new mongoose.Schema({
         default: 'PENDING',
         index: true
     },
+    triggerType: {
+        type: String,
+        enum: ['AUTOMATIC', 'MANUAL'],
+        default: 'AUTOMATIC'
+    },
     sentAt: { type: Date },
     failureReason: { type: String },
     reason: { type: String, default: 'No Prior Information' },

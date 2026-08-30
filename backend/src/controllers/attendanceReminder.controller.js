@@ -36,6 +36,10 @@ exports.getNotLoggedInEmployees = async (req, res) => {
             status: { $in: ['PENDING', 'APPROVED'] }
         }).select('employeeId requestType status startTime endTime reason');
 
+        // 5. Get today's AttendanceReminderLog
+        const AttendanceReminderLog = require('../models/AttendanceReminderLog');
+        const reminderLogs = await AttendanceReminderLog.find({ date: todayStr });
+
         const notLoggedInList = [];
 
         for (const emp of employees) {
@@ -79,10 +83,28 @@ exports.getNotLoggedInEmployees = async (req, res) => {
                 }
             }
 
-            // Optional: determine Late Login based on time, e.g. if time > 10:00 AM. 
-            // For now, default is 'No Prior Information' unless marked.
             if (status === 'Not Logged In') {
                 status = 'No Prior Information'; // Fallback descriptive state
+            }
+
+            // Attach reminder state
+            const rLog = reminderLogs.find(l => l.employeeId.toString() === empIdStr);
+            let reminderStatus = 'NOT SENT';
+            let triggerType = 'AUTOMATIC';
+            let failureReason = null;
+            let sentAt = null;
+
+            if (rLog) {
+                if (rLog.status === 'SENT') {
+                    reminderStatus = 'SENT';
+                } else if (rLog.status === 'FAILED') {
+                    reminderStatus = 'FAILED';
+                } else if (rLog.status === 'PENDING') {
+                    reminderStatus = 'PENDING';
+                }
+                triggerType = rLog.triggerType;
+                failureReason = rLog.failureReason;
+                sentAt = rLog.sentAt;
             }
 
             notLoggedInList.push({
@@ -92,7 +114,11 @@ exports.getNotLoggedInEmployees = async (req, res) => {
                 employeeId: emp.employeeId,
                 department: emp.department || 'N/A',
                 status,
-                requestStatus
+                requestStatus,
+                reminderStatus,
+                triggerType,
+                failureReason,
+                sentAt
             });
         }
 
@@ -124,12 +150,16 @@ exports.sendRemindersBulk = async (req, res) => {
 
         const todayStr = moment().tz('Asia/Kolkata').format('YYYY-MM-DD');
         const employees = await User.find({ _id: { $in: employeeIds } }).select('name email employeeId');
+        const AttendanceReminderLog = require('../models/AttendanceReminderLog');
 
         let successCount = 0;
         let failCount = 0;
         const results = [];
 
         for (const emp of employees) {
+            let emailErrorMsg = '';
+            let emailSent = false;
+            
             try {
                 // Validate email
                 if (!emp.email) {
@@ -144,32 +174,68 @@ exports.sendRemindersBulk = async (req, res) => {
                     message,
                     date: todayStr
                 });
-
-                // Audit Log (Using req.user.id securely)
-                await new AuditLog({
-                    actorId: req.user.id,
-                    action: 'SEND_ATTENDANCE_REMINDER',
-                    entityType: 'User',
-                    entityId: emp._id,
-                    metadata: { 
-                        employeeId: emp.employeeId,
-                        employeeEmail: emp.email,
-                        reason, 
-                        adminMessage: message, 
-                        sentAt: new Date(),
-                        emailStatus: 'SENT'
-                    }
-                }).save();
-
+                
+                emailSent = true;
                 successCount++;
                 results.push({ employeeId: emp._id, success: true });
+
             } catch (err) {
-                console.error(`Failed to send email to ${emp.email}:`, err);
+                emailErrorMsg = err.message || 'Unknown Error';
+                console.error(`Failed to send email to ${emp.email}:`, emailErrorMsg);
                 failCount++;
-                results.push({ employeeId: emp._id, success: false, error: err.message });
-                
-                // Note: We don't fail the entire request if one email/audit fails.
+                results.push({ employeeId: emp._id, success: false, error: emailErrorMsg });
             }
+
+            // Upsert AttendanceReminderLog
+            try {
+                await AttendanceReminderLog.findOneAndUpdate(
+                    { employeeId: emp._id, date: todayStr },
+                    {
+                        email: emp.email || 'N/A',
+                        status: emailSent ? 'SENT' : 'FAILED',
+                        triggerType: 'MANUAL',
+                        sentAt: emailSent ? new Date() : undefined,
+                        failureReason: emailSent ? undefined : emailErrorMsg.substring(0, 200),
+                        reason: reason
+                    },
+                    { upsert: true, new: true }
+                );
+            } catch (logErr) {
+                console.error('Error saving AttendanceReminderLog for manual send:', logErr);
+            }
+
+            // Audit Log (Using req.user.id securely) - Only if successful
+            if (emailSent) {
+                try {
+                    await new AuditLog({
+                        actorId: req.user.id,
+                        action: 'SEND_ATTENDANCE_REMINDER',
+                        entityType: 'User',
+                        entityId: emp._id,
+                        metadata: { 
+                            employeeId: emp.employeeId,
+                            employeeEmail: emp.email,
+                            reason, 
+                            adminMessage: message, 
+                            sentAt: new Date(),
+                            emailStatus: 'SENT',
+                            triggerType: 'MANUAL'
+                        }
+                    }).save();
+                } catch (auditErr) {
+                    console.error('AuditLog validation failed for manual send:', auditErr.message);
+                }
+            }
+        }
+
+        // Emit socket event to refresh frontend dynamically
+        try {
+            const io = req.app.get('io') || require('../server').io;
+            if (io) {
+                io.emit('attendance:reminder-status-updated', { type: 'MANUAL', successCount, failCount });
+            }
+        } catch (e) {
+            console.error('Socket emit failed', e);
         }
 
         res.json({ 
