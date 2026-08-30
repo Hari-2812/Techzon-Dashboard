@@ -231,10 +231,11 @@ module.exports = (io) => {
     globalIo = io; // Store for the background job
     console.log('[CRON] Attendance reminder scheduler initialized');
     console.log('[CRON] Schedule: 11:30 AM Asia/Kolkata');
-    console.log('[CRON] Weekdays: Monday-Saturday');
+    console.log('[CRON] Working days: Tuesday-Sunday');
+    console.log('[CRON] Weekly off: Monday');
     
-    // Schedule cron job to run at 11:30 AM Asia/Kolkata every day from Monday to Saturday
-    cron.schedule('30 11 * * 1-6', runReminderJob, {
+    // Schedule cron job to run at 11:30 AM Asia/Kolkata every day from Tuesday to Sunday
+    cron.schedule('30 11 * * 2-7', runReminderJob, {
         scheduled: true,
         timezone: "Asia/Kolkata"
     });
