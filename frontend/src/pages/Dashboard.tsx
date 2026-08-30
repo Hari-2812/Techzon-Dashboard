@@ -297,8 +297,8 @@ const Dashboard = () => {
                            <td className="px-6 py-4">
                              <div className="flex flex-col">
                                <div className="flex items-center">
-                                 {emp.status === 'SENT' && <span className="inline-flex items-center text-sm text-green-600 font-medium"><UserCheck size={16} className="mr-1"/> ✓ Sent</span>}
-                                 {emp.status === 'FAILED' && <span className="inline-flex items-center text-sm text-red-600 font-medium"><AlertCircle size={16} className="mr-1"/> ✕ Failed</span>}
+                                 {emp.status === 'SENT' && <span className="inline-flex items-center text-sm text-green-600 font-medium"><UserCheck size={16} className="mr-1"/> ✓ Mail Sent</span>}
+                                 {emp.status === 'FAILED' && <span className="inline-flex items-center text-sm text-red-600 font-medium"><AlertCircle size={16} className="mr-1"/> ✕ Mail Failed</span>}
                                  {emp.status === 'PENDING' && <span className="inline-flex items-center text-sm text-orange-600 font-medium"><Clock size={16} className="mr-1"/> ○ Pending</span>}
                                  {emp.status === 'NOT_REQUIRED' && <span className="inline-flex items-center text-sm text-gray-500 font-medium">— Not Required</span>}
                                </div>
