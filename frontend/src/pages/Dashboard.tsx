@@ -62,37 +62,29 @@ const Dashboard = () => {
 
     socket.on('leads:synced', handleLeadsSynced);
     
-    // Attendance Socket Events
+    const attendanceEvents = [
+        'attendance:clock-in-request',
+        'attendance:clock-out-request',
+        'attendance:break-request',
+        'attendance:clock-in-approved',
+        'attendance:clock-out-approved',
+        'attendance:break-approved',
+        'employee:break-ended',
+        'attendance:admin-force-clock-out',
+        'attendance:admin-edit-clock-out',
+        'attendance:admin-edit-attendance',
+        'attendance:request-rejected',
+        'leaveRequest:updated'
+    ];
+
     if (isAdmin) {
-        socket.on('attendance:clock-in-request', refreshAttendanceDashboard);
-        socket.on('attendance:clock-out-request', refreshAttendanceDashboard);
-        socket.on('attendance:break-request', refreshAttendanceDashboard);
-        socket.on('attendance:clock-in-approved', refreshAttendanceDashboard);
-        socket.on('attendance:clock-out-approved', refreshAttendanceDashboard);
-        socket.on('attendance:break-approved', refreshAttendanceDashboard);
-        socket.on('employee:break-ended', refreshAttendanceDashboard);
-        socket.on('attendance:admin-force-clock-out', refreshAttendanceDashboard);
-        socket.on('attendance:admin-edit-clock-out', refreshAttendanceDashboard);
-        socket.on('attendance:admin-edit-attendance', refreshAttendanceDashboard);
-        socket.on('attendance:request-rejected', refreshAttendanceDashboard);
-        socket.on('leaveRequest:updated', refreshAttendanceDashboard);
+        attendanceEvents.forEach(evt => socket.on(evt, refreshAttendanceDashboard));
     }
 
     return () => {
       socket.off('leads:synced', handleLeadsSynced);
       if (isAdmin) {
-          socket.off('attendance:clock-in-request', refreshAttendanceDashboard);
-          socket.off('attendance:clock-out-request', refreshAttendanceDashboard);
-          socket.off('attendance:break-request', refreshAttendanceDashboard);
-          socket.off('attendance:clock-in-approved', refreshAttendanceDashboard);
-          socket.off('attendance:clock-out-approved', refreshAttendanceDashboard);
-          socket.off('attendance:break-approved', refreshAttendanceDashboard);
-          socket.off('employee:break-ended', refreshAttendanceDashboard);
-          socket.off('attendance:admin-force-clock-out', refreshAttendanceDashboard);
-          socket.off('attendance:admin-edit-clock-out', refreshAttendanceDashboard);
-          socket.off('attendance:admin-edit-attendance', refreshAttendanceDashboard);
-          socket.off('attendance:request-rejected', refreshAttendanceDashboard);
-          socket.off('leaveRequest:updated', refreshAttendanceDashboard);
+          attendanceEvents.forEach(evt => socket.off(evt, refreshAttendanceDashboard));
       }
     };
   }, [queryClient, isAdmin]);

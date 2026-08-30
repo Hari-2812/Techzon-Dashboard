@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import React, { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from 'recharts';
-import { io, Socket } from 'socket.io-client';
+import socket from '../services/socket';
 import { Users, Clock, AlertCircle, CalendarX2, Search, Filter, X, Calendar, ChevronRight, Play, Square, Coffee, Plus, Mail } from 'lucide-react';
 import moment from 'moment-timezone';
 import { useEmployees } from '../hooks/useEmployees';
@@ -263,29 +263,34 @@ const AttendanceManagement = () => {
   useEffect(() => {
     fetchAdminAttendance();
 
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-    const baseUrl = apiUrl.replace('/api', '');
-    const socket: Socket = io(baseUrl, {
-      withCredentials: true,
-    });
+    const attendanceEvents = [
+        'employee:clocked-in',
+        'employee:clocked-out',
+        'employee:on-break',
+        'employee:resumed',
+        'attendance:clock-in-request',
+        'attendance:clock-out-request',
+        'attendance:break-request',
+        'attendance:clock-in-approved',
+        'attendance:clock-out-approved',
+        'attendance:break-approved',
+        'employee:break-ended',
+        'attendance:admin-force-clock-out',
+        'attendance:admin-edit-clock-out',
+        'attendance:admin-edit-attendance',
+        'attendance:request-rejected',
+        'leaveRequest:updated'
+    ];
 
-    socket.on('employee:clocked-in', fetchAdminAttendance);
-    socket.on('employee:clocked-out', fetchAdminAttendance);
-    socket.on('employee:on-break', fetchAdminAttendance);
-    socket.on('employee:resumed', fetchAdminAttendance);
-    socket.on('attendance:clock-in-request', fetchAdminAttendance);
-    socket.on('attendance:clock-out-request', fetchAdminAttendance);
-    socket.on('attendance:admin-force-clock-out', fetchAdminAttendance);
-    socket.on('attendance:admin-edit-clock-out', fetchAdminAttendance);
-    socket.on('attendance:admin-edit-attendance', fetchAdminAttendance);
-    socket.on('leaveRequest:updated', fetchAdminAttendance);
+    const handleAttendanceEvent = () => {
+        fetchAdminAttendance();
+        fetchNotLoggedIn();
+    };
 
-    socket.on('employee:clocked-in', () => { fetchAdminAttendance(); fetchNotLoggedIn(); });
-    socket.on('leaveRequest:updated', () => { fetchAdminAttendance(); fetchNotLoggedIn(); });
-
+    attendanceEvents.forEach(evt => socket.on(evt, handleAttendanceEvent));
 
     return () => {
-      socket.disconnect();
+        attendanceEvents.forEach(evt => socket.off(evt, handleAttendanceEvent));
     };
   }, []);
 

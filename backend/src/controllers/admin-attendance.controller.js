@@ -228,7 +228,7 @@ exports.manualCorrection = async (req, res) => {
             action: 'ADMIN_MANUAL_ATTENDANCE_CORRECTION',
             entityType: 'Attendance',
             entityId: daily._id,
-            details: {
+            metadata: {
                 employeeId,
                 date,
                 oldStatus,

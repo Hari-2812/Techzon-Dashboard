@@ -176,13 +176,21 @@ exports.sendNotificationEmail = async (email, name, subject, message) => {
  * Send Attendance Reminder Email
  */
 exports.sendAttendanceReminderEmail = async (employeeData) => {
-    const { email, name, reason, message, date } = employeeData;
+    const { email, name, reason, message, date, expectedLoginTime, currentStatus } = employeeData;
     const dashboardUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:5173/dashboard';
     const attendanceUrl = dashboardUrl.replace('/dashboard', '/attendance');
+    
+    const statusText = currentStatus || 'Not Clocked In';
+    const expectedTimeText = expectedLoginTime || '09:30 AM';
     
     const textContent = `Dear ${name},
 
 Your attendance for today (${date}) has not been recorded.
+
+Employee Name: ${name}
+Today's Date: ${date}
+Expected Login Time: ${expectedTimeText}
+Current status: ${statusText}
 
 Reason:
 ${reason}
@@ -204,6 +212,13 @@ Techzon Administrator`;
         <p>Dear ${name},</p>
         <p>Your attendance for today (<strong>${date}</strong>) has not been recorded.</p>
         
+        <table style="width: 100%; border-collapse: collapse; margin: 24px 0;">
+            <tr><td style="padding: 8px 0; border-bottom: 1px solid #E5E7EB; color: #6B7280;"><strong>Employee Name</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #E5E7EB; text-align: right;">${name}</td></tr>
+            <tr><td style="padding: 8px 0; border-bottom: 1px solid #E5E7EB; color: #6B7280;"><strong>Today's Date</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #E5E7EB; text-align: right;">${date}</td></tr>
+            <tr><td style="padding: 8px 0; border-bottom: 1px solid #E5E7EB; color: #6B7280;"><strong>Expected Login Time</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #E5E7EB; text-align: right;">${expectedTimeText}</td></tr>
+            <tr><td style="padding: 8px 0; border-bottom: 1px solid #E5E7EB; color: #6B7280;"><strong>Current status</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #E5E7EB; text-align: right; font-weight: bold; color: #DC2626;">${statusText}</td></tr>
+        </table>
+
         <div style="background-color: #F8F9FA; padding: 16px; border-radius: 6px; border-left: 4px solid #FD761A; margin: 24px 0;">
             <p style="margin: 0; font-size: 14px; color: #6B7280;">Reason</p>
             <p style="margin: 8px 0 0 0; font-size: 16px; font-weight: bold; color: #191C1D;">${reason}</p>

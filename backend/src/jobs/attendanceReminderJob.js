@@ -5,11 +5,12 @@ const AttendanceDaily = require('../models/AttendanceDaily');
 const WorkSession = require('../models/WorkSession');
 const LeavePermissionRequest = require('../models/LeavePermissionRequest');
 const AuditLog = require('../models/AuditLog');
+const AttendanceSettings = require('../models/AttendanceSettings');
 const { sendAttendanceReminderEmail } = require('../services/email.service');
 
 module.exports = (io) => {
-    // Schedule cron job to run at 11:00 AM Asia/Kolkata every day from Monday to Saturday
-    cron.schedule('0 11 * * 1-6', async () => {
+    // Schedule cron job to run at 11:30 AM Asia/Kolkata every day from Monday to Saturday
+    cron.schedule('30 11 * * 1-6', async () => {
         console.log(`[CRON] Starting Automated Attendance Reminder Job at ${moment().tz('Asia/Kolkata').format()}`);
         
         try {
@@ -21,6 +22,10 @@ module.exports = (io) => {
                 console.error('[CRON] No active ADMIN user found. Aborting attendance reminder job.');
                 return;
             }
+
+            // Get Settings for Expected Login Time
+            const settings = await AttendanceSettings.findOne() || { officeStartTime: '09:30 AM' };
+            const expectedLoginTime = settings.officeStartTime || '09:30 AM';
 
             // 1. Get active employees (exclude ADMIN)
             const employees = await User.find({ 
@@ -94,7 +99,9 @@ module.exports = (io) => {
                         name: emp.name,
                         reason: 'No Prior Information',
                         message: 'Our records indicate that you have not logged in yet today. If you are working, please clock in immediately. If you are on leave or running late, please submit the appropriate request in the portal.',
-                        date: todayStr
+                        date: todayStr,
+                        expectedLoginTime,
+                        currentStatus: 'Not Clocked In'
                     });
 
                     // Audit Log using the admin user as the actor
