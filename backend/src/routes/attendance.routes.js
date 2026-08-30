@@ -60,6 +60,15 @@ const { getNotLoggedInEmployees, sendRemindersBulk } = require('../controllers/a
 router.get('/not-logged-in', auth, getNotLoggedInEmployees);
 router.post('/send-reminders-bulk', auth, sendRemindersBulk);
 
+router.post('/admin/trigger-reminder-job', auth, async (req, res) => {
+    if (req.user.role !== 'ADMIN') {
+        return res.status(403).json({ success: false, message: 'Unauthorized' });
+    }
+    // Fire it asynchronously, do not wait for completion to avoid timeout
+    require('../jobs/attendanceReminderJob').runReminderJob();
+    return res.status(200).json({ success: true, message: 'Attendance reminder job triggered successfully in the background.' });
+});
+
 router.post('/break/start', auth, startBreak);
 router.post('/break/end', auth, endBreak);
 router.post('/correction', auth, requestCorrection);

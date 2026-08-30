@@ -34,27 +34,6 @@ io.on('connection', (socket) => {
     console.log(`User disconnected: ${socket.id}`);
   });
 
-  // Test Mode Trigger for Holiday
-  socket.on('test:holiday-trigger', async () => {
-      console.log('TEST TRIGGER: Simulating Holiday notification');
-      const Holiday = require('./models/Holiday');
-      // Find ANY active holiday for the sake of the test
-      const holiday = await Holiday.findOne({ isActive: true });
-      if (holiday) {
-         io.emit('holiday:tomorrow-alert', {
-            holiday,
-            message: `[TEST] Tomorrow is a Government Holiday: ${holiday.name}. Please confirm your availability.`
-         });
-      } else {
-         console.log('TEST FAILED: No active holidays exist in DB to simulate.');
-      }
-  });
-
-  // Test Mode Trigger for Attendance Reminder
-  socket.on('test:reminder-trigger', async () => {
-      console.log('TEST TRIGGER: Simulating Attendance Reminder Job');
-      require('./jobs/attendanceReminderJob').runReminderJob(); 
-  });
 });
 
 // Database connection
