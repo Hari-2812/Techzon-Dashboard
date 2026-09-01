@@ -112,19 +112,18 @@ const LeadDetail = () => {
       </div>
 
       {/* MOBILE STICKY BOTTOM ACTION BAR */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[var(--color-border-subtle)] p-3 flex gap-2 z-40 safe-area-bottom shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] flex-wrap">
-         <Button onClick={() => setShowCallModal(true)} variant="primary" className="flex-1 py-3">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[var(--color-border-subtle)] p-3 flex gap-2 z-40 safe-area-bottom shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+         <Button onClick={() => setShowCallModal(true)} variant="primary" className="flex-1 py-3 h-12">
            <Phone size={18} className="mr-2" /> Call
          </Button>
          <button 
             onClick={() => openWhatsApp(lead.phone)}
-            className="flex-1 flex justify-center items-center bg-[#25D366] text-white rounded-lg font-semibold hover:bg-[#20b858]"
-            title="WhatsApp Web opens in a new tab. Your WhatsApp login is managed by WhatsApp."
+            className="flex-1 flex justify-center items-center bg-[#25D366] text-white rounded-lg font-semibold hover:bg-[#20b858] h-12"
           >
             <MessageCircle size={18} className="mr-2" /> WA
           </button>
-         <Button variant="outline" className="flex-none px-3 py-3" onClick={() => {}}>
-           <CalendarPlus size={18} />
+         <Button variant="outline" className="flex-none w-12 h-12 p-0 flex justify-center items-center" onClick={() => {}}>
+           <CalendarPlus size={20} />
          </Button>
       </div>
 
