@@ -56,6 +56,8 @@ app.use('/api/crs', require('./routes/cr.routes'));
 app.use('/api/leads', require('./routes/lead.routes'));
 app.use('/api/follow-ups', require('./routes/followup.routes'));
 app.use('/api/attendance', require('./routes/attendance.routes'));
+app.use('/api/notifications', require('./routes/notification.routes'));
+app.use('/api/admin/notifications', require('./routes/adminNotification.routes'));
 app.use('/api/google-sheets', require('./routes/googleSheets.routes'));
 app.use('/api/whatsapp-groups', require('./routes/whatsappGroup.routes'));
 app.use('/api/daily-updates', require('./routes/dailyUpdates.routes'));

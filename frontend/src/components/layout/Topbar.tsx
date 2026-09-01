@@ -2,6 +2,7 @@ import React from 'react';
 import { Search, Bell, Menu } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import logo from '../../assets/logo.jpeg';
+import NotificationBell from './NotificationBell';
 
 interface TopbarProps {
   isSidebarOpen: boolean;
@@ -58,10 +59,7 @@ const Topbar: React.FC<TopbarProps> = ({ isSidebarOpen, toggleSidebar, toggleMob
         )}
 
         {/* Notifications */}
-        <button className="p-2.5 relative text-gray-500 hover:text-[var(--color-primary)] hover:bg-indigo-50 rounded-xl transition-colors">
-          <Bell size={20} />
-          <span className="absolute top-2 right-2 block w-2 h-2 rounded-full bg-red-500 ring-2 ring-white"></span>
-        </button>
+        <NotificationBell />
 
         {/* Mobile Profile Avatar */}
         <div className="md:hidden w-8 h-8 rounded-full bg-[var(--color-accent)] flex items-center justify-center text-sm font-bold text-white shadow-sm">

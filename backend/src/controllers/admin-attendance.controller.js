@@ -251,6 +251,20 @@ exports.manualCorrection = async (req, res) => {
             io.emit('attendance:admin-edit-attendance', { employeeId, date, status });
         }
 
+        try {
+            const NotificationService = require('../services/notification.service');
+            await NotificationService.createNotification({
+                recipientId: employeeId,
+                senderId: req.user.id,
+                title: 'Attendance Manually Updated',
+                message: `Your attendance for ${date} was updated to ${status} by an admin.`,
+                type: 'ATTENDANCE',
+                priority: 'NORMAL'
+            });
+        } catch (e) {
+            console.error('Notification error:', e);
+        }
+
         res.json({ success: true, message: 'Attendance manually corrected successfully.' });
     } catch (err) {
         console.error('Manual Correction error:', err);

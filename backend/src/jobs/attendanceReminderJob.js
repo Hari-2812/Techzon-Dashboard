@@ -189,6 +189,22 @@ const runReminderJob = async (manualActorId = null) => {
                 reminderLog.status = 'SENT';
                 reminderLog.sentAt = new Date();
                 await reminderLog.save();
+
+                // Create In-App Notification
+                try {
+                    const NotificationService = require('../services/notification.service');
+                    await NotificationService.createNotification({
+                        recipientId: emp._id,
+                        senderId: manualActorId || (adminUser ? adminUser._id : null),
+                        title: 'Attendance Reminder',
+                        message: 'Our records indicate that you have not logged in yet today. Please clock in.',
+                        type: 'ATTENDANCE',
+                        priority: 'HIGH'
+                    });
+                } catch (notiErr) {
+                    console.error('[ATTENDANCE CRON] Notification creation failed:', notiErr.message);
+                }
+
             } catch (emailErr) {
                 emailErrorMsg = emailErr.message || 'Unknown Brevo Error';
                 console.error(`[ATTENDANCE CRON] Reminder failed: ${emp.employeeId} (${emp.email}) - ${emailErrorMsg}`);

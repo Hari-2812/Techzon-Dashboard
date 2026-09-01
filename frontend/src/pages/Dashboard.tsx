@@ -14,6 +14,48 @@ import { useDailyUpdates } from '../hooks/useDailyUpdates';
 import socket from '../services/socket';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import api from '../services/api';
+import moment from 'moment';
+import { getNotifications, getAdminNotifications } from '../api/notifications';
+
+const RecentNotificationsWidget = () => {
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'ADMIN';
+
+  const { data: employeeData, isLoading: empLoading } = useQuery({
+    queryKey: ['notifications', 'recent'],
+    queryFn: () => getNotifications(1, 5),
+    enabled: !isAdmin,
+  });
+
+  const { data: adminData, isLoading: adminLoading } = useQuery({
+    queryKey: ['notifications', 'admin-history', 'recent'],
+    queryFn: () => getAdminNotifications(1, 5),
+    enabled: isAdmin,
+  });
+
+  const loading = isAdmin ? adminLoading : empLoading;
+  const notifications = isAdmin ? (adminData?.data?.notifications || []) : (employeeData?.data?.notifications || []);
+
+  if (loading) return <div className="p-6 text-center text-gray-500">Loading notifications...</div>;
+  if (notifications.length === 0) return <div className="p-6 text-center text-gray-500">No recent notifications.</div>;
+
+  return (
+    <div className="divide-y divide-gray-100">
+      {notifications.map((notif: any) => (
+        <div key={notif._id} className="p-4 hover:bg-gray-50 transition-colors">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] font-bold rounded uppercase tracking-wider">
+              {notif.type}
+            </span>
+            <h4 className="text-sm font-semibold text-gray-900">{notif.title}</h4>
+          </div>
+          <p className="text-sm text-gray-600 mb-1">{notif.message}</p>
+          <span className="text-[10px] text-gray-400 font-medium">{moment(notif.createdAt).fromNow()}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 const Dashboard = () => {
   const { user } = useAuthStore();
@@ -428,6 +470,21 @@ const Dashboard = () => {
           />
         </div>
       )}
+
+      {/* Recent Notifications Widget */}
+      <Card className="p-0 overflow-hidden border border-gray-200 shadow-sm mt-8">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-white">
+          <h2 className="text-lg font-bold text-gray-900 flex items-center">
+            <MessageCircle className="mr-2 text-[var(--color-primary)]" size={20} /> RECENT NOTIFICATIONS
+          </h2>
+          <Button onClick={() => navigate('/notifications')} variant="outline" size="sm">
+            View All
+          </Button>
+        </div>
+        <div className="p-0">
+          <RecentNotificationsWidget />
+        </div>
+      </Card>
 
     </div>
   );

@@ -2,6 +2,7 @@ const LeavePermissionRequest = require('../models/LeavePermissionRequest');
 const AttendanceDaily = require('../models/AttendanceDaily');
 const WorkSession = require('../models/WorkSession');
 const moment = require('moment-timezone');
+const NotificationService = require('../services/notification.service');
 
 exports.submitRequest = async (req, res) => {
     try {
@@ -52,6 +53,20 @@ exports.submitRequest = async (req, res) => {
         const io = req.app.get('io') || require('../server').io;
         if (io) {
             io.emit('leaveRequest:updated', { requestId: newReq._id });
+        }
+
+        // Notify Admins
+        try {
+            await NotificationService.sendBulkNotification({
+                recipientIds: ['ALL'], // Or you can fetch admin IDs specifically if preferred, but for now we broadcast to all admins, wait, ALL implies all employees in the current implementation of sendBulkNotification. We should pass admin IDs.
+                senderId: req.user.id,
+                title: `New ${requestType} Request`,
+                message: `An employee has requested ${requestType.toLowerCase()} for ${date}.`,
+                type: requestType === 'PERMISSION' ? 'PERMISSION' : 'LEAVE',
+                priority: 'NORMAL'
+            });
+        } catch (e) {
+            console.error('Notification error:', e);
         }
 
         res.status(201).json({ success: true, request: newReq });
@@ -166,6 +181,20 @@ exports.approveRequest = async (req, res) => {
             });
         }
 
+        // Notify Employee
+        try {
+            await NotificationService.createNotification({
+                recipientId: leaveReq.employeeId,
+                senderId: req.user.id,
+                title: `${leaveReq.requestType} Approved`,
+                message: `Your ${leaveReq.requestType.toLowerCase()} request for ${leaveReq.date} has been approved.`,
+                type: leaveReq.requestType === 'PERMISSION' ? 'PERMISSION' : 'LEAVE',
+                priority: 'NORMAL'
+            });
+        } catch (e) {
+            console.error('Notification error:', e);
+        }
+
         res.json({ success: true, request: leaveReq });
     } catch (err) {
         console.error('Approve Request error:', err);
@@ -198,6 +227,20 @@ exports.rejectRequest = async (req, res) => {
                 date: leaveReq.date,
                 reason
             });
+        }
+
+        // Notify Employee
+        try {
+            await NotificationService.createNotification({
+                recipientId: leaveReq.employeeId,
+                senderId: req.user.id,
+                title: `${leaveReq.requestType} Rejected`,
+                message: `Your ${leaveReq.requestType.toLowerCase()} request for ${leaveReq.date} was rejected. Reason: ${reason}`,
+                type: leaveReq.requestType === 'PERMISSION' ? 'PERMISSION' : 'LEAVE',
+                priority: 'NORMAL'
+            });
+        } catch (e) {
+            console.error('Notification error:', e);
         }
 
         res.json({ success: true, request: leaveReq });

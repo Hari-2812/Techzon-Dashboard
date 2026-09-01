@@ -20,6 +20,10 @@ const Layout = () => {
       queryClient.invalidateQueries({ queryKey: ['sales'] });
     };
 
+    const handleNotificationUpdate = () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    };
+
     socket.on('cr:updated', handleUpdate);
     socket.on('followup:created', handleUpdate);
     socket.on('followup:updated', handleUpdate);
@@ -33,6 +37,8 @@ const Layout = () => {
     socket.on('sale:updated', handleUpdate);
     socket.on('sale:converted', handleUpdate);
     socket.on('leads:employee-sales-imported', handleUpdate);
+    socket.on('notification:new', handleNotificationUpdate);
+    socket.on('notification:refresh', handleNotificationUpdate);
 
     return () => {
       socket.off('cr:updated', handleUpdate);
@@ -48,6 +54,8 @@ const Layout = () => {
       socket.off('sale:updated', handleUpdate);
       socket.off('sale:converted', handleUpdate);
       socket.off('leads:employee-sales-imported', handleUpdate);
+      socket.off('notification:new', handleNotificationUpdate);
+      socket.off('notification:refresh', handleNotificationUpdate);
     };
   }, [queryClient]);
 

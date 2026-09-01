@@ -5,6 +5,7 @@ const leadService = require('../services/lead.service');
 const { normalizeSalesStatus } = require('../utils/statusNormalizer');
 const StudentCRRelationship = require('../models/StudentCRRelationship');
 const mongoose = require('mongoose');
+const NotificationService = require('../services/notification.service');
 
 // @route   GET /api/leads
 exports.getLeads = async (req, res) => {
@@ -108,6 +109,23 @@ exports.createLead = async (req, res) => {
             io.emit('lead:created', { leadId: lead._id, assignedEmployeeId: lead.assignedEmployeeId });
         }
 
+        if (data.assignedEmployeeId && data.assignedEmployeeId !== req.user.id) {
+            try {
+                await NotificationService.createNotification({
+                    recipientId: data.assignedEmployeeId,
+                    senderId: req.user.id,
+                    title: 'New Lead Assigned',
+                    message: `A new lead (${lead.studentName}) has been assigned to you.`,
+                    type: 'LEAD',
+                    priority: 'NORMAL',
+                    relatedEntityId: lead._id,
+                    relatedEntityType: 'Lead'
+                });
+            } catch (e) {
+                console.error('Notification error:', e);
+            }
+        }
+
         res.status(201).json({ success: true, data: lead });
     } catch (err) {
         console.error(err);
@@ -181,6 +199,21 @@ exports.bulkAssign = async (req, res) => {
                 entityId: id,
                 newValue: { assignedEmployeeId: employeeId }
             });
+        }
+
+        if (employeeId !== req.user.id) {
+            try {
+                await NotificationService.createNotification({
+                    recipientId: employeeId,
+                    senderId: req.user.id,
+                    title: 'Leads Reassigned',
+                    message: `${leadIds.length} leads have been reassigned to you.`,
+                    type: 'LEAD',
+                    priority: 'NORMAL'
+                });
+            } catch (e) {
+                console.error('Notification error:', e);
+            }
         }
         
         res.json({ success: true, message: 'Leads reassigned' });
