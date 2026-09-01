@@ -4,7 +4,7 @@ const AttendanceSettingsSchema = new mongoose.Schema({
   officeName: { type: String, default: 'Main Office' },
   officeAddress: { type: String, default: '' },
   trustedOfficeIps: [{ type: String }],
-  officeStartTime: { type: String, default: '09:30 AM' },
+  officeStartTime: { type: String, default: '11:30 AM' },
   officeEndTime: { type: String, default: '06:30 PM' },
   gracePeriodMinutes: { type: Number, default: 10 },
   requiredWorkingHours: { type: Number, default: 8 },

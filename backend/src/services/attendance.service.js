@@ -28,7 +28,7 @@ exports.calculateSessionStats = async (workSession, settings) => {
   if (workedMinutes < 0) workedMinutes = 0;
 
   // 3. Calculate Scheduled Minutes
-  // Parse officeStartTime string (e.g. "09:30 AM") today
+  // Parse officeStartTime string (e.g. "11:30 AM") today
   const [startStr, startMeridian] = officeStartTime.split(' ');
   const [startHr, startMin] = startStr.split(':').map(Number);
   let schedStartHr = startHr;

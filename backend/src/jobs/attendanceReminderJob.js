@@ -33,8 +33,8 @@ const runReminderJob = async (manualActorId = null) => {
         }
 
         // Get Settings for Expected Login Time
-        const settings = await AttendanceSettings.findOne() || { officeStartTime: '09:30 AM' };
-        const expectedLoginTime = settings.officeStartTime || '09:30 AM';
+        const settings = await AttendanceSettings.findOne() || { officeStartTime: '11:30 AM' };
+        const expectedLoginTime = settings.officeStartTime || '11:30 AM';
 
         // 1. Get active employees (exclude ADMIN)
         const employees = await User.find({ 

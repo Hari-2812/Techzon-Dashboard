@@ -181,7 +181,7 @@ exports.sendAttendanceReminderEmail = async (employeeData) => {
     const attendanceUrl = dashboardUrl.replace('/dashboard', '/attendance');
     
     const statusText = currentStatus || 'Not Clocked In';
-    const expectedTimeText = expectedLoginTime || '09:30 AM';
+    const expectedTimeText = expectedLoginTime || '11:30 AM';
     
     const textContent = `Dear ${name},
 
