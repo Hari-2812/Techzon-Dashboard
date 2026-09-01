@@ -65,9 +65,23 @@ router.post('/admin/trigger-reminder-job', auth, async (req, res) => {
     if (req.user.role !== 'ADMIN') {
         return res.status(403).json({ success: false, message: 'Unauthorized' });
     }
-    // Fire it asynchronously, do not wait for completion to avoid timeout
-    require('../jobs/attendanceReminderJob').runReminderJob();
-    return res.status(200).json({ success: true, message: 'Attendance reminder job triggered successfully in the background.' });
+    
+    // Await the job completion to return stats to the admin natively
+    const result = await require('../jobs/attendanceReminderJob').runReminderJob(req.user.id);
+    
+    if (result && result.success) {
+        return res.status(200).json({ 
+            success: true, 
+            message: 'Attendance reminder job executed successfully.',
+            stats: result
+        });
+    } else {
+        return res.status(500).json({ 
+            success: false, 
+            message: 'Attendance reminder job failed to execute.',
+            error: result ? result.error : 'Unknown error'
+        });
+    }
 });
 
 router.post('/break/start', auth, startBreak);

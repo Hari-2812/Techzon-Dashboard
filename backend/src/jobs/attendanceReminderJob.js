@@ -10,19 +10,26 @@ const AttendanceSettings = require('../models/AttendanceSettings');
 const { sendAttendanceReminderEmail } = require('../services/email.service');
 let globalIo = null;
 
-const runReminderJob = async () => {
-    console.log(`\n[CRON] Attendance reminder job started`);
-    console.log(`[CRON] Current IST time: ${moment().tz('Asia/Kolkata').format()}`);
+const runReminderJob = async (manualActorId = null) => {
+    console.log(`\n[ATTENDANCE CRON] Job triggered`);
+    console.log(`[ATTENDANCE CRON] Current Asia/Kolkata time: ${moment().tz('Asia/Kolkata').format()}`);
     
     try {
         const todayStr = moment().tz('Asia/Kolkata').format('YYYY-MM-DD');
         const currentTime = moment().tz('Asia/Kolkata');
 
+        // Check if it's Monday
+        if (currentTime.day() === 1) {
+            console.log(`[ATTENDANCE CRON] Working day: false (Monday)`);
+            console.log(`[ATTENDANCE CRON] Job completed (Skipped due to weekly off)`);
+            return { sentCount: 0, failCount: 0, skippedCount: 0, message: 'Skipped (Monday is weekly off)' };
+        }
+        console.log(`[ATTENDANCE CRON] Working day: true`);
+
         // Find the primary Admin to serve as the Actor ID for automated logs
         const adminUser = await User.findOne({ role: 'ADMIN', status: 'ACTIVE' });
-        if (!adminUser) {
-            console.error('[CRON] No active ADMIN user found. Aborting attendance reminder job.');
-            return;
+        if (!adminUser && !manualActorId) {
+            console.warn('[ATTENDANCE CRON] No active ADMIN user found. AuditLogs will be skipped, but emails will still be sent.');
         }
 
         // Get Settings for Expected Login Time
@@ -132,7 +139,8 @@ const runReminderJob = async () => {
                         date: todayStr,
                         email: emp.email,
                         status: 'NOT_REQUIRED',
-                        reason: 'Not required due to existing attendance status'
+                        reason: 'Not required due to existing attendance status',
+                        triggerType: manualActorId ? 'MANUAL' : 'AUTOMATIC'
                     });
                 }
                 skippedCount++;
@@ -150,17 +158,20 @@ const runReminderJob = async () => {
                     email: emp.email,
                     status: 'PENDING',
                     reason: 'No Prior Information',
-                    expectedLoginTime
+                    expectedLoginTime,
+                    triggerType: manualActorId ? 'MANUAL' : 'AUTOMATIC'
                 });
                 await reminderLog.save();
             } else {
                 reminderLog.status = 'PENDING';
+                reminderLog.triggerType = manualActorId ? 'MANUAL' : 'AUTOMATIC';
                 await reminderLog.save();
             }
 
             // Send email
             let emailSent = false;
             let emailErrorMsg = '';
+            console.log(`[ATTENDANCE CRON] Sending reminder to employee: ${emp.employeeId} (${emp.email})`);
             try {
                 await sendAttendanceReminderEmail({
                     email: emp.email,
@@ -173,13 +184,14 @@ const runReminderJob = async () => {
                 });
                 emailSent = true;
                 sentCount++;
+                console.log(`[ATTENDANCE CRON] Reminder sent successfully: ${emp.employeeId}`);
                 
                 reminderLog.status = 'SENT';
                 reminderLog.sentAt = new Date();
                 await reminderLog.save();
             } catch (emailErr) {
                 emailErrorMsg = emailErr.message || 'Unknown Brevo Error';
-                console.error(`[CRON] Failed to send reminder email via Brevo to ${emp.email}:`, emailErrorMsg);
+                console.error(`[ATTENDANCE CRON] Reminder failed: ${emp.employeeId} (${emp.email}) - ${emailErrorMsg}`);
                 failCount++;
                 
                 reminderLog.status = 'FAILED';
@@ -187,52 +199,56 @@ const runReminderJob = async () => {
                 await reminderLog.save();
             }
 
-            // Audit Log - Only if email was successful!
-            if (emailSent) {
+            // Audit Log - Only if email was successful and an actor exists!
+            const actor = manualActorId || (adminUser ? adminUser._id : null);
+            if (emailSent && actor) {
                 try {
                     await new AuditLog({
-                        actorId: adminUser._id,
+                        actorId: actor,
                         action: 'SEND_ATTENDANCE_REMINDER',
                         entityType: 'User',
                         entityId: emp._id,
                         metadata: { 
                             date: todayStr, 
                             reason: 'No Prior Information',
-                            type: 'AUTOMATED_CRON_JOB'
+                            type: manualActorId ? 'MANUAL_TRIGGER' : 'AUTOMATED_CRON_JOB'
                         }
                     }).save();
                 } catch (auditErr) {
-                    console.error(`[CRON] AuditLog validation failed for ${emp.email} but email was successfully sent:`, auditErr.message);
+                    console.error(`[ATTENDANCE CRON] AuditLog validation failed for ${emp.email} but email was successfully sent:`, auditErr.message);
                     auditFailCount++;
                 }
             }
         }
 
-        console.log(`[CRON] Active employees found: ${employees.length}`);
-        console.log(`[CRON] Already clocked in: ${clockedInCount}`);
-        console.log(`[CRON] Approved leave/permission: ${leavePermissionCount}`);
-        console.log(`[CRON] Eligible for reminder: ${eligibleCount}`);
-        console.log(`[CRON] Emails sent: ${sentCount}`);
-        console.log(`[CRON] Emails failed: ${failCount}`);
-        if (auditFailCount > 0) console.log(`[CRON] Audit logs failed: ${auditFailCount}`);
-        console.log(`[CRON] Attendance reminder job completed`);
+        console.log(`[ATTENDANCE CRON] Active employees found: ${employees.length}`);
+        console.log(`[ATTENDANCE CRON] Already clocked in: ${clockedInCount}`);
+        console.log(`[ATTENDANCE CRON] On leave/permission excluded: ${leavePermissionCount}`);
+        console.log(`[ATTENDANCE CRON] Reminder candidates: ${eligibleCount}`);
+        
+        console.log(`[ATTENDANCE CRON] Job completed`);
+        console.log(`[ATTENDANCE CRON] Sent: ${sentCount}`);
+        console.log(`[ATTENDANCE CRON] Failed: ${failCount}`);
+        console.log(`[ATTENDANCE CRON] Skipped: ${skippedCount}`);
+        if (auditFailCount > 0) console.log(`[ATTENDANCE CRON] Audit logs failed: ${auditFailCount}`);
 
         // Emit socket event to refresh frontend dashboard
         if (globalIo) {
             globalIo.emit('attendance:reminder-status-updated', { date: todayStr });
         }
         
+        return { success: true, sentCount, failCount, skippedCount };
     } catch (error) {
-        console.error('[CRON] Attendance reminder job encountered a fatal error:', error);
+        console.error('[ATTENDANCE CRON] Attendance reminder job encountered a fatal error:', error);
+        return { success: false, error: error.message };
     }
 };
 
 module.exports = (io) => {
     globalIo = io; // Store for the background job
-    console.log('[CRON] Attendance reminder scheduler initialized');
-    console.log('[CRON] Schedule: 11:30 AM Asia/Kolkata');
-    console.log('[CRON] Working days: Tuesday-Sunday');
-    console.log('[CRON] Weekly off: Monday');
+    console.log('[ATTENDANCE CRON] Scheduler initialized');
+    console.log('[ATTENDANCE CRON] Timezone: Asia/Kolkata');
+    console.log('[ATTENDANCE CRON] Schedule: Tuesday-Sunday 11:30 AM');
     
     // Schedule cron job to run at 11:30 AM Asia/Kolkata every day from Tuesday to Sunday
     cron.schedule('30 11 * * 2-7', runReminderJob, {
