@@ -55,7 +55,7 @@ const SalesDetail = () => {
     };
 
     return (
-        <div className="p-6 max-w-7xl mx-auto pb-24">
+        <div className="p-4 md:p-6 max-w-7xl mx-auto pb-8 md:pb-24">
             <button onClick={() => navigate('/sales')} className="flex items-center text-gray-500 hover:text-[var(--color-primary)] mb-4">
                 <ArrowLeft size={16} className="mr-1" /> Back to Sales
             </button>

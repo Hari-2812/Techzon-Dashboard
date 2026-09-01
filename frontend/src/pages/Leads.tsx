@@ -70,7 +70,7 @@ const Leads = () => {
         </div>
 
         {/* KPI CARDS */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 min-[400px]:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
           <KpiCard
             label={isAdmin ? 'Total Leads' : 'My Leads'}
             value={data?.meta?.kpis?.totalLeads || 0}

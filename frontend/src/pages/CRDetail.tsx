@@ -65,7 +65,7 @@ const CRDetail = () => {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto pb-24">
+    <div className="p-4 md:p-6 max-w-7xl mx-auto pb-28 md:pb-8">
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start mb-6">
         <div>

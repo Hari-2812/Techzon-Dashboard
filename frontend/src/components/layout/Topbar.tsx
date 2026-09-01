@@ -17,18 +17,18 @@ const Topbar: React.FC<TopbarProps> = ({ isSidebarOpen, toggleSidebar, toggleMob
   return (
     <header className="bg-white border-b border-[var(--color-border-subtle)] h-16 flex items-center justify-between px-4 md:px-6 z-10 shrink-0">
       
-      <div className="flex items-center flex-1 gap-4">
+      <div className="flex items-center flex-1 gap-2 md:gap-4 overflow-hidden">
         {/* Mobile menu toggle - only show on small screens */}
         <button 
-          className="md:hidden p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-md"
+          className="md:hidden p-2 -ml-2 shrink-0 text-gray-500 hover:bg-gray-100 rounded-md"
           onClick={toggleMobileMenu}
         >
           <Menu size={20} />
         </button>
 
-        {/* Mobile Logo - Center on small screens */}
-        <div className="md:hidden flex flex-1 justify-center -ml-6">
-           <img src={logo} alt="Techzon Logo" className="h-8 object-contain" />
+        {/* Mobile Logo - Next to menu on small screens */}
+        <div className="md:hidden flex items-center shrink-0">
+           <img src={logo} alt="Techzon Logo" className="h-7 object-contain" />
         </div>
 
         {/* Global Search */}

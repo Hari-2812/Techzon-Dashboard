@@ -94,7 +94,7 @@ const DailyUpdates = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 min-[400px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {!isAdmin && (
            <Card className="p-4 flex flex-col justify-center items-center text-center border-l-4 border-l-gray-400">
              <div className="text-[var(--color-text-muted)] text-xs font-semibold mb-1 uppercase flex flex-col items-center"><Users size={16} className="mb-1 text-gray-400" /> Assigned</div>

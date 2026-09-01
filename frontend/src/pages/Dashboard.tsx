@@ -201,7 +201,7 @@ const Dashboard = () => {
             </h2>
           </div>
           <div className="p-6 bg-gray-50/50">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
               
               <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm flex flex-col justify-between hover:border-green-300 transition-colors">
                  <div className="flex justify-between items-center mb-2">
@@ -265,7 +265,7 @@ const Dashboard = () => {
             </h2>
           </div>
           <div className="p-6 bg-gray-50/50">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-6">
               
               <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm flex flex-col justify-between hover:border-gray-300 transition-colors">
                  <div className="flex justify-between items-center mb-2">
@@ -431,7 +431,7 @@ const Dashboard = () => {
       {dashboardLoading ? (
         <p className="text-gray-500">Loading metrics...</p>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 min-[400px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
           <KpiCard 
             label={isAdmin ? "Total Student Leads" : "My Leads"}
             value={metrics?.totalLeads || 0} 
