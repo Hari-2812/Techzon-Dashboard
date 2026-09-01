@@ -490,17 +490,17 @@ const AttendanceManagement = () => {
             </div>
 
             {/* Table */}
-            <Table>
+            <Table className="table-fixed w-full min-w-[768px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[22%] min-w-[150px]">Employee</TableHead>
-                  <TableHead className="w-[15%] min-w-[130px]">Status</TableHead>
-                  <TableHead className="w-[12%] min-w-[100px] whitespace-nowrap">Clock In</TableHead>
-                  <TableHead className="w-[12%] min-w-[110px] whitespace-nowrap">Worked Time</TableHead>
-                  <TableHead className="w-[10%] min-w-[100px] text-center whitespace-nowrap">Break Count</TableHead>
-                  <TableHead className="w-[12%] min-w-[100px] whitespace-nowrap">Break Time</TableHead>
-                  <TableHead className="w-[12%] min-w-[110px] whitespace-nowrap">Expected Out</TableHead>
-                  <TableHead className="text-right whitespace-nowrap min-w-[120px]">Actions</TableHead>
+                  <TableHead className="w-[20%] overflow-hidden text-ellipsis">Employee</TableHead>
+                  <TableHead className="w-[14%] overflow-hidden text-ellipsis">Status</TableHead>
+                  <TableHead className="w-[10%] overflow-hidden text-ellipsis">Clock In</TableHead>
+                  <TableHead className="w-[12%] overflow-hidden text-ellipsis">Worked Time</TableHead>
+                  <TableHead className="w-[9%] text-center overflow-hidden text-ellipsis">Breaks</TableHead>
+                  <TableHead className="w-[10%] overflow-hidden text-ellipsis">Break Time</TableHead>
+                  <TableHead className="w-[10%] overflow-hidden text-ellipsis">Expected</TableHead>
+                  <TableHead className="w-[15%] text-right overflow-hidden text-ellipsis">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -512,11 +512,11 @@ const AttendanceManagement = () => {
 
                   return (
                     <TableRow key={item._id} className="cursor-pointer" onClick={() => setSelectedEmployee(item)}>
-                      <TableCell className="w-[22%] min-w-[150px] max-w-[200px]">
+                      <TableCell className="w-[20%] overflow-hidden">
                         <p className="font-bold text-[var(--color-text-primary)] truncate" title={item.employeeId?.name}>{item.employeeId?.name}</p>
                         <p className="text-xs text-[var(--color-text-muted)] font-medium mt-0.5 truncate" title={item.employeeId?.role}>{item.employeeId?.role}</p>
                       </TableCell>
-                      <TableCell className="w-[15%] min-w-[130px]">
+                      <TableCell className="w-[14%] overflow-hidden">
                         <div className="flex items-center">
                           <StatusBadge 
                             isActive={isActive && !isOnBreak} 
@@ -526,10 +526,10 @@ const AttendanceManagement = () => {
                           />
                         </div>
                       </TableCell>
-                      <TableCell className="text-[var(--color-text-muted)] font-medium whitespace-nowrap">
+                      <TableCell className="w-[10%] text-[var(--color-text-muted)] font-medium truncate">
                         {session ? moment(session.clockInAt).format('hh:mm A') : '—'}
                       </TableCell>
-                      <TableCell className="text-[var(--color-text-primary)] whitespace-nowrap">
+                      <TableCell className="w-[12%] text-[var(--color-text-primary)] truncate">
                         {isActive ? (
                           <LiveTimer startTime={session.clockInAt} breaks={session.breaks} />
                         ) : isCompleted ? (
@@ -538,24 +538,26 @@ const AttendanceManagement = () => {
                           <span className="text-[var(--color-text-muted)]">—</span>
                         )}
                       </TableCell>
-                      <TableCell className="font-mono text-center whitespace-nowrap">
+                      <TableCell className="w-[9%] font-mono text-center truncate">
                         <Badge variant="neutral">{session?.breaks?.length || 0}</Badge>
                       </TableCell>
-                      <TableCell className="text-[var(--color-text-muted)] font-mono whitespace-nowrap">
+                      <TableCell className="w-[10%] text-[var(--color-text-muted)] font-mono truncate">
                         {session ? `${Math.floor(item.breakMinutes/60) || 0}h ${item.breakMinutes%60 || 0}m` : '—'}
                       </TableCell>
-                      <TableCell className="text-[var(--color-text-muted)] font-medium whitespace-nowrap">
+                      <TableCell className="w-[10%] text-[var(--color-text-muted)] font-medium truncate">
                          {session ? moment(session.clockInAt).add(8, 'hours').format('hh:mm A') : '—'}
                       </TableCell>
-                      <TableCell className="text-right whitespace-nowrap">
-                        {item.isSynthesized && (
-                          <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); openReminderModalSingle(item.employeeId._id); }} className="gap-2 mr-2">
-                            <Mail size={14} /> Reminder
+                      <TableCell className="w-[15%] text-right overflow-hidden">
+                        <div className="flex items-center justify-end flex-nowrap">
+                          {item.isSynthesized && (
+                            <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); openReminderModalSingle(item.employeeId._id); }} className="gap-1 mr-1 px-2 shrink-0">
+                              <Mail size={14} /> <span className="hidden xl:inline text-xs">Reminder</span>
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedEmployee(item); }} className="px-1 shrink-0">
+                            <ChevronRight size={18} />
                           </Button>
-                        )}
-                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedEmployee(item); }}>
-                          <ChevronRight size={20} />
-                        </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   )
