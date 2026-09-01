@@ -490,17 +490,12 @@ const AttendanceManagement = () => {
             </div>
 
             {/* Table */}
-            <Table className="table-fixed w-full min-w-[768px]">
+            <Table className="table-fixed w-full">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[20%] overflow-hidden text-ellipsis">Employee</TableHead>
-                  <TableHead className="w-[14%] overflow-hidden text-ellipsis">Status</TableHead>
-                  <TableHead className="w-[10%] overflow-hidden text-ellipsis">Clock In</TableHead>
-                  <TableHead className="w-[12%] overflow-hidden text-ellipsis">Worked Time</TableHead>
-                  <TableHead className="w-[9%] text-center overflow-hidden text-ellipsis">Breaks</TableHead>
-                  <TableHead className="w-[10%] overflow-hidden text-ellipsis">Break Time</TableHead>
-                  <TableHead className="w-[10%] overflow-hidden text-ellipsis">Expected</TableHead>
-                  <TableHead className="w-[15%] text-right overflow-hidden text-ellipsis">Actions</TableHead>
+                  <TableHead className="w-[50%] overflow-hidden text-ellipsis">Employee</TableHead>
+                  <TableHead className="w-[25%] overflow-hidden text-ellipsis">Status</TableHead>
+                  <TableHead className="w-[25%] text-right overflow-hidden text-ellipsis">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -512,11 +507,11 @@ const AttendanceManagement = () => {
 
                   return (
                     <TableRow key={item._id} className="cursor-pointer" onClick={() => setSelectedEmployee(item)}>
-                      <TableCell className="w-[20%] overflow-hidden">
+                      <TableCell className="w-[50%] overflow-hidden">
                         <p className="font-bold text-[var(--color-text-primary)] truncate" title={item.employeeId?.name}>{item.employeeId?.name}</p>
                         <p className="text-xs text-[var(--color-text-muted)] font-medium mt-0.5 truncate" title={item.employeeId?.role}>{item.employeeId?.role}</p>
                       </TableCell>
-                      <TableCell className="w-[14%] overflow-hidden">
+                      <TableCell className="w-[25%] overflow-hidden">
                         <div className="flex items-center">
                           <StatusBadge 
                             isActive={isActive && !isOnBreak} 
@@ -526,28 +521,7 @@ const AttendanceManagement = () => {
                           />
                         </div>
                       </TableCell>
-                      <TableCell className="w-[10%] text-[var(--color-text-muted)] font-medium truncate">
-                        {session ? moment(session.clockInAt).format('hh:mm A') : '—'}
-                      </TableCell>
-                      <TableCell className="w-[12%] text-[var(--color-text-primary)] truncate">
-                        {isActive ? (
-                          <LiveTimer startTime={session.clockInAt} breaks={session.breaks} />
-                        ) : isCompleted ? (
-                          <span className="font-mono tracking-tight font-semibold">{Math.floor(item.workedMinutes/60)}h {item.workedMinutes%60}m</span>
-                        ) : (
-                          <span className="text-[var(--color-text-muted)]">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="w-[9%] font-mono text-center truncate">
-                        <Badge variant="neutral">{session?.breaks?.length || 0}</Badge>
-                      </TableCell>
-                      <TableCell className="w-[10%] text-[var(--color-text-muted)] font-mono truncate">
-                        {session ? `${Math.floor(item.breakMinutes/60) || 0}h ${item.breakMinutes%60 || 0}m` : '—'}
-                      </TableCell>
-                      <TableCell className="w-[10%] text-[var(--color-text-muted)] font-medium truncate">
-                         {session ? moment(session.clockInAt).add(8, 'hours').format('hh:mm A') : '—'}
-                      </TableCell>
-                      <TableCell className="w-[15%] text-right overflow-hidden">
+                      <TableCell className="w-[25%] text-right overflow-hidden">
                         <div className="flex items-center justify-end flex-nowrap">
                           {item.isSynthesized && (
                             <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); openReminderModalSingle(item.employeeId._id); }} className="gap-1 mr-1 px-2 shrink-0">
@@ -564,7 +538,7 @@ const AttendanceManagement = () => {
                 })}
                 {mergedData.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="py-12 text-center text-[var(--color-text-muted)]">
+                    <TableCell colSpan={3} className="py-12 text-center text-[var(--color-text-muted)]">
                       No employees found matching filters.
                     </TableCell>
                   </TableRow>
