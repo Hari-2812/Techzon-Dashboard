@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { useAuthStore } from '../store/authStore';
-import { Calendar, Clock, Coffee, LogOut, CheckCircle2, FileText, Plus } from 'lucide-react';
+import { Calendar, Clock, Coffee, LogOut, CheckCircle2, FileText, Plus, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import moment from 'moment-timezone';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent } from '../components/ui/Card';
@@ -11,9 +11,23 @@ import { useAttendance } from '../hooks/useAttendance';
 
 const Attendance = () => {
   const { user } = useAuthStore();
-  const attendance = useAttendance();
   const [currentDateTime, setCurrentDateTime] = useState(moment());
   
+  // Date and View State
+  const [selectedDate, setSelectedDate] = useState(moment().format('YYYY-MM-DD'));
+  const [activeTab, setActiveTab] = useState<'DAILY' | 'MONTHLY'>('DAILY');
+  
+  // Monthly State
+  const [monthCursor, setMonthCursor] = useState(moment().startOf('month'));
+  const [monthlyData, setMonthlyData] = useState<any>(null);
+  const [loadingMonthly, setLoadingMonthly] = useState(false);
+
+  // Pass selectedDate to our hook for historical daily views
+  const attendance = useAttendance(selectedDate);
+  const { isClockedIn, isOnBreak, isCompleted, activeBreak, getLiveTimer, session, isPendingClockIn, isPendingClockOut, isPendingBreak, myLeaveRequests, data: dailyData, fetchMonthlySummary } = attendance;
+  
+  const isToday = selectedDate === moment().format('YYYY-MM-DD');
+
   const [isBreakModalOpen, setIsBreakModalOpen] = useState(false);
   const [breakReason, setBreakReason] = useState('Lunch');
   const [breakComment, setBreakComment] = useState('');
@@ -28,6 +42,35 @@ const Attendance = () => {
   
   const [isClockInModalOpen, setIsClockInModalOpen] = useState(false);
   const [lateLoginReason, setLateLoginReason] = useState('');
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentDateTime(moment());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+      if (activeTab === 'MONTHLY') {
+          loadMonthlyData();
+      }
+  }, [monthCursor, activeTab]);
+
+  const loadMonthlyData = async () => {
+      setLoadingMonthly(true);
+      try {
+          const m = monthCursor.format('MM');
+          const y = monthCursor.format('YYYY');
+          const data = await fetchMonthlySummary(m, y);
+          setMonthlyData(data);
+      } catch (err) {
+          console.error("Failed to load monthly attendance", err);
+      }
+      setLoadingMonthly(false);
+  };
+
+  const handlePrevMonth = () => setMonthCursor(prev => prev.clone().subtract(1, 'month'));
+  const handleNextMonth = () => setMonthCursor(prev => prev.clone().add(1, 'month'));
 
   const handleSubmitLeave = async () => {
     try {
@@ -47,18 +90,11 @@ const Attendance = () => {
       setLeaveReason('');
       setLeaveStartTime('');
       setLeaveEndTime('');
+      setLeaveClockInTime('');
     } catch (err: any) {
       alert(err.response?.data?.message || 'Failed to submit request');
     }
   };
-
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentDateTime(moment());
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   const handleClockIn = async () => {
     if (attendance.data?.hasReminder) {
@@ -105,29 +141,35 @@ const Attendance = () => {
     }
   };
 
-  if (attendance.isLoading && !attendance.data) return <div className="p-8 text-[var(--color-text-muted)]">Loading attendance profile...</div>;
-
-  const { isClockedIn, isOnBreak, isCompleted, activeBreak, getLiveTimer, session, isPendingClockIn, isPendingClockOut, isPendingBreak, myLeaveRequests } = attendance;
   const timerStr = getLiveTimer(currentDateTime.valueOf());
 
-  const renderContent = () => {
-    if (isCompleted) {
+  const renderDailyContent = () => {
+    if (attendance.isLoading && !attendance.data) return <div className="p-8 text-[var(--color-text-muted)] text-center">Loading...</div>;
+
+    // View historical or completed
+    if (!isToday || isCompleted || dailyData?.daily?.status === 'WEEK_OFF' || dailyData?.daily?.status === 'ABSENT' || dailyData?.daily?.status === 'HOLIDAY' || dailyData?.daily?.status === 'LEAVE') {
+      const daily = dailyData?.daily;
+      const s = dailyData?.session;
+      
       return (
         <div className="flex flex-col items-center justify-center p-6 text-center">
-          <CheckCircle2 size={48} className="text-green-500 mb-4" />
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">ATTENDANCE COMPLETED</h2>
+          <div className="mb-4 text-[var(--color-primary)]">
+            <CheckCircle2 size={48} className={`mx-auto ${daily?.status === 'WEEK_OFF' ? 'text-blue-400' : daily?.status === 'ABSENT' ? 'text-red-500' : 'text-green-500'}`} />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2 uppercase">{daily?.status ? daily.status.replace('_', ' ') : 'NO RECORD'}</h2>
+          
           <div className="grid grid-cols-2 gap-8 mt-6 text-left w-full max-w-sm">
             <div>
               <p className="text-sm text-gray-500">Clock In</p>
-              <p className="font-semibold text-gray-900">{session?.clockInAt ? new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(session.clockInAt)) : '--'}</p>
+              <p className="font-semibold text-gray-900">{s?.clockInAt ? new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(s.clockInAt)) : '--'}</p>
             </div>
             <div>
               <p className="text-sm text-gray-500">Clock Out</p>
-              <p className="font-semibold text-gray-900">{session?.clockOutAt ? new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(session.clockOutAt)) : '--'}</p>
+              <p className="font-semibold text-gray-900">{s?.clockOutAt ? new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(s.clockOutAt)) : '--'}</p>
             </div>
             <div className="col-span-2">
               <p className="text-sm text-gray-500">Worked Time</p>
-              <p className="font-mono font-semibold text-gray-900 text-xl">{timerStr}</p>
+              <p className="font-mono font-semibold text-gray-900 text-xl">{s?.clockOutAt || isToday ? timerStr : `${daily?.workedMinutes ? Math.floor(daily.workedMinutes/60) + 'h ' + (daily.workedMinutes%60) + 'm' : '00h 00m'}`}</p>
             </div>
           </div>
         </div>
@@ -220,16 +262,132 @@ const Attendance = () => {
           <Button size="lg" className="w-full h-14 text-lg" onClick={handleClockIn}>
             CHECK IN
           </Button>
-          <Button size="lg" variant="outline" className="w-full h-12" onClick={() => setIsLeaveModalOpen(true)}>
-            REQUEST LEAVE / PERMISSION
-          </Button>
         </div>
       </div>
     );
   };
 
+  const renderMonthlyContent = () => {
+      if (loadingMonthly || !monthlyData) {
+          return <div className="text-center py-12 text-gray-500">Loading monthly attendance...</div>;
+      }
+      
+      const { summary, records } = monthlyData;
+
+      const getStatusColor = (status: string) => {
+          switch(status) {
+              case 'PRESENT': case 'COMPLETED': case 'WORKING': return 'bg-green-100 text-green-700';
+              case 'ABSENT': return 'bg-red-100 text-red-700';
+              case 'LATE': case 'HALF_DAY': return 'bg-yellow-100 text-yellow-700';
+              case 'LEAVE': case 'PAID_LEAVE': case 'Leave Approved': return 'bg-purple-100 text-purple-700';
+              case 'WEEK_OFF': return 'bg-blue-50 text-blue-600';
+              case 'HOLIDAY': return 'bg-teal-100 text-teal-700';
+              default: return 'bg-gray-100 text-gray-600';
+          }
+      };
+
+      const getStatusAbbr = (status: string) => {
+          switch(status) {
+              case 'PRESENT': case 'COMPLETED': case 'WORKING': return 'P';
+              case 'ABSENT': return 'A';
+              case 'LATE': return 'L';
+              case 'HALF_DAY': return 'HD';
+              case 'LEAVE': case 'PAID_LEAVE': case 'Leave Approved': return 'LV';
+              case 'WEEK_OFF': return 'WO';
+              case 'HOLIDAY': return 'H';
+              case 'PERMISSION': return 'PM';
+              default: return '-';
+          }
+      };
+
+      // Generate Calendar Grid
+      const daysInMonth = monthCursor.daysInMonth();
+      const firstDay = monthCursor.clone().startOf('month').day();
+      const calendarCells = [];
+      
+      for (let i = 0; i < firstDay; i++) calendarCells.push(<div key={`empty-${i}`} className="h-10"></div>);
+      
+      for (let d = 1; d <= daysInMonth; d++) {
+          const dateStr = `${monthCursor.format('YYYY-MM')}-${d.toString().padStart(2, '0')}`;
+          const record = records.find((r: any) => r.date === dateStr);
+          
+          let colorClass = 'bg-gray-50 text-gray-400';
+          let label = '';
+          
+          if (record) {
+              colorClass = getStatusColor(record.status);
+              label = getStatusAbbr(record.status);
+          } else if (moment(dateStr).isAfter(moment(), 'day')) {
+              colorClass = 'bg-gray-50 text-gray-300';
+          }
+          
+          calendarCells.push(
+              <div key={d} className="aspect-square flex flex-col items-center justify-center border border-gray-100 rounded-md p-1">
+                  <span className="text-xs text-gray-400 mb-1">{d}</span>
+                  <span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${colorClass}`}>
+                      {label}
+                  </span>
+              </div>
+          );
+      }
+
+      return (
+          <div className="space-y-6">
+              <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold text-gray-800">{monthCursor.format('MMMM YYYY')} Summary</h3>
+                  <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={handlePrevMonth}><ChevronLeft size={16} /></Button>
+                      <Button variant="outline" size="sm" onClick={handleNextMonth}><ChevronRight size={16} /></Button>
+                  </div>
+              </div>
+              
+              <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+                  <div className="bg-white p-3 rounded-lg border text-center shadow-sm">
+                      <div className="text-xs text-gray-500 uppercase font-semibold">Present</div>
+                      <div className="text-xl font-bold text-green-600">{summary.present}</div>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg border text-center shadow-sm">
+                      <div className="text-xs text-gray-500 uppercase font-semibold">Late</div>
+                      <div className="text-xl font-bold text-yellow-600">{summary.late}</div>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg border text-center shadow-sm">
+                      <div className="text-xs text-gray-500 uppercase font-semibold">Absent</div>
+                      <div className="text-xl font-bold text-red-600">{summary.absent}</div>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg border text-center shadow-sm">
+                      <div className="text-xs text-gray-500 uppercase font-semibold">Leave</div>
+                      <div className="text-xl font-bold text-purple-600">{summary.onLeave}</div>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg border text-center shadow-sm">
+                      <div className="text-xs text-gray-500 uppercase font-semibold">Half Day</div>
+                      <div className="text-xl font-bold text-orange-500">{summary.halfDay}</div>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg border text-center shadow-sm">
+                      <div className="text-xs text-gray-500 uppercase font-semibold">Week Off</div>
+                      <div className="text-xl font-bold text-blue-600">{summary.weekOff}</div>
+                  </div>
+              </div>
+
+              <div className="bg-white rounded-lg border shadow-sm p-4 mt-6">
+                  <div className="grid grid-cols-7 text-center mb-2">
+                      <div className="text-xs font-semibold text-gray-500">Sun</div>
+                      <div className="text-xs font-semibold text-gray-500">Mon</div>
+                      <div className="text-xs font-semibold text-gray-500">Tue</div>
+                      <div className="text-xs font-semibold text-gray-500">Wed</div>
+                      <div className="text-xs font-semibold text-gray-500">Thu</div>
+                      <div className="text-xs font-semibold text-gray-500">Fri</div>
+                      <div className="text-xs font-semibold text-gray-500">Sat</div>
+                  </div>
+                  <div className="grid grid-cols-7 gap-2">
+                      {calendarCells}
+                  </div>
+              </div>
+          </div>
+      );
+  };
+
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-12">
+    <div className="max-w-4xl mx-auto space-y-6 pb-12">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
@@ -237,8 +395,8 @@ const Attendance = () => {
             Good {currentDateTime.hour() < 12 ? 'Morning' : 'Afternoon'}, {user?.name?.split(' ')[0] || 'User'} 👋
           </h1>
           <p className="text-lg text-[var(--color-text-muted)] flex items-center gap-2 flex-wrap">
-            <Calendar size={18} />
-            {currentDateTime.format('dddd, MMMM D, YYYY')}
+            <Clock size={18} />
+            {currentDateTime.format('dddd, MMMM D, YYYY - hh:mm A')}
           </p>
         </div>
         <Button variant="outline" className="gap-2" onClick={() => setIsLeaveModalOpen(true)}>
@@ -246,9 +404,40 @@ const Attendance = () => {
         </Button>
       </div>
 
+      {/* Tabs & Filters */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-1 rounded-xl shadow-sm border border-gray-200/60">
+        <div className="flex gap-1 p-1 bg-gray-100/50 rounded-lg w-full sm:w-auto">
+            <button 
+                onClick={() => setActiveTab('DAILY')}
+                className={`flex-1 sm:flex-none px-6 py-2 rounded-md text-sm font-semibold transition-all ${activeTab === 'DAILY' ? 'bg-white text-[var(--color-primary)] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+                Daily View
+            </button>
+            <button 
+                onClick={() => setActiveTab('MONTHLY')}
+                className={`flex-1 sm:flex-none px-6 py-2 rounded-md text-sm font-semibold transition-all ${activeTab === 'MONTHLY' ? 'bg-white text-[var(--color-primary)] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+                Monthly Summary
+            </button>
+        </div>
+        
+        {activeTab === 'DAILY' && (
+            <div className="flex items-center gap-2 px-2 pb-2 sm:pb-0">
+                <Calendar size={18} className="text-gray-400" />
+                <input 
+                    type="date" 
+                    value={selectedDate} 
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    max={moment().format('YYYY-MM-DD')}
+                    className="border-none bg-transparent text-sm font-medium text-gray-700 focus:ring-0 outline-none cursor-pointer"
+                />
+            </div>
+        )}
+      </div>
+
       <Card className="shadow-lg border-0 overflow-hidden bg-white/50 backdrop-blur-xl">
-        <CardContent className="p-0">
-           {renderContent()}
+        <CardContent className="p-4 sm:p-6">
+           {activeTab === 'DAILY' ? renderDailyContent() : renderMonthlyContent()}
         </CardContent>
       </Card>
 
@@ -299,7 +488,8 @@ const Attendance = () => {
         </CardContent>
       </Card>
 
-      <Modal isOpen={isLeaveModalOpen} onClose={() => setIsLeaveModalOpen(false)} title="Today's Attendance Request">
+      {/* Modals */}
+      <Modal isOpen={isLeaveModalOpen} onClose={() => setIsLeaveModalOpen(false)} title="Attendance Request">
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Request Type *</label>
@@ -409,6 +599,28 @@ const Attendance = () => {
             <Button onClick={handleStartBreak}>REQUEST BREAK</Button>
           </div>
         </div>
+      </Modal>
+
+      <Modal isOpen={isClockInModalOpen} onClose={() => setIsClockInModalOpen(false)} title="Check-In Explanation">
+          <div className="space-y-4">
+              <p className="text-sm text-gray-600 bg-yellow-50 p-3 rounded border border-yellow-200">
+                  You are clocking in late today. Please provide a reason for the delay.
+              </p>
+              <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Reason *</label>
+                  <textarea
+                      className="w-full border border-gray-300 rounded-md p-2 focus:ring-[var(--color-primary)]"
+                      rows={3}
+                      placeholder="Why are you checking in late?"
+                      value={lateLoginReason}
+                      onChange={(e) => setLateLoginReason(e.target.value)}
+                  />
+              </div>
+              <div className="flex justify-end gap-3 mt-6 flex-wrap">
+                  <Button variant="outline" onClick={() => setIsClockInModalOpen(false)}>CANCEL</Button>
+                  <Button onClick={() => executeClockIn(lateLoginReason)} disabled={!lateLoginReason.trim()}>SUBMIT & CHECK IN</Button>
+              </div>
+          </div>
       </Modal>
     </div>
   );

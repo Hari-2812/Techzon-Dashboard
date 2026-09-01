@@ -5,20 +5,27 @@ import socket from '../services/socket';
 import { useAuthStore } from '../store/authStore';
 import moment from 'moment-timezone';
 
-export const useAttendance = () => {
+export const useAttendance = (selectedDate?: string) => {
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const isAdmin = user?.role === 'ADMIN';
 
-  // 1. Fetch Today's Attendance
+  // 1. Fetch Today's (or Selected Date's) Attendance
   const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['attendanceToday'],
+    queryKey: ['attendanceToday', selectedDate],
     queryFn: async () => {
-      const res = await api.get('/attendance/today');
+      const url = selectedDate ? `/attendance/today?date=${selectedDate}` : '/attendance/today';
+      const res = await api.get(url);
       return res.data.data;
     },
     enabled: !!user && !isAdmin,
   });
+
+  // 1.2 Fetch Monthly Attendance
+  const fetchMonthlySummary = async (month: string, year: string) => {
+      const res = await api.get(`/attendance/monthly?month=${month}&year=${year}`);
+      return res.data.data;
+  };
 
   // 1.5 Fetch Pending Requests for this user
   const { data: pendingRequestsData, refetch: refetchPending } = useQuery({
@@ -227,6 +234,7 @@ export const useAttendance = () => {
     endBreak,
     testReset,
     myLeaveRequests,
-    submitLeaveRequest
+    submitLeaveRequest,
+    fetchMonthlySummary
   };
 };

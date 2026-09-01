@@ -21,9 +21,11 @@ const getBusinessDateIST = () => moment().tz('Asia/Kolkata').format('YYYY-MM-DD'
 
 exports.getTodayAttendance = async (req, res) => {
   try {
-    const dateStr = getBusinessDateIST();
+    const { date } = req.query;
+    const settings = await AttendanceSettings.findOne() || new AttendanceSettings();
+    const dateStr = date || getBusinessDateIST();
     
-    // Find the most recent session for today (could be test or real)
+    // Find the most recent session for the given date (could be test or real)
     let session = await WorkSession.findOne({ employeeId: req.user.id, date: dateStr }).sort({ createdAt: -1 });
     let daily = await AttendanceDaily.findOne({ employeeId: req.user.id, date: dateStr }).sort({ createdAt: -1 });
     
@@ -36,23 +38,39 @@ exports.getTodayAttendance = async (req, res) => {
        }
     }
 
-    const settings = await AttendanceSettings.findOne() || new AttendanceSettings();
+    // Synthesize Week Off if querying a Monday and no record exists
+    if (!daily && !session) {
+      const moment = require('moment-timezone');
+      const reqDate = moment.tz(dateStr, 'YYYY-MM-DD', settings.timezone || 'Asia/Kolkata');
+      if (reqDate.day() === 1 && reqDate.isSameOrBefore(moment.tz(settings.timezone || 'Asia/Kolkata'), 'day')) {
+          daily = {
+              status: 'WEEK_OFF',
+              date: dateStr,
+              isSynthesized: true,
+              workedMinutes: 0,
+              breakMinutes: 0
+          };
+      }
+    }
     
     let hasReminder = false;
-    const AuditLog = require('../models/AuditLog');
-    const todayStart = moment().tz('Asia/Kolkata').startOf('day').toDate();
-    const reminderLog = await AuditLog.findOne({
-       entityId: req.user.id,
-       action: 'SEND_ATTENDANCE_REMINDER',
-       timestamp: { $gte: todayStart }
-    });
-    if (reminderLog) {
-       hasReminder = true;
+    // Only check reminder for today, not historical dates
+    if (!date || date === getBusinessDateIST()) {
+        const AuditLog = require('../models/AuditLog');
+        const todayStart = moment().tz('Asia/Kolkata').startOf('day').toDate();
+        const reminderLog = await AuditLog.findOne({
+           entityId: req.user.id,
+           action: 'SEND_ATTENDANCE_REMINDER',
+           timestamp: { $gte: todayStart }
+        });
+        if (reminderLog) {
+           hasReminder = true;
+        }
     }
 
-    res.json({ success: true, data: { session, daily, settings, serverTime: new Date(), hasReminder } });
+    res.json({ success: true, data: { session, daily, settings, serverTime: new Date(), hasReminder, date: dateStr } });
   } catch (err) {
-    console.error(err);
+    console.error('Error fetching today attendance:', err);
     res.status(500).json({ success: false, message: 'Server Error' });
   }
 };
@@ -331,16 +349,61 @@ exports.getMonthlyAttendance = async (req, res) => {
                status: 'HOLIDAY',
                workedMinutes: 0,
                breakMinutes: 0,
+               isSynthesized: true,
                note: holiday ? holiday.name : 'Approved Holiday Leave'
            });
+           existingDates.add(hr.holidayDate);
        }
+    }
+    
+    // Inject Week Off for Mondays without records
+    const moment = require('moment-timezone');
+    const AttendanceSettings = require('../models/AttendanceSettings');
+    const settings = await AttendanceSettings.findOne() || new AttendanceSettings();
+    const tz = settings.timezone || 'Asia/Kolkata';
+    const daysInMonth = moment.tz(`${prefix}-01`, 'YYYY-MM-DD', tz).daysInMonth();
+    
+    for (let i = 1; i <= daysInMonth; i++) {
+        const dateStr = `${prefix}-${i.toString().padStart(2, '0')}`;
+        const currentDay = moment.tz(dateStr, 'YYYY-MM-DD', tz);
+        
+        if (!existingDates.has(dateStr) && currentDay.isSameOrBefore(moment.tz(tz), 'day')) {
+           if (currentDay.day() === 1) { // Monday
+               records.push({
+                   date: dateStr,
+                   status: 'WEEK_OFF',
+                   workedMinutes: 0,
+                   breakMinutes: 0,
+                   isSynthesized: true
+               });
+               existingDates.add(dateStr);
+           }
+        }
     }
 
     records.sort((a, b) => a.date.localeCompare(b.date));
+    
+    let summary = {
+      present: 0,
+      late: 0,
+      halfDay: 0,
+      absent: 0,
+      onLeave: 0,
+      weekOff: 0
+    };
 
-    res.json({ success: true, data: records });
+    records.forEach(d => {
+      if (['PRESENT', 'WORKING', 'ON_BREAK', 'COMPLETED', 'EARLY_LEAVE', 'OVERTIME', 'PENDING_BREAK_APPROVAL', 'PENDING_CHECK_OUT_APPROVAL'].includes(d.status)) summary.present++;
+      else if (d.status === 'LATE') summary.late++;
+      else if (d.status === 'HALF_DAY') summary.halfDay++;
+      else if (d.status === 'ABSENT') summary.absent++;
+      else if (d.status === 'PAID_LEAVE' || d.status === 'Leave Approved' || d.status === 'LEAVE' || d.status === 'HOLIDAY') summary.onLeave++;
+      else if (d.status === 'Week Off' || d.status === 'WEEK_OFF') summary.weekOff++;
+    });
+
+    res.json({ success: true, data: { summary, records } });
   } catch (err) {
-    console.error(err);
+    console.error('Error fetching monthly attendance:', err);
     res.status(500).json({ success: false, message: 'Server Error' });
   }
 };

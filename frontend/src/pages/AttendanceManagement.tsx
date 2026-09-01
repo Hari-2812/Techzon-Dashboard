@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import React, { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from 'recharts';
 import socket from '../services/socket';
-import { Users, Clock, AlertCircle, CalendarX2, Search, Filter, X, Calendar, ChevronRight, Play, Square, Coffee, Plus, Mail, UserCheck } from 'lucide-react';
+import { Users, Clock, AlertCircle, CalendarX2, Search, Filter, X, Calendar, ChevronRight, ChevronLeft, Play, Square, Coffee, Plus, Mail, UserCheck } from 'lucide-react';
 import moment from 'moment-timezone';
 import { useEmployees } from '../hooks/useEmployees';
 import { Card, CardContent } from '../components/ui/Card';
@@ -97,6 +97,41 @@ const AttendanceManagement = () => {
   const [reminderReason, setReminderReason] = useState('Late Login');
   const [reminderCustomReason, setReminderCustomReason] = useState('');
   const [reminderMessage, setReminderMessage] = useState('');
+
+  // Admin Drawer State
+  const [adminDrawerTab, setAdminDrawerTab] = useState<'DAILY' | 'MONTHLY'>('DAILY');
+  const [adminDrawerMonth, setAdminDrawerMonth] = useState(moment().startOf('month'));
+  const [adminDrawerMonthlyData, setAdminDrawerMonthlyData] = useState<any>(null);
+  const [loadingDrawerMonthly, setLoadingDrawerMonthly] = useState(false);
+
+  const fetchDrawerMonthlyData = async (employeeId: string, cursor: moment.Moment) => {
+      setLoadingDrawerMonthly(true);
+      try {
+          const m = cursor.format('MM');
+          const y = cursor.format('YYYY');
+          const token = localStorage.getItem('token') || '';
+          const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+          const res = await fetch(`${apiUrl}/attendance/admin/employee/${employeeId}?month=${m}&year=${y}`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const result = await res.json();
+          if (result.success) {
+              setAdminDrawerMonthlyData(result.data);
+          }
+      } catch (err) {
+          console.error("Failed to load admin drawer monthly data", err);
+      }
+      setLoadingDrawerMonthly(false);
+  };
+
+  useEffect(() => {
+      if (selectedEmployee && adminDrawerTab === 'MONTHLY') {
+          fetchDrawerMonthlyData(selectedEmployee.employeeId._id || selectedEmployee.employeeId, adminDrawerMonth);
+      }
+  }, [selectedEmployee, adminDrawerTab, adminDrawerMonth]);
+
+  const handleDrawerPrevMonth = () => setAdminDrawerMonth(prev => prev.clone().subtract(1, 'month'));
+  const handleDrawerNextMonth = () => setAdminDrawerMonth(prev => prev.clone().add(1, 'month'));
 
   const { data: notLoggedInEmployees, refetch: fetchNotLoggedIn, isError: notLoggedInError } = useQuery({
       queryKey: ['notLoggedInEmployees'],
@@ -235,13 +270,15 @@ const AttendanceManagement = () => {
   };
 
 
+  const [adminSelectedDate, setAdminSelectedDate] = useState(moment().format('YYYY-MM-DD'));
+
   const fetchAdminAttendance = async () => {
     try {
       const token = localStorage.getItem('token') || '';
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
       
       const [res, reqRes, leaveRes] = await Promise.all([
-         fetch(`${apiUrl}/attendance-management/today`, { headers: { 'Authorization': `Bearer ${token}` } }),
+         fetch(`${apiUrl}/attendance-management/today?date=${adminSelectedDate}`, { headers: { 'Authorization': `Bearer ${token}` } }),
          fetch(`${apiUrl}/attendance/requests/pending`, { headers: { 'Authorization': `Bearer ${token}` } }),
          fetch(`${apiUrl}/attendance/leave-permission/all`, { headers: { 'Authorization': `Bearer ${token}` } })
       ]);
@@ -259,6 +296,10 @@ const AttendanceManagement = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchAdminAttendance();
+  }, [adminSelectedDate]);
 
   useEffect(() => {
     fetchAdminAttendance();
@@ -353,7 +394,13 @@ const AttendanceManagement = () => {
         </div>
         <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl border border-gray-100 shadow-sm flex-wrap">
            <Calendar className="text-[var(--color-primary)]" size={20} />
-           <span className="font-semibold text-[var(--color-text-primary)]">Today, {moment().format('MMM DD, YYYY')}</span>
+           <input 
+              type="date"
+              className="border-none bg-transparent font-semibold text-[var(--color-text-primary)] focus:ring-0 outline-none cursor-pointer p-0"
+              value={adminSelectedDate}
+              onChange={(e) => setAdminSelectedDate(e.target.value)}
+              max={moment().format('YYYY-MM-DD')}
+           />
         </div>
       </div>
 
@@ -832,121 +879,237 @@ const AttendanceManagement = () => {
       {/* Detail Drawer overlay */}
       <Drawer isOpen={!!selectedEmployee} onClose={() => setSelectedEmployee(null)} title={selectedEmployee?.employeeId?.name || ''}>
         {selectedEmployee && (
-            <div className="space-y-8">
+            <div className="space-y-6">
                <p className="text-[var(--color-text-muted)] font-medium mt-[-20px] mb-4">{selectedEmployee.employeeId?.role}</p>
-               <Card className="p-5">
-                 <h3 className="text-sm font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-4">Today's Attendance</h3>
-                 <div className="space-y-4">
-                   <div className="flex justify-between items-center pb-3 border-b border-[var(--color-border-subtle)]">
-                     <span className="text-[var(--color-text-muted)]">Status</span>
-                     <div className="flex gap-2 items-center flex-wrap">
-                       <StatusBadge 
-                          isActive={(selectedEmployee.session?.status === 'ACTIVE' || selectedEmployee.session?.status === 'RUNNING') && !(selectedEmployee.session?.breaks?.length > 0 && !selectedEmployee.session.breaks[selectedEmployee.session.breaks.length-1].endAt)} 
-                          isOnBreak={(selectedEmployee.session?.status === 'ACTIVE' || selectedEmployee.session?.status === 'RUNNING') && selectedEmployee.session?.breaks?.length > 0 && !selectedEmployee.session.breaks[selectedEmployee.session.breaks.length-1].endAt} 
-                          isCompleted={selectedEmployee.session?.status === 'COMPLETED'} 
-                          dailyStatus={selectedEmployee.status} 
-                        />
-                        { (selectedEmployee.session?.status === 'ACTIVE' || selectedEmployee.session?.status === 'RUNNING' || selectedEmployee.session?.status === 'ON_BREAK') && (
-                          <Button variant="danger" size="sm" onClick={() => setForceClockOutModalOpen(true)}>
-                            Force Clock Out
-                          </Button>
-                        )}
-                        { (!selectedEmployee.session) && (
-                          <Button variant="outline" size="sm" onClick={() => {
-                             setManualEmployeeId(selectedEmployee.employeeId._id || selectedEmployee.employeeId);
-                             setManualDate(moment().format('YYYY-MM-DD'));
-                             setManualStatus('PRESENT');
-                             setManualClockIn('');
-                             setManualClockOut('');
-                             setManualStartTime('');
-                             setManualEndTime('');
-                             setManualAdminRemarks('');
-                             setManualCorrectionModalOpen(true);
-                          }}>
-                            Update Attendance
-                          </Button>
-                        )}
-                        { (selectedEmployee.session) && (
-                          <Button variant="outline" size="sm" onClick={() => {
-                             setEditClockInTime(moment(selectedEmployee.session.clockInAt).format('YYYY-MM-DDTHH:mm'));
-                             setEditClockOutTime(selectedEmployee.session.clockOutAt ? moment(selectedEmployee.session.clockOutAt).format('YYYY-MM-DDTHH:mm') : '');
-                             setEditBreakDuration(selectedEmployee.breakMinutes ? selectedEmployee.breakMinutes.toString() : '0');
-                             setEditAttendanceReason('');
-                             setEditAttendanceModalOpen(true);
-                          }}>
-                            Edit Attendance
-                          </Button>
-                        )}
-                     </div>
-                   </div>
-                   <div className="flex justify-between items-center">
-                     <span className="text-[var(--color-text-muted)]">Clock In</span>
-                     <span className="font-semibold">{selectedEmployee.session ? moment(selectedEmployee.session.clockInAt).format('hh:mm A') : '—'}</span>
-                   </div>
-                   <div className="flex justify-between items-center">
-                     <span className="text-[var(--color-text-muted)]">Clock Out</span>
-                     <span className="font-semibold">{selectedEmployee.session?.clockOutAt ? moment(selectedEmployee.session.clockOutAt).format('hh:mm A') : '—'}</span>
-                   </div>
-                   <div className="flex justify-between items-center">
-                     <span className="text-[var(--color-text-muted)]">Worked</span>
-                     <span className="font-semibold font-mono">{selectedEmployee.session ? `${Math.floor(selectedEmployee.workedMinutes/60)}h ${selectedEmployee.workedMinutes%60}m` : '—'}</span>
-                   </div>
-                   <div className="flex justify-between items-center">
-                     <span className="text-[var(--color-text-muted)]">Break</span>
-                     <span className="font-semibold font-mono">{selectedEmployee.session ? `${Math.floor(selectedEmployee.breakMinutes/60)}h ${selectedEmployee.breakMinutes%60}m` : '—'}</span>
-                   </div>
-                   <div className="flex justify-between items-center">
-                     <span className="text-[var(--color-text-muted)]">Expected Out</span>
-                     <span className="font-semibold">{selectedEmployee.session ? moment(selectedEmployee.session.clockInAt).add(8, 'hours').format('hh:mm A') : '—'}</span>
-                   </div>
-                 </div>
-               </Card>
+               
+               <div className="flex gap-1 p-1 bg-gray-100/50 rounded-lg w-full sm:w-max">
+                  <button 
+                      onClick={() => setAdminDrawerTab('DAILY')}
+                      className={`flex-1 sm:flex-none px-6 py-2 rounded-md text-sm font-semibold transition-all ${adminDrawerTab === 'DAILY' ? 'bg-white text-[var(--color-primary)] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                      Daily View
+                  </button>
+                  <button 
+                      onClick={() => setAdminDrawerTab('MONTHLY')}
+                      className={`flex-1 sm:flex-none px-6 py-2 rounded-md text-sm font-semibold transition-all ${adminDrawerTab === 'MONTHLY' ? 'bg-white text-[var(--color-primary)] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                      Monthly Summary
+                  </button>
+               </div>
 
-               {selectedEmployee.session && (
-               <Card className="p-5">
-                 <h3 className="text-sm font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-4">Break History</h3>
-                 {selectedEmployee.session.breaks?.length > 0 ? (
-                   <div className="space-y-4">
-                     {selectedEmployee.session.breaks.map((b:any, i:number) => {
-                       const start = moment(b.startAt);
-                       const end = b.endAt ? moment(b.endAt) : null;
-                       const duration = b.durationMinutes != null ? `${b.durationMinutes}m` : (end ? `${end.diff(start, 'minutes')}m` : `${moment().diff(start, 'minutes')}m (ongoing)`);
-                       
-                       return (
-                         <div key={i} className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-sm">
-                           <div className="flex justify-between items-center mb-2">
-                             <span className="font-bold text-[var(--color-text-primary)]">{i + 1}. {start.format('hh:mm A')} → {end ? end.format('hh:mm A') : 'Ongoing'}</span>
-                             <span className="font-mono text-[var(--color-text-muted)]">Duration: {duration}</span>
+               {adminDrawerTab === 'DAILY' && (
+                  <div className="space-y-6">
+                     <Card className="p-5">
+                       <h3 className="text-sm font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-4">Today's Attendance</h3>
+                       <div className="space-y-4">
+                         <div className="flex justify-between items-center pb-3 border-b border-[var(--color-border-subtle)]">
+                           <span className="text-[var(--color-text-muted)]">Status</span>
+                           <div className="flex gap-2 items-center flex-wrap">
+                             <StatusBadge 
+                                isActive={(selectedEmployee.session?.status === 'ACTIVE' || selectedEmployee.session?.status === 'RUNNING') && !(selectedEmployee.session?.breaks?.length > 0 && !selectedEmployee.session.breaks[selectedEmployee.session.breaks.length-1].endAt)} 
+                                isOnBreak={(selectedEmployee.session?.status === 'ACTIVE' || selectedEmployee.session?.status === 'RUNNING') && selectedEmployee.session?.breaks?.length > 0 && !selectedEmployee.session.breaks[selectedEmployee.session.breaks.length-1].endAt} 
+                                isCompleted={selectedEmployee.session?.status === 'COMPLETED'} 
+                                dailyStatus={selectedEmployee.status} 
+                              />
+                              { (selectedEmployee.session?.status === 'ACTIVE' || selectedEmployee.session?.status === 'RUNNING' || selectedEmployee.session?.status === 'ON_BREAK') && (
+                                <Button variant="danger" size="sm" onClick={() => setForceClockOutModalOpen(true)}>
+                                  Force Clock Out
+                                </Button>
+                              )}
+                              { (!selectedEmployee.session) && (
+                                <Button variant="outline" size="sm" onClick={() => {
+                                   setManualEmployeeId(selectedEmployee.employeeId._id || selectedEmployee.employeeId);
+                                   setManualDate(moment().format('YYYY-MM-DD'));
+                                   setManualStatus('PRESENT');
+                                   setManualClockIn('');
+                                   setManualClockOut('');
+                                   setManualStartTime('');
+                                   setManualEndTime('');
+                                   setManualAdminRemarks('');
+                                   setManualCorrectionModalOpen(true);
+                                }}>
+                                  Update Attendance
+                                </Button>
+                              )}
+                              { (selectedEmployee.session) && (
+                                <Button variant="outline" size="sm" onClick={() => {
+                                   setEditClockInTime(moment(selectedEmployee.session.clockInAt).format('YYYY-MM-DDTHH:mm'));
+                                   setEditClockOutTime(selectedEmployee.session.clockOutAt ? moment(selectedEmployee.session.clockOutAt).format('YYYY-MM-DDTHH:mm') : '');
+                                   setEditBreakDuration(selectedEmployee.breakMinutes ? selectedEmployee.breakMinutes.toString() : '0');
+                                   setEditAttendanceReason('');
+                                   setEditAttendanceModalOpen(true);
+                                }}>
+                                  Edit Attendance
+                                </Button>
+                              )}
                            </div>
-                           <div className="mb-1"><strong className="text-gray-700">Reason:</strong> <span className="text-[var(--color-primary)] font-medium">{b.reason || '-'}</span></div>
-                           <div><strong className="text-gray-700">Comment:</strong> <span className="text-gray-600">{b.comment || '-'}</span></div>
-                           {b.resumeComment && <div className="mt-1"><strong className="text-gray-700">Resume:</strong> <span className="text-gray-600 italic">{b.resumeComment}</span></div>}
                          </div>
-                       );
-                     })}
-                   </div>
-                 ) : (
-                   <p className="text-sm text-[var(--color-text-muted)] italic">No breaks taken today.</p>
-                 )}
-               </Card>
+                         <div className="flex justify-between items-center">
+                           <span className="text-[var(--color-text-muted)]">Clock In</span>
+                           <span className="font-semibold">{selectedEmployee.session ? moment(selectedEmployee.session.clockInAt).format('hh:mm A') : '—'}</span>
+                         </div>
+                         <div className="flex justify-between items-center">
+                           <span className="text-[var(--color-text-muted)]">Clock Out</span>
+                           <span className="font-semibold">{selectedEmployee.session?.clockOutAt ? moment(selectedEmployee.session.clockOutAt).format('hh:mm A') : '—'}</span>
+                         </div>
+                         <div className="flex justify-between items-center">
+                           <span className="text-[var(--color-text-muted)]">Worked</span>
+                           <span className="font-semibold font-mono">{selectedEmployee.session ? `${Math.floor(selectedEmployee.workedMinutes/60)}h ${selectedEmployee.workedMinutes%60}m` : '—'}</span>
+                         </div>
+                         <div className="flex justify-between items-center">
+                           <span className="text-[var(--color-text-muted)]">Break</span>
+                           <span className="font-semibold font-mono">{selectedEmployee.session ? `${Math.floor(selectedEmployee.breakMinutes/60)}h ${selectedEmployee.breakMinutes%60}m` : '—'}</span>
+                         </div>
+                         <div className="flex justify-between items-center">
+                           <span className="text-[var(--color-text-muted)]">Expected Out</span>
+                           <span className="font-semibold">{selectedEmployee.session ? moment(selectedEmployee.session.clockInAt).add(8, 'hours').format('hh:mm A') : '—'}</span>
+                         </div>
+                       </div>
+                     </Card>
+      
+                     {selectedEmployee.session && (
+                     <Card className="p-5">
+                       <h3 className="text-sm font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-4">Break History</h3>
+                       {selectedEmployee.session.breaks?.length > 0 ? (
+                         <div className="space-y-4">
+                           {selectedEmployee.session.breaks.map((b:any, i:number) => {
+                             const start = moment(b.startAt);
+                             const end = b.endAt ? moment(b.endAt) : null;
+                             const duration = b.durationMinutes != null ? `${b.durationMinutes}m` : (end ? `${end.diff(start, 'minutes')}m` : `${moment().diff(start, 'minutes')}m (ongoing)`);
+                             
+                             return (
+                               <div key={i} className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+                                 <div className="flex justify-between items-center mb-2">
+                                   <span className="font-bold text-[var(--color-text-primary)]">{i + 1}. {start.format('hh:mm A')} → {end ? end.format('hh:mm A') : 'Ongoing'}</span>
+                                   <span className="font-mono text-[var(--color-text-muted)]">Duration: {duration}</span>
+                                 </div>
+                                 <div className="mb-1"><strong className="text-gray-700">Reason:</strong> <span className="text-[var(--color-primary)] font-medium">{b.reason || '-'}</span></div>
+                                 <div><strong className="text-gray-700">Comment:</strong> <span className="text-gray-600">{b.comment || '-'}</span></div>
+                                 {b.resumeComment && <div className="mt-1"><strong className="text-gray-700">Resume:</strong> <span className="text-gray-600 italic">{b.resumeComment}</span></div>}
+                               </div>
+                             );
+                           })}
+                         </div>
+                       ) : (
+                         <p className="text-sm text-[var(--color-text-muted)] italic">No breaks taken today.</p>
+                       )}
+                     </Card>
+                     )}
+      
+                     {selectedEmployee.session && (
+                     <Card className="p-5">
+                       <h3 className="text-sm font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-4">Today's Timeline</h3>
+                       <div className="space-y-5 relative before:absolute before:inset-0 before:ml-3.5 before:-translate-x-px before:h-full before:w-0.5 before:bg-[var(--color-border-subtle)]">
+                          <TimelineItem time={moment(selectedEmployee.session.clockInAt).format('hh:mm A')} text="Clock In" icon={<Play size={12}/>} color="bg-green-100 text-green-600 border-green-200" />
+                          {selectedEmployee.session.breaks?.map((b:any, i:number) => (
+                            <React.Fragment key={i}>
+                              <TimelineItem time={moment(b.startAt).format('hh:mm A')} text={`Break (${b.reason || 'Started'})`} icon={<Coffee size={12}/>} color="bg-orange-100 text-orange-600 border-orange-200" />
+                              {b.endAt && <TimelineItem time={moment(b.endAt).format('hh:mm A')} text="Resume" icon={<Play size={12}/>} color="bg-blue-100 text-blue-600 border-blue-200" />}
+                            </React.Fragment>
+                          ))}
+                          {selectedEmployee.session.clockOutAt && (
+                            <TimelineItem time={moment(selectedEmployee.session.clockOutAt).format('hh:mm A')} text="Clock Out" icon={<Square size={12}/>} color="bg-[var(--color-surface-light)] text-[var(--color-text-muted)] border-[var(--color-border-subtle)]" />
+                          )}
+                       </div>
+                     </Card>
+                     )}
+                  </div>
                )}
 
-               {selectedEmployee.session && (
-               <Card className="p-5">
-                 <h3 className="text-sm font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-4">Today's Timeline</h3>
-                 <div className="space-y-5 relative before:absolute before:inset-0 before:ml-3.5 before:-translate-x-px before:h-full before:w-0.5 before:bg-[var(--color-border-subtle)]">
-                    <TimelineItem time={moment(selectedEmployee.session.clockInAt).format('hh:mm A')} text="Clock In" icon={<Play size={12}/>} color="bg-green-100 text-green-600 border-green-200" />
-                    {selectedEmployee.session.breaks?.map((b:any, i:number) => (
-                      <React.Fragment key={i}>
-                        <TimelineItem time={moment(b.startAt).format('hh:mm A')} text={`Break (${b.reason || 'Started'})`} icon={<Coffee size={12}/>} color="bg-orange-100 text-orange-600 border-orange-200" />
-                        {b.endAt && <TimelineItem time={moment(b.endAt).format('hh:mm A')} text="Resume" icon={<Play size={12}/>} color="bg-blue-100 text-blue-600 border-blue-200" />}
-                      </React.Fragment>
-                    ))}
-                    {selectedEmployee.session.clockOutAt && (
-                      <TimelineItem time={moment(selectedEmployee.session.clockOutAt).format('hh:mm A')} text="Clock Out" icon={<Square size={12}/>} color="bg-[var(--color-surface-light)] text-[var(--color-text-muted)] border-[var(--color-border-subtle)]" />
-                    )}
-                 </div>
-               </Card>
+               {adminDrawerTab === 'MONTHLY' && (
+                  <div className="space-y-6">
+                      {loadingDrawerMonthly || !adminDrawerMonthlyData ? (
+                          <div className="text-center py-12 text-gray-500">Loading monthly attendance...</div>
+                      ) : (
+                          <>
+                              <div className="flex items-center justify-between mb-4">
+                                  <h3 className="text-lg font-bold text-gray-800">{adminDrawerMonth.format('MMMM YYYY')} Summary</h3>
+                                  <div className="flex gap-2">
+                                      <Button variant="outline" size="sm" onClick={handleDrawerPrevMonth}><ChevronLeft size={16} /></Button>
+                                      <Button variant="outline" size="sm" onClick={handleDrawerNextMonth}><ChevronRight size={16} /></Button>
+                                  </div>
+                              </div>
+                              
+                              <div className="grid grid-cols-3 gap-4">
+                                  <div className="bg-white p-3 rounded-lg border text-center shadow-sm">
+                                      <div className="text-xs text-gray-500 uppercase font-semibold">Present</div>
+                                      <div className="text-xl font-bold text-green-600">{adminDrawerMonthlyData.summary?.present || 0}</div>
+                                  </div>
+                                  <div className="bg-white p-3 rounded-lg border text-center shadow-sm">
+                                      <div className="text-xs text-gray-500 uppercase font-semibold">Late</div>
+                                      <div className="text-xl font-bold text-yellow-600">{adminDrawerMonthlyData.summary?.late || 0}</div>
+                                  </div>
+                                  <div className="bg-white p-3 rounded-lg border text-center shadow-sm">
+                                      <div className="text-xs text-gray-500 uppercase font-semibold">Absent</div>
+                                      <div className="text-xl font-bold text-red-600">{adminDrawerMonthlyData.summary?.absent || 0}</div>
+                                  </div>
+                                  <div className="bg-white p-3 rounded-lg border text-center shadow-sm">
+                                      <div className="text-xs text-gray-500 uppercase font-semibold">Leave</div>
+                                      <div className="text-xl font-bold text-purple-600">{adminDrawerMonthlyData.summary?.onLeave || 0}</div>
+                                  </div>
+                                  <div className="bg-white p-3 rounded-lg border text-center shadow-sm">
+                                      <div className="text-xs text-gray-500 uppercase font-semibold">Half Day</div>
+                                      <div className="text-xl font-bold text-orange-500">{adminDrawerMonthlyData.summary?.halfDay || 0}</div>
+                                  </div>
+                                  <div className="bg-white p-3 rounded-lg border text-center shadow-sm">
+                                      <div className="text-xs text-gray-500 uppercase font-semibold">Week Off</div>
+                                      <div className="text-xl font-bold text-blue-600">{adminDrawerMonthlyData.summary?.weekOff || 0}</div>
+                                  </div>
+                              </div>
+                
+                              <div className="bg-white rounded-lg border shadow-sm p-4 mt-6">
+                                  <div className="grid grid-cols-7 text-center mb-2">
+                                      <div className="text-xs font-semibold text-gray-500">Sun</div>
+                                      <div className="text-xs font-semibold text-gray-500">Mon</div>
+                                      <div className="text-xs font-semibold text-gray-500">Tue</div>
+                                      <div className="text-xs font-semibold text-gray-500">Wed</div>
+                                      <div className="text-xs font-semibold text-gray-500">Thu</div>
+                                      <div className="text-xs font-semibold text-gray-500">Fri</div>
+                                      <div className="text-xs font-semibold text-gray-500">Sat</div>
+                                  </div>
+                                  <div className="grid grid-cols-7 gap-2">
+                                      {Array.from({ length: adminDrawerMonth.daysInMonth() + adminDrawerMonth.clone().startOf('month').day() }).map((_, i) => {
+                                          const firstDay = adminDrawerMonth.clone().startOf('month').day();
+                                          if (i < firstDay) return <div key={`empty-${i}`} className="h-10"></div>;
+                                          
+                                          const d = i - firstDay + 1;
+                                          const dateStr = `${adminDrawerMonth.format('YYYY-MM')}-${d.toString().padStart(2, '0')}`;
+                                          const record = (adminDrawerMonthlyData.records || []).find((r: any) => r.date === dateStr);
+                                          
+                                          let colorClass = 'bg-gray-50 text-gray-400';
+                                          let label = '';
+                                          
+                                          if (record) {
+                                              const status = record.status;
+                                              switch(status) {
+                                                  case 'PRESENT': case 'COMPLETED': case 'WORKING': colorClass = 'bg-green-100 text-green-700'; label = 'P'; break;
+                                                  case 'ABSENT': colorClass = 'bg-red-100 text-red-700'; label = 'A'; break;
+                                                  case 'LATE': colorClass = 'bg-yellow-100 text-yellow-700'; label = 'L'; break;
+                                                  case 'HALF_DAY': colorClass = 'bg-yellow-100 text-yellow-700'; label = 'HD'; break;
+                                                  case 'LEAVE': case 'PAID_LEAVE': case 'Leave Approved': colorClass = 'bg-purple-100 text-purple-700'; label = 'LV'; break;
+                                                  case 'WEEK_OFF': colorClass = 'bg-blue-50 text-blue-600'; label = 'WO'; break;
+                                                  case 'HOLIDAY': colorClass = 'bg-teal-100 text-teal-700'; label = 'H'; break;
+                                                  case 'PERMISSION': colorClass = 'bg-purple-100 text-purple-700'; label = 'PM'; break;
+                                                  default: colorClass = 'bg-gray-100 text-gray-600'; label = '-';
+                                              }
+                                          } else if (moment(dateStr).isAfter(moment(), 'day')) {
+                                              colorClass = 'bg-gray-50 text-gray-300';
+                                          }
+                                          
+                                          return (
+                                              <div key={d} className="aspect-square flex flex-col items-center justify-center border border-gray-100 rounded-md p-1" title={record?.status || 'No Record'}>
+                                                  <span className="text-xs text-gray-400 mb-1">{d}</span>
+                                                  <span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${colorClass}`}>
+                                                      {label}
+                                                  </span>
+                                              </div>
+                                          );
+                                      })}
+                                  </div>
+                              </div>
+                          </>
+                      )}
+                  </div>
                )}
 
                <Card className="p-5">
