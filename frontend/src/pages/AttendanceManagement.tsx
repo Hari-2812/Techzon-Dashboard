@@ -493,14 +493,14 @@ const AttendanceManagement = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="whitespace-nowrap">Employee</TableHead>
-                  <TableHead className="whitespace-nowrap">Status</TableHead>
-                  <TableHead className="whitespace-nowrap">Clock In</TableHead>
-                  <TableHead className="whitespace-nowrap">Worked Time</TableHead>
-                  <TableHead className="whitespace-nowrap">Break Count</TableHead>
-                  <TableHead className="whitespace-nowrap">Break Time</TableHead>
-                  <TableHead className="whitespace-nowrap">Expected Out</TableHead>
-                  <TableHead className="text-right whitespace-nowrap">Actions</TableHead>
+                  <TableHead className="w-[22%] min-w-[150px]">Employee</TableHead>
+                  <TableHead className="w-[15%] min-w-[130px]">Status</TableHead>
+                  <TableHead className="w-[12%] min-w-[100px] whitespace-nowrap">Clock In</TableHead>
+                  <TableHead className="w-[12%] min-w-[110px] whitespace-nowrap">Worked Time</TableHead>
+                  <TableHead className="w-[10%] min-w-[100px] text-center whitespace-nowrap">Break Count</TableHead>
+                  <TableHead className="w-[12%] min-w-[100px] whitespace-nowrap">Break Time</TableHead>
+                  <TableHead className="w-[12%] min-w-[110px] whitespace-nowrap">Expected Out</TableHead>
+                  <TableHead className="text-right whitespace-nowrap min-w-[120px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -512,17 +512,19 @@ const AttendanceManagement = () => {
 
                   return (
                     <TableRow key={item._id} className="cursor-pointer" onClick={() => setSelectedEmployee(item)}>
-                      <TableCell className="whitespace-nowrap">
-                        <p className="font-bold text-[var(--color-text-primary)]">{item.employeeId?.name}</p>
-                        <p className="text-xs text-[var(--color-text-muted)] font-medium mt-0.5">{item.employeeId?.role}</p>
+                      <TableCell className="w-[22%] min-w-[150px] max-w-[200px]">
+                        <p className="font-bold text-[var(--color-text-primary)] truncate" title={item.employeeId?.name}>{item.employeeId?.name}</p>
+                        <p className="text-xs text-[var(--color-text-muted)] font-medium mt-0.5 truncate" title={item.employeeId?.role}>{item.employeeId?.role}</p>
                       </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        <StatusBadge 
-                          isActive={isActive && !isOnBreak} 
-                          isOnBreak={isOnBreak} 
-                          isCompleted={isCompleted} 
-                          dailyStatus={item.status} 
-                        />
+                      <TableCell className="w-[15%] min-w-[130px]">
+                        <div className="flex items-center">
+                          <StatusBadge 
+                            isActive={isActive && !isOnBreak} 
+                            isOnBreak={isOnBreak} 
+                            isCompleted={isCompleted} 
+                            dailyStatus={item.status} 
+                          />
+                        </div>
                       </TableCell>
                       <TableCell className="text-[var(--color-text-muted)] font-medium whitespace-nowrap">
                         {session ? moment(session.clockInAt).format('hh:mm A') : '—'}
