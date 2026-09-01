@@ -207,14 +207,14 @@ const LeadDetail = () => {
           {/* STUDENT INFO */}
           <Card className="p-6">
             <h2 className="text-lg font-bold mb-4 border-b pb-2">Student Information</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-y-6 gap-x-4">
-              <div><p className="text-xs text-[var(--color-text-muted)] uppercase font-bold">Phone</p><p className="font-medium text-[var(--color-primary)]">{lead.phone}</p></div>
-              <div><p className="text-xs text-[var(--color-text-muted)] uppercase font-bold">Email</p><p className="font-medium">{lead.email || 'N/A'}</p></div>
-              <div><p className="text-xs text-[var(--color-text-muted)] uppercase font-bold">Lead Status</p><p className="font-medium"><Badge variant="neutral">{lead.leadStatus}</Badge></p></div>
-              <div><p className="text-xs text-[var(--color-text-muted)] uppercase font-bold">CR Status</p><p className="font-medium">{lead.crStatus}</p></div>
-              <div><p className="text-xs text-[var(--color-text-muted)] uppercase font-bold">Priority</p><p className="font-medium"><Badge variant={lead.priority === 'HIGH' ? 'error' : lead.priority === 'MEDIUM' ? 'warning' : 'neutral'}>{lead.priority}</Badge></p></div>
-              <div><p className="text-xs text-[var(--color-text-muted)] uppercase font-bold">Assigned To</p><p className="font-medium">{lead.assignedEmployeeId?.name}</p></div>
-              <div className="col-span-2"><p className="text-xs text-[var(--color-text-muted)] uppercase font-bold">College</p><p className="font-medium">{lead.college}</p></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-6 gap-x-4">
+              <div className="min-w-0 break-words"><p className="text-xs text-[var(--color-text-muted)] uppercase font-bold">Phone</p><p className="font-medium text-[var(--color-primary)]">{lead.phone}</p></div>
+              <div className="min-w-0 break-words"><p className="text-xs text-[var(--color-text-muted)] uppercase font-bold">Email</p><p className="font-medium break-all">{lead.email || 'N/A'}</p></div>
+              <div className="min-w-0 break-words"><p className="text-xs text-[var(--color-text-muted)] uppercase font-bold">Lead Status</p><p className="font-medium"><Badge variant="neutral">{lead.leadStatus}</Badge></p></div>
+              <div className="min-w-0 break-words"><p className="text-xs text-[var(--color-text-muted)] uppercase font-bold">CR Status</p><p className="font-medium">{lead.crStatus}</p></div>
+              <div className="min-w-0 break-words"><p className="text-xs text-[var(--color-text-muted)] uppercase font-bold">Priority</p><p className="font-medium"><Badge variant={lead.priority === 'HIGH' ? 'error' : lead.priority === 'MEDIUM' ? 'warning' : 'neutral'}>{lead.priority}</Badge></p></div>
+              <div className="min-w-0 break-words"><p className="text-xs text-[var(--color-text-muted)] uppercase font-bold">Assigned To</p><p className="font-medium">{lead.assignedEmployeeId?.name}</p></div>
+              <div className="col-span-1 sm:col-span-2 lg:col-span-3 min-w-0 break-words"><p className="text-xs text-[var(--color-text-muted)] uppercase font-bold">College</p><p className="font-medium">{lead.college}</p></div>
             </div>
           </Card>
         </div>
