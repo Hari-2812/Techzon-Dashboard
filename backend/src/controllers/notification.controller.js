@@ -1,5 +1,4 @@
 const NotificationService = require('../services/notification.service');
-const { successResponse, errorResponse } = require('../utils/response');
 
 exports.getNotifications = async (req, res) => {
   try {
@@ -8,18 +7,18 @@ exports.getNotifications = async (req, res) => {
       page: parseInt(page) || 1,
       limit: parseInt(limit) || 20
     });
-    return successResponse(res, result, 'Notifications fetched successfully');
+    return res.status(200).json({ success: true, data: result, message: 'Notifications fetched successfully' });
   } catch (error) {
-    return errorResponse(res, error.message, 500);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
 exports.getUnreadCount = async (req, res) => {
   try {
     const count = await NotificationService.getUnreadCount(req.user._id);
-    return successResponse(res, { count }, 'Unread count fetched');
+    return res.status(200).json({ success: true, data: { count }, message: 'Unread count fetched' });
   } catch (error) {
-    return errorResponse(res, error.message, 500);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -27,29 +26,29 @@ exports.markAsRead = async (req, res) => {
   try {
     const notification = await NotificationService.markAsRead(req.params.id, req.user._id);
     if (!notification) {
-      return errorResponse(res, 'Notification not found', 404);
+      return res.status(404).json({ success: false, message: 'Notification not found' });
     }
-    return successResponse(res, notification, 'Notification marked as read');
+    return res.status(200).json({ success: true, data: notification, message: 'Notification marked as read' });
   } catch (error) {
-    return errorResponse(res, error.message, 500);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
 exports.markAllAsRead = async (req, res) => {
   try {
     await NotificationService.markAllAsRead(req.user._id);
-    return successResponse(res, null, 'All notifications marked as read');
+    return res.status(200).json({ success: true, data: null, message: 'All notifications marked as read' });
   } catch (error) {
-    return errorResponse(res, error.message, 500);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
 exports.deleteNotification = async (req, res) => {
   try {
     await NotificationService.deleteNotification(req.params.id, req.user._id);
-    return successResponse(res, null, 'Notification deleted');
+    return res.status(200).json({ success: true, data: null, message: 'Notification deleted' });
   } catch (error) {
-    return errorResponse(res, error.message, 500);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -62,9 +61,9 @@ exports.getAdminNotifications = async (req, res) => {
       type,
       recipientId
     });
-    return successResponse(res, result, 'Admin notifications fetched');
+    return res.status(200).json({ success: true, data: result, message: 'Admin notifications fetched' });
   } catch (error) {
-    return errorResponse(res, error.message, 500);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -73,7 +72,7 @@ exports.sendAdminNotification = async (req, res) => {
     const { recipientIds, title, message, type, priority } = req.body;
     
     if (!title || !message) {
-      return errorResponse(res, 'Title and message are required', 400);
+      return res.status(400).json({ success: false, message: 'Title and message are required' });
     }
 
     const count = await NotificationService.sendBulkNotification({
@@ -85,8 +84,8 @@ exports.sendAdminNotification = async (req, res) => {
       priority
     });
 
-    return successResponse(res, { count }, `Notification sent to ${count} users`);
+    return res.status(200).json({ success: true, data: { count }, message: `Notification sent to ${count} users` });
   } catch (error) {
-    return errorResponse(res, error.message, 500);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
