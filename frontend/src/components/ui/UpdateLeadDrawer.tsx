@@ -131,7 +131,7 @@ const UpdateLeadDrawer: React.FC<UpdateLeadDrawerProps> = ({ lead, isOpen, onClo
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-4 md:p-6 space-y-6 flex-1">
+        <form id="update-lead-form" onSubmit={handleSubmit} className="p-4 md:p-6 space-y-6 flex-1">
             
           {/* Mode Toggle */}
           {!lead && (
@@ -402,11 +402,11 @@ const UpdateLeadDrawer: React.FC<UpdateLeadDrawerProps> = ({ lead, isOpen, onClo
           </div>
         </form>
 
-        <div className="p-4 border-t border-[var(--color-border-subtle)] bg-white sticky bottom-0 z-20 flex justify-end space-x-3">
-          <Button variant="outline" onClick={onClose} disabled={createUpdate.isPending}>
+        <div className="p-4 border-t border-[var(--color-border-subtle)] bg-white sticky bottom-0 z-20 flex justify-end space-x-3 safe-area-bottom shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+          <Button variant="outline" type="button" onClick={onClose} disabled={createUpdate.isPending}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={createUpdate.isPending}>
+          <Button type="submit" form="update-lead-form" disabled={createUpdate.isPending}>
             {createUpdate.isPending ? 'Saving...' : 'Save Daily Update'}
           </Button>
         </div>

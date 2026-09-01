@@ -10,6 +10,14 @@ import { io } from 'socket.io-client';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+const getLocalToday = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const DailyUpdates = () => {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'ADMIN';
@@ -19,7 +27,7 @@ const DailyUpdates = () => {
   const [selectedLead, setSelectedLead] = useState<any>(null);
 
   // Filters
-  const [dateFilter, setDateFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState(getLocalToday());
   const [employeeFilter, setEmployeeFilter] = useState('');
   // Advanced filters (mock for now if backend doesn't support them all, but UI is ready)
   
