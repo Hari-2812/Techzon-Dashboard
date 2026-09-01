@@ -2,13 +2,17 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getNotifications, getAdminNotifications, sendAdminNotification, markAsRead, markAllAsRead } from '../api/notifications';
 import { useAuthStore } from '../store/authStore';
+import { useEmployees } from '../hooks/useEmployees';
 import moment from 'moment';
-import { Bell, Check, Clock, Shield, Send, Users } from 'lucide-react';
+import { Bell, Check, Clock, Shield, Send, Users, AlertCircle } from 'lucide-react';
 
 const Notifications = () => {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'ADMIN';
   const queryClient = useQueryClient();
+
+  const { allEmployees, isLoading: employeesLoading } = useEmployees();
+  const activeEmployees = allEmployees?.filter((emp: any) => emp.status === 'ACTIVE' && emp.role !== 'ADMIN') || [];
 
   const [activeTab, setActiveTab] = useState<'MY_NOTIFICATIONS' | 'SEND_NOTIFICATION'>('MY_NOTIFICATIONS');
 
@@ -201,15 +205,34 @@ const Notifications = () => {
               
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Recipient</label>
-                <select 
-                  className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white shadow-sm"
-                  value={formData.recipientIds[0]}
-                  onChange={(e) => setFormData({...formData, recipientIds: [e.target.value]})}
-                >
-                  <option value="ALL">All Employees</option>
-                  {/* Ideally fetch and map employees here for individual selection, but "All Employees" satisfies the core requirement instantly */}
-                </select>
-                <p className="text-xs text-gray-500">Send to everyone or select specific individuals.</p>
+                {employeesLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <span className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></span>
+                    Loading employees...
+                  </div>
+                ) : !allEmployees ? (
+                  <div className="flex items-center gap-2 text-sm text-red-500">
+                    <AlertCircle size={16} /> Unable to load employees. Please try again.
+                  </div>
+                ) : activeEmployees.length === 0 ? (
+                  <p className="text-sm text-gray-500">No active employees found.</p>
+                ) : (
+                  <>
+                    <select 
+                      className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white shadow-sm"
+                      value={formData.recipientIds[0]}
+                      onChange={(e) => setFormData({...formData, recipientIds: [e.target.value]})}
+                    >
+                      <option value="ALL">All Employees</option>
+                      {activeEmployees.map((emp: any) => (
+                        <option key={emp._id} value={emp._id}>
+                          {emp.name} {emp.employeeId || emp.department ? `— ${emp.employeeId || emp.department}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500">Send to everyone or select specific individuals.</p>
+                  </>
+                )}
               </div>
 
               <div className="space-y-2">
