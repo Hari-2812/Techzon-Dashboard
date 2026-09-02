@@ -674,3 +674,120 @@ exports.updateLeadStatus = async (req, res) => {
         res.status(500).json({ success: false, message: 'Server Error' });
     }
 };
+
+// @route POST /api/leads/admin/remove-assignments
+exports.removeAssignments = async (req, res) => {
+    try {
+        if (req.user.role !== 'ADMIN') return res.status(403).json({ success: false, message: 'Admin only' });
+        
+        const { employeeIds } = req.body;
+        
+        const query = { assignedEmployeeId: { $ne: null } };
+        if (employeeIds && employeeIds.length > 0) {
+            query.assignedEmployeeId = { $in: employeeIds };
+        }
+
+        const leadsToUnassign = await Lead.find(query);
+        
+        if (leadsToUnassign.length === 0) {
+            return res.json({ success: true, message: 'No assigned leads found to remove' });
+        }
+
+        const leadIds = leadsToUnassign.map(l => l._id);
+
+        await Lead.updateMany(
+            { _id: { $in: leadIds } },
+            { $unset: { assignedEmployeeId: "" }, $set: { leadStatus: 'New' } }
+        );
+
+        // Create Activities and Audit Logs
+        const activities = leadIds.map(id => ({
+            leadId: id,
+            employeeId: req.user.id,
+            activityType: 'LEAD_UNASSIGNED',
+            description: 'Lead assignment removed by Admin in bulk operation'
+        }));
+        await LeadActivity.insertMany(activities);
+
+        res.json({ success: true, message: `Successfully unassigned ${leadIds.length} leads.`, count: leadIds.length });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+};
+
+// @route POST /api/leads/admin/auto-assign
+exports.autoAssign = async (req, res) => {
+    try {
+        if (req.user.role !== 'ADMIN') return res.status(403).json({ success: false, message: 'Admin only' });
+        
+        const { employeeIds, leadIds } = req.body;
+        if (!employeeIds || employeeIds.length === 0) {
+            return res.status(400).json({ success: false, message: 'No employees selected' });
+        }
+
+        let query = { assignedEmployeeId: { $exists: false } };
+        if (leadIds && leadIds.length > 0) {
+            query = { _id: { $in: leadIds } };
+        }
+
+        const leadsToAssign = await Lead.find(query).sort({ createdAt: -1 });
+        if (leadsToAssign.length === 0) {
+            return res.json({ success: false, message: 'No unassigned leads found' });
+        }
+
+        let employeeStats = {};
+        employeeIds.forEach(id => employeeStats[id] = 0);
+        
+        let rrIndex = 0;
+        let assignedCount = 0;
+
+        for (const lead of leadsToAssign) {
+            const empId = employeeIds[rrIndex % employeeIds.length];
+            lead.assignedEmployeeId = empId;
+            lead.leadStatus = 'Assigned';
+            await lead.save();
+            
+            employeeStats[empId]++;
+            rrIndex++;
+            assignedCount++;
+
+            await LeadActivity.create({
+                leadId: lead._id,
+                employeeId: req.user.id,
+                activityType: 'LEAD_REASSIGNED',
+                description: `Lead auto-assigned to employee ${empId}`
+            });
+            await AuditLog.create({
+                actorId: req.user.id,
+                action: 'LEAD_REASSIGNED',
+                entityType: 'Lead',
+                entityId: lead._id,
+                newValue: { assignedEmployeeId: empId }
+            });
+        }
+
+        // Notify employees
+        for (const empId of employeeIds) {
+            if (employeeStats[empId] > 0) {
+                try {
+                    await NotificationService.createNotification({
+                        recipientId: empId,
+                        senderId: req.user.id,
+                        title: 'New Leads Assigned',
+                        message: `${employeeStats[empId]} leads have been auto-assigned to you.`,
+                        type: 'LEAD',
+                        priority: 'NORMAL'
+                    });
+                } catch (e) {
+                    console.error('Notification error:', e);
+                }
+            }
+        }
+
+        res.json({ success: true, message: `Successfully assigned ${assignedCount} leads across ${employeeIds.length} employees`, count: assignedCount });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+};

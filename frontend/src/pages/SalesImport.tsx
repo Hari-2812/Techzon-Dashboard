@@ -5,6 +5,9 @@ import { Upload, FileText, CheckCircle, ArrowLeft, AlertCircle, RefreshCw, Trash
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
+import { useAuthStore } from '../store/authStore';
+import { useEmployees } from '../hooks/useEmployees';
+import { Users, UserMinus, UserPlus, HelpCircle } from 'lucide-react';
 
 interface SalesImportProps {
   embedded?: boolean;
@@ -37,6 +40,16 @@ export default function SalesImport({ embedded = false, targetEmployeeId, target
   const [status, setStatus] = useState<'input' | 'preview' | 'importing' | 'success'>('input');
   const [error, setError] = useState('');
   const [successStats, setSuccessStats] = useState<any>(null);
+
+  // Lead Assignment Management State
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'ADMIN';
+  const { allEmployees = [] } = useEmployees();
+  const [isRemoveModalOpen, setIsRemoveModalOpen] = useState(false);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [selectedAssignmentEmployees, setSelectedAssignmentEmployees] = useState<Set<string>>(new Set());
+  const [assignmentSuccess, setAssignmentSuccess] = useState('');
+  const [assignmentError, setAssignmentError] = useState('');
 
   const createEmptyRow = (): LeadRow => ({
     id: Math.random().toString(36).substring(7),
@@ -322,6 +335,40 @@ export default function SalesImport({ embedded = false, targetEmployeeId, target
     }
   };
 
+  const handleRemoveAssignments = async () => {
+    setAssignmentError('');
+    setAssignmentSuccess('');
+    try {
+      const res = await api.post('/leads/admin/remove-assignments', {
+        employeeIds: Array.from(selectedAssignmentEmployees)
+      });
+      setAssignmentSuccess(res.data.message);
+      setIsRemoveModalOpen(false);
+      setSelectedAssignmentEmployees(new Set());
+    } catch (err: any) {
+      setAssignmentError(err.response?.data?.message || 'Failed to remove assignments');
+    }
+  };
+
+  const handleAutoAssign = async () => {
+    setAssignmentError('');
+    setAssignmentSuccess('');
+    if (selectedAssignmentEmployees.size === 0) {
+      setAssignmentError('Please select at least one employee');
+      return;
+    }
+    try {
+      const res = await api.post('/leads/admin/auto-assign', {
+        employeeIds: Array.from(selectedAssignmentEmployees)
+      });
+      setAssignmentSuccess(res.data.message);
+      setIsAssignModalOpen(false);
+      setSelectedAssignmentEmployees(new Set());
+    } catch (err: any) {
+      setAssignmentError(err.response?.data?.message || 'Failed to auto-assign leads');
+    }
+  };
+
   const validCount = rows.filter(r => r.isValid).length;
   const invalidCount = rows.filter(r => !r.isValid).length;
   const hasSelected = selectedIds.size > 0;
@@ -577,6 +624,172 @@ export default function SalesImport({ embedded = false, targetEmployeeId, target
             </>
           )}
         </Card>
+      )}
+
+      {/* Admin Lead Assignment Management Section */}
+      {isAdmin && !embedded && (
+        <Card className="mt-8">
+          <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                <Users size={20} className="text-indigo-600" />
+                Lead Assignment Management
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">Manage bulk lead assignments and distribution</p>
+            </div>
+          </div>
+          <div className="p-6">
+            {assignmentSuccess && (
+              <div className="mb-4 p-4 bg-green-50 text-green-700 rounded-lg flex items-center gap-2">
+                <CheckCircle size={20} />
+                {assignmentSuccess}
+              </div>
+            )}
+            {assignmentError && (
+              <div className="mb-4 p-4 bg-red-50 text-red-700 rounded-lg flex items-center gap-2">
+                <AlertCircle size={20} />
+                {assignmentError}
+              </div>
+            )}
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Remove Assignments Card */}
+              <div className="p-6 border border-gray-200 rounded-xl bg-gray-50 flex flex-col justify-between">
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2 mb-2">
+                    <UserMinus size={18} className="text-red-500" />
+                    Remove Existing Assignments
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Safely unassign current leads from employees to prepare for a new batch of leads. Historical data and records are preserved.
+                  </p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                  onClick={() => {
+                    setSelectedAssignmentEmployees(new Set());
+                    setIsRemoveModalOpen(true);
+                  }}
+                >
+                  Unassign Leads
+                </Button>
+              </div>
+
+              {/* Assign New Leads Card */}
+              <div className="p-6 border border-gray-200 rounded-xl bg-gray-50 flex flex-col justify-between">
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2 mb-2">
+                    <UserPlus size={18} className="text-indigo-500" />
+                    Auto-Assign New Leads
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Automatically distribute all unassigned leads equally among selected employees using the round-robin method.
+                  </p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  className="w-full text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 border-indigo-200"
+                  onClick={() => {
+                    setSelectedAssignmentEmployees(new Set());
+                    setIsAssignModalOpen(true);
+                  }}
+                >
+                  Auto-Assign Leads
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Remove Modal */}
+      {isRemoveModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 animate-in fade-in zoom-in-95 duration-200">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2 flex items-center gap-2">
+              <AlertCircle className="text-red-500" /> Remove Existing Lead Assignments?
+            </h2>
+            <p className="text-gray-600 mb-4 text-sm">
+              This will unassign the currently assigned leads from the selected employees (or all employees if none selected).<br/><br/>
+              <strong>Lead records and activity history will NOT be deleted.</strong>
+            </p>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Select Employees (Optional: Leave empty to unassign from ALL)</label>
+              <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-2 bg-gray-50">
+                {allEmployees.map((emp: any) => (
+                  <label key={emp._id} className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="rounded border-gray-300 text-indigo-600"
+                      checked={selectedAssignmentEmployees.has(emp._id)}
+                      onChange={(e) => {
+                        const newSet = new Set(selectedAssignmentEmployees);
+                        if (e.target.checked) newSet.add(emp._id);
+                        else newSet.delete(emp._id);
+                        setSelectedAssignmentEmployees(newSet);
+                      }}
+                    />
+                    <span className="text-sm font-medium">{emp.name} ({emp.role})</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <Button variant="outline" onClick={() => setIsRemoveModalOpen(false)}>Cancel</Button>
+              <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={handleRemoveAssignments}>
+                Confirm Unassign
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Assign Modal */}
+      {isAssignModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 animate-in fade-in zoom-in-95 duration-200">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Auto-Assign New Leads</h2>
+            <p className="text-gray-600 mb-4 text-sm">
+              Select the employees who should receive the newly uploaded unassigned leads. Leads will be distributed evenly.
+            </p>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Select Employees *</label>
+              <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-2 bg-gray-50">
+                {allEmployees.map((emp: any) => (
+                  <label key={emp._id} className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="rounded border-gray-300 text-indigo-600"
+                      checked={selectedAssignmentEmployees.has(emp._id)}
+                      onChange={(e) => {
+                        const newSet = new Set(selectedAssignmentEmployees);
+                        if (e.target.checked) newSet.add(emp._id);
+                        else newSet.delete(emp._id);
+                        setSelectedAssignmentEmployees(newSet);
+                      }}
+                    />
+                    <span className="text-sm font-medium">{emp.name} ({emp.role})</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <Button variant="outline" onClick={() => setIsAssignModalOpen(false)}>Cancel</Button>
+              <Button 
+                className="bg-indigo-600 hover:bg-indigo-700 text-white" 
+                onClick={handleAutoAssign}
+                disabled={selectedAssignmentEmployees.size === 0}
+              >
+                Distribute Leads
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
