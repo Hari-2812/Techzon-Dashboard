@@ -14,6 +14,7 @@ const {
   importConfirm,
   deleteOldAssignedLeads,
   getLeadAssignmentStats,
+  resetEmployeeLeads,
   autoAssign
 } = require('../controllers/lead.controller');
 const { auth } = require('../middlewares/auth');
@@ -31,6 +32,7 @@ router.post('/import/confirm', importConfirm);
 router.post('/bulk-assign', bulkAssign);
 router.delete('/admin/delete-old-assigned-leads', deleteOldAssignedLeads);
 router.get('/admin/assignment-stats', getLeadAssignmentStats);
+router.delete('/admin/employees/:employeeId/all', resetEmployeeLeads);
 router.post('/admin/auto-assign', autoAssign);
 router.get('/:id', getLeadById);
 router.get('/:id/activities', getLeadActivities);

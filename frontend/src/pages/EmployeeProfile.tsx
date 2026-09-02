@@ -3,9 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useEmployees } from '../hooks/useEmployees';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
-import { ArrowLeft, Mail, Phone, Calendar as CalIcon, MapPin, Briefcase, Edit, MoreVertical, Upload } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Calendar as CalIcon, MapPin, Briefcase, Edit, MoreVertical, Upload, AlertTriangle, Trash2, X } from 'lucide-react';
 import moment from 'moment-timezone';
 import { useAuthStore } from '../store/authStore';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
+import api from '../services/api';
+import { Button } from '../components/ui/Button';
 
 const EmployeeProfile = () => {
     const { id } = useParams<{ id: string }>();
@@ -19,6 +22,35 @@ const EmployeeProfile = () => {
     
     const [showMoreActions, setShowMoreActions] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
+
+    const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+    const queryClient = useQueryClient();
+
+    const { data: employeeLeadsData, refetch: refetchEmployeeLeads } = useQuery({
+        queryKey: ['employee-assigned-leads-count', id],
+        queryFn: async () => {
+            const res = await api.get(`/leads?assignedEmployeeId=${id}&limit=1`);
+            return res.data.meta.kpis.totalLeads;
+        },
+        enabled: !!id && user?.role === 'ADMIN'
+    });
+
+    const handleResetLeads = async () => {
+        try {
+            setActionLoading(true);
+            const res = await api.delete(`/leads/admin/employees/${id}/all`);
+            alert(res.data.message || 'Employee leads reset successfully');
+            setIsResetModalOpen(false);
+            refetchEmployeeLeads();
+            queryClient.invalidateQueries({ queryKey: ['leads'] });
+            queryClient.invalidateQueries({ queryKey: ['employees'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+        } catch (e: any) {
+            alert(e.response?.data?.message || 'Error resetting employee leads');
+        } finally {
+            setActionLoading(false);
+        }
+    };
 
     if (isLoading) return <div className="p-8">Loading profile...</div>;
     if (isError || !employee) return <div className="p-8 text-red-500">Employee not found</div>;
@@ -112,6 +144,18 @@ const EmployeeProfile = () => {
                 
                 {user?.role === 'ADMIN' && (
                     <div className="flex gap-3 relative flex-wrap">
+                        <button 
+                            onClick={() => {
+                                if (employeeLeadsData === 0) {
+                                    alert(`${employee.name} currently has no assigned leads.`);
+                                    return;
+                                }
+                                setIsResetModalOpen(true);
+                            }} 
+                            className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 shadow-sm"
+                        >
+                            <Trash2 size={16} className="mr-2" /> Remove All Leads
+                        </button>
                         <button 
                             onClick={() => navigate(`/employees/${employee._id}/import-leads`)} 
                             className="flex items-center px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:bg-opacity-90 shadow-sm"
@@ -224,6 +268,43 @@ const EmployeeProfile = () => {
             <div className="pt-4 animate-in fade-in duration-300">
                 {renderTabContent()}
             </div>
+
+            {/* Reset Modal */}
+            {isResetModalOpen && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex justify-between items-start mb-4">
+                            <h2 className="text-2xl font-bold text-red-600 flex items-center gap-2">
+                                <AlertTriangle size={24} /> Remove All Leads?
+                            </h2>
+                            <button onClick={() => setIsResetModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        
+                        <div className="bg-red-50 p-4 rounded-lg mb-6">
+                            <p className="text-red-800 font-medium mb-3">
+                                You are about to permanently delete all leads currently assigned to <strong>{employee.name}</strong>. This includes old and newly assigned leads.
+                            </p>
+                            <ul className="list-disc pl-5 text-sm text-red-700 space-y-1">
+                                <li>Total leads to be deleted: <strong>{employeeLeadsData || 0}</strong></li>
+                                <li>This action <strong>cannot be undone</strong>.</li>
+                            </ul>
+                        </div>
+                        
+                        <div className="flex justify-end gap-3 mt-6">
+                            <Button variant="outline" onClick={() => setIsResetModalOpen(false)}>Cancel</Button>
+                            <Button 
+                                className="bg-red-600 hover:bg-red-700 text-white font-medium px-6" 
+                                onClick={handleResetLeads}
+                                disabled={actionLoading}
+                            >
+                                {actionLoading ? 'Deleting...' : 'Delete All Leads'}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

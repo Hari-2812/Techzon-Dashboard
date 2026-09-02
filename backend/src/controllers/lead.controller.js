@@ -738,6 +738,54 @@ exports.getLeadAssignmentStats = async (req, res) => {
     }
 };
 
+// @route DELETE /api/leads/admin/employees/:employeeId/all
+exports.resetEmployeeLeads = async (req, res) => {
+    try {
+        if (req.user.role !== 'ADMIN') return res.status(403).json({ success: false, message: 'Admin only' });
+        
+        const { employeeId } = req.params;
+        if (!employeeId) {
+            return res.status(400).json({ success: false, message: 'Employee ID is required' });
+        }
+
+        const leadsToDelete = await Lead.find({ assignedEmployeeId: employeeId });
+        const deletedCount = leadsToDelete.length;
+        
+        if (deletedCount === 0) {
+            return res.json({ success: true, message: 'Employee has no assigned leads to delete', deletedCount: 0 });
+        }
+
+        const leadIds = leadsToDelete.map(l => l._id);
+
+        // Perform hard delete of leads and their activities to prevent orphan records
+        await Lead.deleteMany({ _id: { $in: leadIds } });
+        await LeadActivity.deleteMany({ leadId: { $in: leadIds } });
+
+        // Create Audit Logs
+        await AuditLog.create({
+            actorId: req.user.id,
+            action: 'EMPLOYEE_LEADS_RESET',
+            entityType: 'User',
+            entityId: employeeId,
+            description: `Admin permanently deleted all ${deletedCount} leads assigned to employee ${employeeId}.`
+        });
+
+        // Notify client side via Socket.IO
+        const io = require('../server').io;
+        if (io) io.emit('lead:employee-reset', { employeeId });
+
+        res.json({ 
+            success: true, 
+            message: `${deletedCount} leads permanently deleted`, 
+            deletedCount,
+            employeeId
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+};
+
 // @route POST /api/leads/admin/auto-assign
 exports.autoAssign = async (req, res) => {
     try {

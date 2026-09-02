@@ -18,6 +18,8 @@ const Layout = () => {
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['performance'] });
       queryClient.invalidateQueries({ queryKey: ['sales'] });
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
     };
 
     const handleNotificationUpdate = () => {
@@ -37,6 +39,8 @@ const Layout = () => {
     socket.on('sale:updated', handleUpdate);
     socket.on('sale:converted', handleUpdate);
     socket.on('leads:employee-sales-imported', handleUpdate);
+    socket.on('leads:bulk-deleted', handleUpdate);
+    socket.on('lead:employee-reset', handleUpdate);
     socket.on('notification:new', handleNotificationUpdate);
     socket.on('notification:refresh', handleNotificationUpdate);
 
@@ -54,6 +58,8 @@ const Layout = () => {
       socket.off('sale:updated', handleUpdate);
       socket.off('sale:converted', handleUpdate);
       socket.off('leads:employee-sales-imported', handleUpdate);
+      socket.off('leads:bulk-deleted', handleUpdate);
+      socket.off('lead:employee-reset', handleUpdate);
       socket.off('notification:new', handleNotificationUpdate);
       socket.off('notification:refresh', handleNotificationUpdate);
     };
