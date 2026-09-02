@@ -37,38 +37,50 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, isMobileOpen = fal
 
   const commonNavItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'Leads', path: '/leads', icon: Users },
-    { name: 'Sales', path: '/sales', icon: Wallet },
-    { name: 'Daily Updates', path: '/daily-updates', icon: ClipboardList },
-    { name: 'CR Management', path: '/crs', icon: UserSquare2 },
-    { name: 'Follow-ups', path: '/follow-ups', icon: CalendarClock },
   ];
 
-  const employeeOnlyItems = [
-    { name: 'WhatsApp Groups', path: '/groups', icon: MessageCircle },
+  const adminMainItems = [
+    { name: 'Employee Mgmt', path: '/employees', icon: Users },
+    { name: 'Attendance Mgmt', path: '/attendance-management', icon: Clock },
+    { name: 'Notifications', path: '/notifications', icon: Bell },
+  ];
+
+  const adminOperationsItems = [
+    { name: 'Lead Assignment', path: '/lead-assignment', icon: Users },
+    { name: 'Daily Updates', path: '/daily-updates', icon: ClipboardList },
+  ];
+
+  const adminReportsItems = [
+    { name: 'Team Performance', path: '/performance', icon: BarChart3 },
+  ];
+
+  const employeeMainItems = [
+    { name: 'My Leads', path: '/leads', icon: Users },
     { name: 'Attendance', path: '/attendance', icon: Clock },
+    { name: 'Daily Updates', path: '/daily-updates', icon: ClipboardList },
+    { name: 'Notifications', path: '/notifications', icon: Bell },
+  ];
+
+  const employeeReportsItems = [
     { name: 'My Performance', path: '/my-performance', icon: LineChart },
   ];
 
-  const adminOnlyItems = [
-    { name: 'Employee Mgmt', path: '/employees', icon: Users },
-    { name: 'Lead Assignment', path: '/lead-assignment', icon: Users },
-    { name: 'Attendance Mgmt', path: '/attendance-management', icon: Clock },
-    { name: 'Employee Performance', path: '/performance', icon: BarChart3 },
-    { name: 'Holiday Management', path: '/holiday-management', icon: Calendar },
-    { name: 'Analytics', path: '/analytics', icon: LineChart },
-    { name: 'Import Leads', path: '/import-leads', icon: UploadCloud },
-    { name: 'Audit Logs', path: '/audit-logs', icon: History },
-  ];
-
   const bottomCommonItems = [
-    { name: 'Notifications', path: '/notifications', icon: Bell },
     { name: 'Settings', path: '/settings', icon: Settings },
   ];
 
-  const navItems = user?.role === 'ADMIN' 
-    ? [...commonNavItems, ...adminOnlyItems, ...bottomCommonItems] 
-    : [...commonNavItems, ...employeeOnlyItems, ...bottomCommonItems];
+  const navGroups = user?.role === 'ADMIN' 
+    ? [
+        { title: 'MAIN', items: [...commonNavItems, ...adminMainItems] },
+        { title: 'CRM / OPERATIONS', items: adminOperationsItems },
+        { title: 'REPORTS', items: adminReportsItems },
+        { title: 'SYSTEM', items: bottomCommonItems }
+      ]
+    : [
+        { title: 'MAIN', items: [...commonNavItems, ...employeeMainItems] },
+        { title: 'REPORTS', items: employeeReportsItems },
+        { title: 'SYSTEM', items: bottomCommonItems }
+      ];
 
   const closeMobileMenu = () => {
     if (setIsMobileOpen) setIsMobileOpen(false);
@@ -129,30 +141,41 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, isMobileOpen = fal
         </div>
 
         <nav className="flex-1 overflow-y-auto py-4 scrollbar-hide">
-          <ul className="space-y-1 px-3">
-            {navItems.map((item) => (
-              <li key={item.name}>
-                <NavLink
-                  to={item.path}
-                  onClick={closeMobileMenu}
-                  className={({ isActive }) => clsx(
-                    "flex items-center rounded-lg px-3 py-2.5 transition-colors group relative",
-                    isActive 
-                      ? "bg-[var(--color-primary-container)] text-white" 
-                      : "text-white/70 hover:bg-white/10 hover:text-white"
-                  )}
-                  title={(!isOpen && !isMobileOpen) ? item.name : undefined}
-                >
-                  <item.icon size={20} className="min-w-[20px]" />
-                  {(isOpen || isMobileOpen) && (
-                    <span className="ml-3 text-sm font-medium whitespace-nowrap">
-                      {item.name}
-                    </span>
-                  )}
-                </NavLink>
-              </li>
+          <div className="space-y-6 px-3">
+            {navGroups.map((group, groupIndex) => (
+              <div key={groupIndex}>
+                {(isOpen || isMobileOpen) && (
+                  <h3 className="px-3 mb-2 text-xs font-semibold text-white/50 uppercase tracking-wider">
+                    {group.title}
+                  </h3>
+                )}
+                <ul className="space-y-1">
+                  {group.items.map((item) => (
+                    <li key={item.name}>
+                      <NavLink
+                        to={item.path}
+                        onClick={closeMobileMenu}
+                        className={({ isActive }) => clsx(
+                          "flex items-center rounded-lg px-3 py-2.5 transition-colors group relative",
+                          isActive 
+                            ? "bg-[var(--color-primary-container)] text-white" 
+                            : "text-white/70 hover:bg-white/10 hover:text-white"
+                        )}
+                        title={(!isOpen && !isMobileOpen) ? item.name : undefined}
+                      >
+                        <item.icon size={20} className="min-w-[20px]" />
+                        {(isOpen || isMobileOpen) && (
+                          <span className="ml-3 text-sm font-medium whitespace-nowrap">
+                            {item.name}
+                          </span>
+                        )}
+                      </NavLink>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
-          </ul>
+          </div>
         </nav>
         
         {/* Bottom User Area */}

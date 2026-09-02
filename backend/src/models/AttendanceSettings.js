@@ -11,7 +11,14 @@ const AttendanceSettingsSchema = new mongoose.Schema({
   breakDurationMinutes: { type: Number, default: 45 },
   halfDayThresholdHours: { type: Number, default: 4 },
   timezone: { type: String, default: 'Asia/Kolkata' },
-  overtimeEnabled: { type: Boolean, default: true }
+  overtimeEnabled: { type: Boolean, default: true },
+  
+  // Verification fields
+  attendanceVerificationMode: { type: String, enum: ['GPS_ONLY', 'NETWORK_ONLY', 'NETWORK_PLUS_GPS'], default: 'GPS_ONLY' },
+  officeLatitude: { type: Number, default: 0 },
+  officeLongitude: { type: Number, default: 0 },
+  allowedRadiusMeters: { type: Number, default: 100 },
+  requireLocationForClockOut: { type: Boolean, default: true }
 }, { timestamps: true });
 
 module.exports = mongoose.model('AttendanceSettings', AttendanceSettingsSchema);

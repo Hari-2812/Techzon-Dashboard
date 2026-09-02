@@ -247,3 +247,62 @@ exports.resetPassword = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server Error' });
   }
 };
+// @route   PUT /api/auth/profile
+// @desc    Update user profile and settings
+// @access  Private
+exports.updateProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const { name, phone, emergencyContact, preferences } = req.body;
+    
+    if (name) user.name = name;
+    if (phone) user.phone = phone;
+    
+    if (emergencyContact) {
+      user.emergencyContact = {
+        ...user.emergencyContact,
+        ...emergencyContact
+      };
+    }
+
+    if (preferences) {
+      user.preferences = {
+        ...user.preferences,
+        notifications: {
+          ...user.preferences?.notifications,
+          ...preferences.notifications
+        },
+        crm: {
+          ...user.preferences?.crm,
+          ...preferences.crm
+        }
+      };
+    }
+
+    await user.save();
+    
+    // Return updated user data (matching getMe structure)
+    res.json({
+      success: true,
+      data: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        employeeId: user.employeeId,
+        department: user.department,
+        designation: user.designation,
+        phone: user.phone,
+        emergencyContact: user.emergencyContact,
+        preferences: user.preferences
+      }
+    });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};

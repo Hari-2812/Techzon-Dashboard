@@ -29,6 +29,20 @@ const UserSchema = new mongoose.Schema({
         relationship: { type: String }
     },
     
+    preferences: {
+        notifications: {
+            attendanceReminders: { type: Boolean, default: true },
+            leaveUpdates: { type: Boolean, default: true },
+            leadAssignment: { type: Boolean, default: true },
+            systemNotifications: { type: Boolean, default: true }
+        },
+        crm: {
+            defaultView: { type: String, default: 'dashboard' },
+            timezone: { type: String, default: 'Asia/Kolkata' },
+            itemsPerPage: { type: Number, default: 20 }
+        }
+    },
+    
     mustChangePassword: { type: Boolean, default: false },
     resetPasswordToken: { type: String },
     resetPasswordExpire: { type: Date }
