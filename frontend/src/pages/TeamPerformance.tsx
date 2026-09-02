@@ -1,11 +1,66 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { usePerformance } from '../hooks/usePerformance';
+import { usePerformance, useAdminAttendancePerformance } from '../hooks/usePerformance';
 import { useAuthStore } from '../store/authStore';
 import { Card } from '../components/ui/Card';
 import api from '../services/api';
 import moment from 'moment-timezone';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { Search, ChevronDown, ArrowUpDown } from 'lucide-react';
+import { Search, ChevronDown, ArrowUpDown, Clock, CalendarCheck, Activity, Briefcase } from 'lucide-react';
+
+const AttendancePerformanceBlock = ({ employeeId }: { employeeId: string | undefined }) => {
+  const [monthCursor, setMonthCursor] = useState(moment().startOf('month'));
+  const month = monthCursor.format('MM');
+  const year = monthCursor.format('YYYY');
+  const { data: perfData, isLoading } = useAdminAttendancePerformance(employeeId, month, year);
+
+  if (!employeeId) return null;
+
+  return (
+    <Card className="p-6 bg-white border border-gray-100 shadow-sm animate-fade-in">
+      <div className="flex flex-col sm:flex-row items-center justify-between mb-6">
+        <h3 className="text-lg font-bold text-gray-800">Attendance Performance</h3>
+        <div className="flex items-center gap-4 bg-gray-50 p-1.5 rounded-lg border border-gray-200">
+          <button onClick={() => setMonthCursor(prev => prev.clone().subtract(1, 'month'))} className="p-1 hover:bg-gray-200 rounded text-gray-600">
+            {'<'}
+          </button>
+          <span className="font-semibold text-sm min-w-[100px] text-center">{monthCursor.format('MMMM YYYY')}</span>
+          <button onClick={() => setMonthCursor(prev => prev.clone().add(1, 'month'))} className="p-1 hover:bg-gray-200 rounded text-gray-600">
+            {'>'}
+          </button>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="text-center py-8 text-gray-500">Loading attendance data...</div>
+      ) : perfData ? (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-green-50 p-4 rounded-lg border border-green-100 flex flex-col items-center text-center">
+            <Activity className="text-green-600 mb-2" size={24} />
+            <div className="text-sm font-semibold text-green-800">Attendance Rate</div>
+            <div className="text-2xl font-bold text-green-700">{perfData.attendanceRate}%</div>
+          </div>
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 flex flex-col items-center text-center">
+            <CalendarCheck className="text-blue-600 mb-2" size={24} />
+            <div className="text-sm font-semibold text-blue-800">On-Time</div>
+            <div className="text-2xl font-bold text-blue-700">{perfData.onTimePercentage}%</div>
+          </div>
+          <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100 flex flex-col items-center text-center">
+            <Clock className="text-indigo-600 mb-2" size={24} />
+            <div className="text-sm font-semibold text-indigo-800">Total Worked</div>
+            <div className="text-2xl font-bold text-indigo-700">{perfData.totalWorkedHours} h</div>
+          </div>
+          <div className="bg-purple-50 p-4 rounded-lg border border-purple-100 flex flex-col items-center text-center">
+            <Briefcase className="text-purple-600 mb-2" size={24} />
+            <div className="text-sm font-semibold text-purple-800">Avg Daily Work</div>
+            <div className="text-2xl font-bold text-purple-700">{perfData.averageWorkedHours} h</div>
+          </div>
+        </div>
+      ) : (
+        <div className="text-center py-8 text-gray-500">No attendance data found.</div>
+      )}
+    </Card>
+  );
+};
 
 const EmployeePerformance = () => {
   const user = useAuthStore(state => state.user);
@@ -209,6 +264,9 @@ const EmployeePerformance = () => {
           </Card>
         </div>
       )}
+
+      {/* ATTENDANCE PERFORMANCE FOR SPECIFIC EMPLOYEE */}
+      {isSpecificView && <AttendancePerformanceBlock employeeId={employeeId !== 'all' ? employeeId : user?.id} />}
 
       {/* 2. MAIN EMPLOYEE PERFORMANCE TABLE */}
       {!isSpecificView && (

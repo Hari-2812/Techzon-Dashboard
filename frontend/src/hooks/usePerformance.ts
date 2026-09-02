@@ -15,3 +15,26 @@ export const usePerformance = (dateFilter: string = 'Today', employeeId: string 
     },
   });
 };
+
+export const useMyAttendancePerformance = (month: string, year: string) => {
+  return useQuery({
+    queryKey: ['myAttendancePerformance', month, year],
+    queryFn: async () => {
+      const res = await api.get(`/performance/attendance/my?month=${month}&year=${year}`);
+      return res.data.data;
+    },
+    enabled: !!month && !!year,
+  });
+};
+
+export const useAdminAttendancePerformance = (employeeId: string | undefined, month: string, year: string) => {
+  return useQuery({
+    queryKey: ['adminAttendancePerformance', employeeId, month, year],
+    queryFn: async () => {
+      if (!employeeId) return null;
+      const res = await api.get(`/performance/attendance/admin/${employeeId}?month=${month}&year=${year}`);
+      return res.data.data;
+    },
+    enabled: !!employeeId && !!month && !!year,
+  });
+};

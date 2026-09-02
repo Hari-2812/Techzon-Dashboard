@@ -83,3 +83,92 @@ exports.calculateSessionStats = async (workSession, settings) => {
     status
   };
 };
+
+exports.buildMonthlyAttendanceData = async (employeeId, month, year) => {
+  const AttendanceDaily = require('../models/AttendanceDaily');
+  const HolidayResponse = require('../models/HolidayResponse');
+  const Holiday = require('../models/Holiday');
+  
+  const prefix = `${year}-${month.padStart(2, '0')}`;
+  
+  let records = await AttendanceDaily.find({ 
+    employeeId: employeeId, 
+    date: { $regex: `^${prefix}` },
+    isTestSession: { $ne: true }
+  }).lean();
+  
+  // Inject approved holidays
+  const holidayResponses = await HolidayResponse.find({
+    employeeId: employeeId,
+    holidayDate: { $regex: `^${prefix}` },
+    response: 'TAKE_LEAVE',
+    status: 'APPROVED'
+  }).lean();
+
+  const existingDates = new Set(records.map(r => r.date));
+
+  for (const hr of holidayResponses) {
+     if (!existingDates.has(hr.holidayDate)) {
+         const holiday = await Holiday.findById(hr.holidayId);
+         records.push({
+             date: hr.holidayDate,
+             status: 'HOLIDAY',
+             workedMinutes: 0,
+             breakMinutes: 0,
+             isSynthesized: true,
+             note: holiday ? holiday.name : 'Approved Holiday Leave'
+         });
+         existingDates.add(hr.holidayDate);
+     }
+  }
+  
+  // Inject Week Off for Mondays without records
+  let settings = await AttendanceSettings.findOne() || new AttendanceSettings();
+  const tz = settings.timezone || 'Asia/Kolkata';
+  const daysInMonth = moment.tz(`${prefix}-01`, 'YYYY-MM-DD', tz).daysInMonth();
+  
+  for (let i = 1; i <= daysInMonth; i++) {
+      const dateStr = `${prefix}-${i.toString().padStart(2, '0')}`;
+      const currentDay = moment.tz(dateStr, 'YYYY-MM-DD', tz);
+      
+      if (!existingDates.has(dateStr) && currentDay.isSameOrBefore(moment.tz(tz), 'day')) {
+         if (currentDay.day() === 1) { // Monday
+             records.push({
+                 date: dateStr,
+                 status: 'WEEK_OFF',
+                 workedMinutes: 0,
+                 breakMinutes: 0,
+                 isSynthesized: true
+             });
+             existingDates.add(dateStr);
+         }
+      }
+  }
+
+  records.sort((a, b) => a.date.localeCompare(b.date));
+  
+  let summary = {
+    present: 0,
+    late: 0,
+    halfDay: 0,
+    absent: 0,
+    onLeave: 0,
+    weekOff: 0,
+    totalWorkedMinutes: 0,
+    totalBreakMinutes: 0
+  };
+
+  records.forEach(d => {
+    if (d.workedMinutes) summary.totalWorkedMinutes += d.workedMinutes;
+    if (d.breakMinutes) summary.totalBreakMinutes += d.breakMinutes;
+
+    if (['PRESENT', 'WORKING', 'ON_BREAK', 'COMPLETED', 'EARLY_LEAVE', 'OVERTIME', 'PENDING_BREAK_APPROVAL', 'PENDING_CHECK_OUT_APPROVAL'].includes(d.status)) summary.present++;
+    else if (d.status === 'LATE') summary.late++;
+    else if (d.status === 'HALF_DAY') summary.halfDay++;
+    else if (d.status === 'ABSENT') summary.absent++;
+    else if (d.status === 'PAID_LEAVE' || d.status === 'Leave Approved' || d.status === 'LEAVE' || d.status === 'HOLIDAY' || d.status === 'PERMISSION') summary.onLeave++;
+    else if (d.status === 'Week Off' || d.status === 'WEEK_OFF') summary.weekOff++;
+  });
+
+  return { summary, records };
+};

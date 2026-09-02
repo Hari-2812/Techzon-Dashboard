@@ -103,23 +103,32 @@ const AttendanceManagement = () => {
   const [adminDrawerMonth, setAdminDrawerMonth] = useState(moment().startOf('month'));
   const [adminDrawerMonthlyData, setAdminDrawerMonthlyData] = useState<any>(null);
   const [loadingDrawerMonthly, setLoadingDrawerMonthly] = useState(false);
+  const [adminDrawerMonthlyError, setAdminDrawerMonthlyError] = useState(false);
 
   const fetchDrawerMonthlyData = async (employeeId: string, cursor: moment.Moment) => {
       setLoadingDrawerMonthly(true);
+      setAdminDrawerMonthlyError(false);
       try {
           const m = cursor.format('MM');
           const y = cursor.format('YYYY');
           const token = localStorage.getItem('token') || '';
           const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-          const res = await fetch(`${apiUrl}/attendance/admin/employee/${employeeId}?month=${m}&year=${y}`, {
+          const res = await fetch(`${apiUrl}/attendance-management/employees/${employeeId}?month=${m}&year=${y}`, {
               headers: { 'Authorization': `Bearer ${token}` }
           });
-          const result = await res.json();
-          if (result.success) {
-              setAdminDrawerMonthlyData(result.data);
+          if (!res.ok) {
+              setAdminDrawerMonthlyError(true);
+          } else {
+              const result = await res.json();
+              if (result.success) {
+                  setAdminDrawerMonthlyData(result.data);
+              } else {
+                  setAdminDrawerMonthlyError(true);
+              }
           }
       } catch (err) {
           console.error("Failed to load admin drawer monthly data", err);
+          setAdminDrawerMonthlyError(true);
       }
       setLoadingDrawerMonthly(false);
   };
@@ -1018,8 +1027,15 @@ const AttendanceManagement = () => {
 
                {adminDrawerTab === 'MONTHLY' && (
                   <div className="space-y-6">
-                      {loadingDrawerMonthly || !adminDrawerMonthlyData ? (
+                      {loadingDrawerMonthly ? (
                           <div className="text-center py-12 text-gray-500">Loading monthly attendance...</div>
+                      ) : adminDrawerMonthlyError ? (
+                          <div className="text-center py-12 text-red-500">
+                              <p>Unable to load monthly attendance.</p>
+                              <Button variant="outline" className="mt-4" onClick={() => fetchDrawerMonthlyData(selectedEmployee.employeeId._id || selectedEmployee.employeeId, adminDrawerMonth)}>Retry</Button>
+                          </div>
+                      ) : !adminDrawerMonthlyData || !adminDrawerMonthlyData.records || adminDrawerMonthlyData.records.length === 0 ? (
+                          <div className="text-center py-12 text-gray-500">No attendance records found for this month.</div>
                       ) : (
                           <>
                               <div className="flex items-center justify-between mb-4">

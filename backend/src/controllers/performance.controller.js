@@ -166,3 +166,68 @@ exports.getPerformance = async (req, res) => {
         res.status(500).json({ success: false, message: 'Server Error' });
     }
 };
+
+const calculateAttendancePerformance = async (employeeId, month, year) => {
+    const attendanceService = require('../services/attendance.service');
+    const { summary, records } = await attendanceService.buildMonthlyAttendanceData(employeeId, month, year);
+    
+    // Performance Calculations based on actual data
+    const workingDays = summary.present + summary.late + summary.halfDay + summary.absent + summary.onLeave; 
+    // Exclude weekOffs from total working days divisor typically
+    
+    // On-Time = Present (without late) / Working Days
+    const onTimeDays = summary.present; // Assuming 'present' excludes 'LATE', wait, let's look at buildMonthlyAttendance: 'PRESENT' is counted, 'LATE' is separate.
+    
+    const attendanceRate = workingDays > 0 ? parseFloat((((onTimeDays + summary.late + summary.halfDay) / workingDays) * 100).toFixed(2)) : 0;
+    const onTimePercentage = workingDays > 0 ? parseFloat(((onTimeDays / workingDays) * 100).toFixed(2)) : 0;
+    const latePercentage = workingDays > 0 ? parseFloat(((summary.late / workingDays) * 100).toFixed(2)) : 0;
+
+    const totalWorkedHours = parseFloat((summary.totalWorkedMinutes / 60).toFixed(2));
+    const totalBreakHours = parseFloat((summary.totalBreakMinutes / 60).toFixed(2));
+    
+    const daysWithWork = records.filter(r => r.workedMinutes > 0).length;
+    const averageWorkedHours = daysWithWork > 0 ? parseFloat((totalWorkedHours / daysWithWork).toFixed(2)) : 0;
+
+    return {
+        attendanceRate,
+        onTimePercentage,
+        latePercentage,
+        workingDays,
+        present: summary.present,
+        late: summary.late,
+        absent: summary.absent,
+        leave: summary.onLeave,
+        permission: 0, // Injected under onLeave
+        weekOff: summary.weekOff,
+        totalWorkedHours,
+        totalBreakHours,
+        averageWorkedHours
+    };
+};
+
+exports.getMyAttendancePerformance = async (req, res) => {
+    try {
+        const { month, year } = req.query;
+        if (!month || !year) return res.status(400).json({ success: false, message: 'month and year required' });
+        
+        const performance = await calculateAttendancePerformance(req.user.id, month, year);
+        res.json({ success: true, data: performance });
+    } catch (err) {
+        console.error('Error in getMyAttendancePerformance:', err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+};
+
+exports.getAdminAttendancePerformance = async (req, res) => {
+    try {
+        const { employeeId } = req.params;
+        const { month, year } = req.query;
+        if (!employeeId || !month || !year) return res.status(400).json({ success: false, message: 'employeeId, month, and year required' });
+        
+        const performance = await calculateAttendancePerformance(employeeId, month, year);
+        res.json({ success: true, data: performance });
+    } catch (err) {
+        console.error('Error in getAdminAttendancePerformance:', err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+};

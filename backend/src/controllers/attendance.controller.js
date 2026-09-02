@@ -320,86 +320,8 @@ exports.getMonthlyAttendance = async (req, res) => {
     const { month, year } = req.query; // e.g. "08", "2026"
     if (!month || !year) return res.status(400).json({ success: false, message: 'month and year query params required' });
     
-    const prefix = `${year}-${month.padStart(2, '0')}`;
-    
-    let records = await AttendanceDaily.find({ 
-      employeeId: req.user.id, 
-      date: { $regex: `^${prefix}` },
-      isTestSession: { $ne: true }
-    }).lean();
-    
-    // Inject approved holidays
-    const HolidayResponse = require('../models/HolidayResponse');
-    const Holiday = require('../models/Holiday');
-    
-    const holidayResponses = await HolidayResponse.find({
-      employeeId: req.user.id,
-      holidayDate: { $regex: `^${prefix}` },
-      response: 'TAKE_LEAVE',
-      status: 'APPROVED'
-    }).lean();
-
-    const existingDates = new Set(records.map(r => r.date));
-
-    for (const hr of holidayResponses) {
-       if (!existingDates.has(hr.holidayDate)) {
-           const holiday = await Holiday.findById(hr.holidayId);
-           records.push({
-               date: hr.holidayDate,
-               status: 'HOLIDAY',
-               workedMinutes: 0,
-               breakMinutes: 0,
-               isSynthesized: true,
-               note: holiday ? holiday.name : 'Approved Holiday Leave'
-           });
-           existingDates.add(hr.holidayDate);
-       }
-    }
-    
-    // Inject Week Off for Mondays without records
-    const moment = require('moment-timezone');
-    const AttendanceSettings = require('../models/AttendanceSettings');
-    const settings = await AttendanceSettings.findOne() || new AttendanceSettings();
-    const tz = settings.timezone || 'Asia/Kolkata';
-    const daysInMonth = moment.tz(`${prefix}-01`, 'YYYY-MM-DD', tz).daysInMonth();
-    
-    for (let i = 1; i <= daysInMonth; i++) {
-        const dateStr = `${prefix}-${i.toString().padStart(2, '0')}`;
-        const currentDay = moment.tz(dateStr, 'YYYY-MM-DD', tz);
-        
-        if (!existingDates.has(dateStr) && currentDay.isSameOrBefore(moment.tz(tz), 'day')) {
-           if (currentDay.day() === 1) { // Monday
-               records.push({
-                   date: dateStr,
-                   status: 'WEEK_OFF',
-                   workedMinutes: 0,
-                   breakMinutes: 0,
-                   isSynthesized: true
-               });
-               existingDates.add(dateStr);
-           }
-        }
-    }
-
-    records.sort((a, b) => a.date.localeCompare(b.date));
-    
-    let summary = {
-      present: 0,
-      late: 0,
-      halfDay: 0,
-      absent: 0,
-      onLeave: 0,
-      weekOff: 0
-    };
-
-    records.forEach(d => {
-      if (['PRESENT', 'WORKING', 'ON_BREAK', 'COMPLETED', 'EARLY_LEAVE', 'OVERTIME', 'PENDING_BREAK_APPROVAL', 'PENDING_CHECK_OUT_APPROVAL'].includes(d.status)) summary.present++;
-      else if (d.status === 'LATE') summary.late++;
-      else if (d.status === 'HALF_DAY') summary.halfDay++;
-      else if (d.status === 'ABSENT') summary.absent++;
-      else if (d.status === 'PAID_LEAVE' || d.status === 'Leave Approved' || d.status === 'LEAVE' || d.status === 'HOLIDAY') summary.onLeave++;
-      else if (d.status === 'Week Off' || d.status === 'WEEK_OFF') summary.weekOff++;
-    });
+    const attendanceService = require('../services/attendance.service');
+    const { summary, records } = await attendanceService.buildMonthlyAttendanceData(req.user.id, month, year);
 
     res.json({ success: true, data: { summary, records } });
   } catch (err) {

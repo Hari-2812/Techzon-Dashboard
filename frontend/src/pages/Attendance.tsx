@@ -21,6 +21,7 @@ const Attendance = () => {
   const [monthCursor, setMonthCursor] = useState(moment().startOf('month'));
   const [monthlyData, setMonthlyData] = useState<any>(null);
   const [loadingMonthly, setLoadingMonthly] = useState(false);
+  const [monthlyError, setMonthlyError] = useState(false);
 
   // Pass selectedDate to our hook for historical daily views
   const attendance = useAttendance(selectedDate);
@@ -58,6 +59,7 @@ const Attendance = () => {
 
   const loadMonthlyData = async () => {
       setLoadingMonthly(true);
+      setMonthlyError(false);
       try {
           const m = monthCursor.format('MM');
           const y = monthCursor.format('YYYY');
@@ -65,6 +67,7 @@ const Attendance = () => {
           setMonthlyData(data);
       } catch (err) {
           console.error("Failed to load monthly attendance", err);
+          setMonthlyError(true);
       }
       setLoadingMonthly(false);
   };
@@ -268,9 +271,21 @@ const Attendance = () => {
   };
 
   const renderMonthlyContent = () => {
-      if (loadingMonthly || !monthlyData) {
+      if (loadingMonthly) {
           return <div className="text-center py-12 text-gray-500">Loading monthly attendance...</div>;
       }
+      if (monthlyError) {
+          return (
+              <div className="text-center py-12 text-red-500">
+                  <p>Unable to load monthly attendance.</p>
+                  <Button variant="outline" className="mt-4" onClick={loadMonthlyData}>Retry</Button>
+              </div>
+          );
+      }
+      if (!monthlyData || !monthlyData.records || monthlyData.records.length === 0) {
+          return <div className="text-center py-12 text-gray-500">No attendance records found for this month.</div>;
+      }
+      
       
       const { summary, records } = monthlyData;
 
