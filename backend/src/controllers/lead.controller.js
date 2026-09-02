@@ -675,8 +675,8 @@ exports.updateLeadStatus = async (req, res) => {
     }
 };
 
-// @route POST /api/leads/admin/remove-assignments
-exports.removeAssignments = async (req, res) => {
+// @route DELETE /api/leads/admin/delete-old-assigned-leads
+exports.deleteOldAssignedLeads = async (req, res) => {
     try {
         if (req.user.role !== 'ADMIN') return res.status(403).json({ success: false, message: 'Admin only' });
         
@@ -687,29 +687,51 @@ exports.removeAssignments = async (req, res) => {
             query.assignedEmployeeId = { $in: employeeIds };
         }
 
-        const leadsToUnassign = await Lead.find(query);
+        const leadsToDelete = await Lead.find(query);
         
-        if (leadsToUnassign.length === 0) {
-            return res.json({ success: true, message: 'No assigned leads found to remove' });
+        if (leadsToDelete.length === 0) {
+            return res.json({ success: true, message: 'No assigned old leads found to delete', count: 0, affectedEmployees: 0 });
         }
 
-        const leadIds = leadsToUnassign.map(l => l._id);
+        const leadIds = leadsToDelete.map(l => l._id);
+        const uniqueEmployees = new Set(leadsToDelete.map(l => l.assignedEmployeeId.toString()));
 
-        await Lead.updateMany(
-            { _id: { $in: leadIds } },
-            { $unset: { assignedEmployeeId: "" }, $set: { leadStatus: 'New' } }
-        );
+        // Perform hard delete of leads and their activities to prevent orphan records
+        await Lead.deleteMany({ _id: { $in: leadIds } });
+        await LeadActivity.deleteMany({ leadId: { $in: leadIds } });
 
-        // Create Activities and Audit Logs
-        const activities = leadIds.map(id => ({
-            leadId: id,
-            employeeId: req.user.id,
-            activityType: 'LEAD_UNASSIGNED',
-            description: 'Lead assignment removed by Admin in bulk operation'
-        }));
-        await LeadActivity.insertMany(activities);
+        // Create Audit Logs
+        await AuditLog.create({
+            actorId: req.user.id,
+            action: 'LEAD_BULK_DELETED',
+            entityType: 'Lead',
+            description: `Admin deleted ${leadIds.length} old assigned leads.`
+        });
 
-        res.json({ success: true, message: `Successfully unassigned ${leadIds.length} leads.`, count: leadIds.length });
+        const io = require('../server').io;
+        if (io) io.emit('leads:bulk-deleted');
+
+        res.json({ 
+            success: true, 
+            message: `Successfully deleted ${leadIds.length} old leads.`, 
+            count: leadIds.length,
+            affectedEmployees: uniqueEmployees.size
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+};
+
+// @route GET /api/leads/admin/assignment-stats
+exports.getLeadAssignmentStats = async (req, res) => {
+    try {
+        if (req.user.role !== 'ADMIN') return res.status(403).json({ success: false, message: 'Admin only' });
+
+        const oldAssignedCount = await Lead.countDocuments({ assignedEmployeeId: { $ne: null } });
+        const unassignedCount = await Lead.countDocuments({ assignedEmployeeId: { $exists: false } });
+
+        res.json({ success: true, oldAssignedCount, unassignedCount });
     } catch (err) {
         console.error(err);
         res.status(500).json({ success: false, message: 'Server Error' });

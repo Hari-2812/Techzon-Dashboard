@@ -7,7 +7,8 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { useAuthStore } from '../store/authStore';
 import { useEmployees } from '../hooks/useEmployees';
-import { Users, UserMinus, UserPlus, HelpCircle } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Users, UserMinus, UserPlus, HelpCircle, AlertTriangle } from 'lucide-react';
 
 interface SalesImportProps {
   embedded?: boolean;
@@ -335,18 +336,32 @@ export default function SalesImport({ embedded = false, targetEmployeeId, target
     }
   };
 
-  const handleRemoveAssignments = async () => {
+  const queryClient = useQueryClient();
+
+  const { data: assignmentStats, refetch: refetchAssignmentStats } = useQuery({
+    queryKey: ['lead-assignment-stats'],
+    queryFn: async () => {
+      const res = await api.get('/leads/admin/assignment-stats');
+      return res.data;
+    },
+    enabled: isAdmin && !embedded
+  });
+
+  const handleDeleteOldLeads = async () => {
     setAssignmentError('');
     setAssignmentSuccess('');
     try {
-      const res = await api.post('/leads/admin/remove-assignments', {
-        employeeIds: Array.from(selectedAssignmentEmployees)
+      const res = await api.delete('/leads/admin/delete-old-assigned-leads', {
+        data: { employeeIds: Array.from(selectedAssignmentEmployees) }
       });
-      setAssignmentSuccess(res.data.message);
+      setAssignmentSuccess(`Successfully deleted ${res.data.count} old leads affecting ${res.data.affectedEmployees} employees.`);
       setIsRemoveModalOpen(false);
       setSelectedAssignmentEmployees(new Set());
+      refetchAssignmentStats();
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
     } catch (err: any) {
-      setAssignmentError(err.response?.data?.message || 'Failed to remove assignments');
+      setAssignmentError(err.response?.data?.message || 'Failed to delete old leads');
     }
   };
 
@@ -364,6 +379,9 @@ export default function SalesImport({ embedded = false, targetEmployeeId, target
       setAssignmentSuccess(res.data.message);
       setIsAssignModalOpen(false);
       setSelectedAssignmentEmployees(new Set());
+      refetchAssignmentStats();
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
     } catch (err: any) {
       setAssignmentError(err.response?.data?.message || 'Failed to auto-assign leads');
     }
@@ -629,14 +647,26 @@ export default function SalesImport({ embedded = false, targetEmployeeId, target
       {/* Admin Lead Assignment Management Section */}
       {isAdmin && !embedded && (
         <Card className="mt-8">
-          <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-red-50">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                <Users size={20} className="text-indigo-600" />
-                Lead Assignment Management
+              <h2 className="text-xl font-semibold text-red-900 flex items-center gap-2">
+                <AlertTriangle size={20} className="text-red-600" />
+                Replace Existing Employee Leads
               </h2>
-              <p className="text-sm text-gray-500 mt-1">Manage bulk lead assignments and distribution</p>
+              <p className="text-sm text-red-700 mt-1">Manage bulk lead assignments and safely remove old leads.</p>
             </div>
+            {assignmentStats && (
+              <div className="flex gap-4">
+                <div className="bg-white p-3 rounded shadow-sm border border-red-100 text-center">
+                  <span className="block text-2xl font-bold text-red-600">{assignmentStats.oldAssignedCount}</span>
+                  <span className="text-xs text-gray-500 uppercase tracking-wider">Current Old Leads</span>
+                </div>
+                <div className="bg-white p-3 rounded shadow-sm border border-indigo-100 text-center">
+                  <span className="block text-2xl font-bold text-indigo-600">{assignmentStats.unassignedCount}</span>
+                  <span className="text-xs text-gray-500 uppercase tracking-wider">New Leads Ready</span>
+                </div>
+              </div>
+            )}
           </div>
           <div className="p-6">
             {assignmentSuccess && (
@@ -653,49 +683,49 @@ export default function SalesImport({ embedded = false, targetEmployeeId, target
             )}
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Remove Assignments Card */}
-              <div className="p-6 border border-gray-200 rounded-xl bg-gray-50 flex flex-col justify-between">
+              {/* Delete Old Leads Card */}
+              <div className="p-6 border border-red-200 rounded-xl bg-white flex flex-col justify-between shadow-sm">
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2 mb-2">
-                    <UserMinus size={18} className="text-red-500" />
-                    Remove Existing Assignments
+                  <h3 className="text-lg font-medium text-red-900 flex items-center gap-2 mb-2">
+                    <Trash2 size={18} className="text-red-600" />
+                    ⚠ Remove all old leads before assignment
                   </h3>
                   <p className="text-sm text-gray-600 mb-4">
-                    Safely unassign current leads from employees to prepare for a new batch of leads. Historical data and records are preserved.
+                    Permanently delete all currently assigned old leads from the employee lead lists to prepare for a new batch.
                   </p>
                 </div>
                 <Button 
                   variant="outline" 
-                  className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                  className="w-full text-red-600 hover:text-white hover:bg-red-600 border-red-200 transition-colors"
                   onClick={() => {
                     setSelectedAssignmentEmployees(new Set());
                     setIsRemoveModalOpen(true);
                   }}
                 >
-                  Unassign Leads
+                  Remove All Old Leads
                 </Button>
               </div>
 
               {/* Assign New Leads Card */}
-              <div className="p-6 border border-gray-200 rounded-xl bg-gray-50 flex flex-col justify-between">
+              <div className="p-6 border border-indigo-200 rounded-xl bg-white flex flex-col justify-between shadow-sm">
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2 mb-2">
-                    <UserPlus size={18} className="text-indigo-500" />
+                  <h3 className="text-lg font-medium text-indigo-900 flex items-center gap-2 mb-2">
+                    <UserPlus size={18} className="text-indigo-600" />
                     Auto-Assign New Leads
                   </h3>
                   <p className="text-sm text-gray-600 mb-4">
-                    Automatically distribute all unassigned leads equally among selected employees using the round-robin method.
+                    Automatically distribute all unassigned new leads equally among selected employees using the round-robin method.
                   </p>
                 </div>
                 <Button 
                   variant="outline" 
-                  className="w-full text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 border-indigo-200"
+                  className="w-full text-indigo-600 hover:text-white hover:bg-indigo-600 border-indigo-200 transition-colors"
                   onClick={() => {
                     setSelectedAssignmentEmployees(new Set());
                     setIsAssignModalOpen(true);
                   }}
                 >
-                  Auto-Assign Leads
+                  Auto-Assign New Leads
                 </Button>
               </div>
             </div>
@@ -703,20 +733,26 @@ export default function SalesImport({ embedded = false, targetEmployeeId, target
         </Card>
       )}
 
-      {/* Remove Modal */}
+      {/* Delete Modal */}
       {isRemoveModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 animate-in fade-in zoom-in-95 duration-200">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2 flex items-center gap-2">
-              <AlertCircle className="text-red-500" /> Remove Existing Lead Assignments?
+            <h2 className="text-2xl font-bold text-red-600 mb-4 flex items-center gap-2 border-b pb-4 border-gray-100">
+              <AlertTriangle size={24} /> Delete All Old Leads?
             </h2>
-            <p className="text-gray-600 mb-4 text-sm">
-              This will unassign the currently assigned leads from the selected employees (or all employees if none selected).<br/><br/>
-              <strong>Lead records and activity history will NOT be deleted.</strong>
-            </p>
+            <div className="bg-red-50 p-4 rounded-lg mb-6">
+              <p className="text-red-800 font-medium mb-2">
+                You are about to permanently remove all currently assigned old leads from the employee lead lists.
+              </p>
+              <ul className="list-disc pl-5 text-sm text-red-700 space-y-1">
+                <li><strong>{assignmentStats?.oldAssignedCount || 0}</strong> old leads will be removed.</li>
+                <li>This action <strong>cannot be undone</strong>.</li>
+                <li>Newly uploaded leads ({assignmentStats?.unassignedCount || 0}) will not be affected.</li>
+              </ul>
+            </div>
             
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Employees (Optional: Leave empty to unassign from ALL)</label>
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Select Employees (Leave empty to delete from ALL)</label>
               <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-2 bg-gray-50">
                 {allEmployees.map((emp: any) => (
                   <label key={emp._id} className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded cursor-pointer">
@@ -737,10 +773,10 @@ export default function SalesImport({ embedded = false, targetEmployeeId, target
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 mt-6">
+            <div className="flex justify-end gap-3">
               <Button variant="outline" onClick={() => setIsRemoveModalOpen(false)}>Cancel</Button>
-              <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={handleRemoveAssignments}>
-                Confirm Unassign
+              <Button className="bg-red-600 hover:bg-red-700 text-white font-medium px-6" onClick={handleDeleteOldLeads}>
+                Delete All Old Leads
               </Button>
             </div>
           </div>

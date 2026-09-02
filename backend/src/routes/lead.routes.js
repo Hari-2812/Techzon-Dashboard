@@ -12,7 +12,8 @@ const {
   importParse,
   importPreview,
   importConfirm,
-  removeAssignments,
+  deleteOldAssignedLeads,
+  getLeadAssignmentStats,
   autoAssign
 } = require('../controllers/lead.controller');
 const { auth } = require('../middlewares/auth');
@@ -28,7 +29,8 @@ router.post('/import/parse', upload.single('file'), importParse);
 router.post('/import/preview', importPreview);
 router.post('/import/confirm', importConfirm);
 router.post('/bulk-assign', bulkAssign);
-router.post('/admin/remove-assignments', removeAssignments);
+router.delete('/admin/delete-old-assigned-leads', deleteOldAssignedLeads);
+router.get('/admin/assignment-stats', getLeadAssignmentStats);
 router.post('/admin/auto-assign', autoAssign);
 router.get('/:id', getLeadById);
 router.get('/:id/activities', getLeadActivities);
