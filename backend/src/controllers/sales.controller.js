@@ -447,6 +447,8 @@ exports.importEmployeeContacts = async (req, res) => {
                     if (contact.email && !existingLead.email) existingLead.email = contact.email;
                     if (contact.collegeName && !existingLead.college) existingLead.college = contact.collegeName;
                     if (contact.interestedDomain && !existingLead.interestedDomain) existingLead.interestedDomain = contact.interestedDomain;
+                    if (contact.department && !existingLead.department) existingLead.department = contact.department;
+                    if (contact.year && !existingLead.year) existingLead.year = contact.year;
                     
                     await existingLead.save();
                     updated++;
@@ -459,6 +461,8 @@ exports.importEmployeeContacts = async (req, res) => {
                         email: contact.email || '',
                         college: contact.collegeName || '',
                         interestedDomain: contact.interestedDomain || '',
+                        department: contact.department || '',
+                        year: contact.year || '',
                         salesStatus: 'Not Contacted',
                         leadStatus: 'New',
                         crStatus: 'Not Verified',
@@ -491,6 +495,57 @@ exports.importEmployeeContacts = async (req, res) => {
 
     } catch (error) {
         console.error('Error importing employee contacts:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+exports.validateEmployeeContacts = async (req, res) => {
+    try {
+        const { contacts } = req.body;
+        if (!Array.isArray(contacts) || contacts.length === 0) {
+            return res.status(400).json({ success: false, message: 'No contacts provided' });
+        }
+
+        const Lead = require('../models/Lead');
+        const { normalizePhone } = require('../validations/lead.validation');
+
+        const validationResults = [];
+
+        for (let i = 0; i < contacts.length; i++) {
+            let contact = contacts[i];
+            
+            if (!contact.studentName || !contact.phone) {
+                validationResults.push({ id: contact.id || i, status: 'INVALID', reason: 'Name and phone required' });
+                continue;
+            }
+
+            const phone = normalizePhone(contact.phone);
+            if (!phone) {
+                validationResults.push({ id: contact.id || i, status: 'INVALID', reason: 'Invalid phone format' });
+                continue;
+            }
+
+            let existingLead = await Lead.findOne({ phone });
+            
+            if (!existingLead && contact.email) {
+                existingLead = await Lead.findOne({ email: contact.email });
+            }
+
+            if (existingLead) {
+                if (existingLead.salesSource === 'EMPLOYEE_SALES' || existingLead.assignedEmployeeId) {
+                    validationResults.push({ id: contact.id || i, status: 'DUPLICATE', reason: 'Already assigned' });
+                } else {
+                    validationResults.push({ id: contact.id || i, status: 'EXISTS_UNASSIGNED', reason: 'Exists globally' });
+                }
+            } else {
+                validationResults.push({ id: contact.id || i, status: 'NEW' });
+            }
+        }
+
+        res.json({ success: true, results: validationResults });
+
+    } catch (error) {
+        console.error('Error validating employee contacts:', error);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };

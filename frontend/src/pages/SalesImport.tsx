@@ -19,9 +19,12 @@ interface LeadRow {
   phone: string;
   email: string;
   collegeName: string;
+  department: string;
+  year: string;
   interestedDomain: string;
   isValid: boolean;
-  isDuplicate: boolean;
+  validationStatus?: 'NEW' | 'DUPLICATE' | 'EXISTS_UNASSIGNED' | 'INVALID' | 'UNCHECKED';
+  validationReason?: string;
 }
 
 export default function SalesImport({ embedded = false, targetEmployeeId, targetEmployeeName, onSuccess }: SalesImportProps = {}) {
@@ -41,9 +44,11 @@ export default function SalesImport({ embedded = false, targetEmployeeId, target
     phone: '',
     email: '',
     collegeName: '',
+    department: '',
+    year: '',
     interestedDomain: '',
     isValid: false,
-    isDuplicate: false
+    validationStatus: 'UNCHECKED'
   });
 
   const validateRow = (row: LeadRow): LeadRow => {
@@ -111,6 +116,9 @@ export default function SalesImport({ embedded = false, targetEmployeeId, target
 
   const parseMessyData = (text: string) => {
     const KNOWN_DOMAINS = ['Python', 'Java', 'Data Science', 'Full Stack Development', 'AI', 'Machine Learning', 'Web Development', 'Full Stack', 'Fullstack', 'MERN'];
+    const KNOWN_DEPARTMENTS = ['Computer Science', 'CSE', 'Information Technology', 'IT', 'Artificial Intelligence', 'AI', 'Data Science', 'Mechanical', 'Civil', 'ECE', 'EEE'];
+    const YEAR_PATTERNS = /^(1st|2nd|3rd|4th|First|Second|Third|Fourth|I|II|III|IV)\s*Year$|^Passed\s*Out$/i;
+
     const newRows: LeadRow[] = [];
 
     const extractPhoneMatch = (l: string) => {
@@ -190,6 +198,14 @@ export default function SalesImport({ embedded = false, targetEmployeeId, target
           row.interestedDomain = item.replace(/^(domain|course)\s*[:-]*\s*/i, '').trim();
           return;
         }
+        if (/^(department|dept)\s*[:-]*\s*/i.test(item)) {
+          row.department = item.replace(/^(department|dept)\s*[:-]*\s*/i, '').trim();
+          return;
+        }
+        if (/^(year)\s*[:-]*\s*/i.test(item)) {
+          row.year = item.replace(/^(year)\s*[:-]*\s*/i, '').trim();
+          return;
+        }
 
         if (!row.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(item)) {
           row.email = item.toLowerCase();
@@ -201,23 +217,33 @@ export default function SalesImport({ embedded = false, targetEmployeeId, target
           row.phone = phoneClean;
           return;
         }
+
+        if (!row.year && YEAR_PATTERNS.test(item)) {
+          row.year = item;
+          return;
+        }
         
         if (!row.interestedDomain && KNOWN_DOMAINS.some(d => lowerItem === d.toLowerCase() || lowerItem.includes(d.toLowerCase()))) {
           row.interestedDomain = item;
           return;
         }
+
+        if (!row.department && KNOWN_DEPARTMENTS.some(d => lowerItem === d.toLowerCase() || lowerItem === d.toLowerCase() + ' engineering')) {
+          row.department = item;
+          return;
+        }
         
-        if (!row.collegeName && /college|university|institute|tech|engineering|academy/i.test(item)) {
+        if (!row.collegeName && /college|university|institute|tech|engineering|academy/i.test(item) && !KNOWN_DEPARTMENTS.some(d => lowerItem.includes(d.toLowerCase()))) {
           row.collegeName = item;
           return;
         }
         
-        if (!row.studentName && item.length > 2 && !/^\d+$/.test(item)) {
+        if (!row.studentName && item.length > 2 && !/^\d+$/.test(item) && !YEAR_PATTERNS.test(item)) {
           row.studentName = item;
         }
       });
       
-      if (row.studentName || row.phone || row.email || row.collegeName || row.interestedDomain) {
+      if (row.studentName || row.phone || row.email || row.collegeName || row.interestedDomain || row.department || row.year) {
         newRows.push(validateRow(row));
       }
     });
@@ -225,10 +251,30 @@ export default function SalesImport({ embedded = false, targetEmployeeId, target
     return newRows;
   };
 
-  const handleParse = () => {
+  const handleParse = async () => {
     if (!rawText.trim()) return;
     const parsed = parseMessyData(rawText);
-    setRows(parsed);
+    setStatus('importing');
+    
+    try {
+      const res = await api.post('/sales/employee-contacts/validate', {
+        contacts: parsed.map(p => ({ ...p, collegeName: p.collegeName || '' }))
+      });
+      const results = res.data.results || [];
+      const updatedParsed = parsed.map((row, i) => {
+        const result = results.find((r: any) => r.id === row.id || r.id === i);
+        if (result) {
+          row.validationStatus = result.status;
+          row.validationReason = result.reason;
+        }
+        return row;
+      });
+      setRows(updatedParsed);
+    } catch (err) {
+      console.error("Validation failed", err);
+      setRows(parsed);
+    }
+
     setSelectedIds(new Set());
     setStatus('preview');
   };
@@ -236,7 +282,7 @@ export default function SalesImport({ embedded = false, targetEmployeeId, target
   const handleSaveAndAssign = async () => {
     setError('');
     
-    const validRows = rows.filter(r => r.isValid);
+    const validRows = rows.filter(r => r.isValid && r.validationStatus !== 'INVALID');
     if (validRows.length === 0) {
       setError('There are no valid contacts to import. Please correct the highlighted errors.');
       return;
@@ -249,6 +295,8 @@ export default function SalesImport({ embedded = false, targetEmployeeId, target
       phone: r.phone,
       email: r.email,
       collegeName: r.collegeName,
+      department: r.department,
+      year: r.year,
       interestedDomain: r.interestedDomain
     }));
 
@@ -393,6 +441,8 @@ export default function SalesImport({ embedded = false, targetEmployeeId, target
                       <th className="px-4 py-3 font-medium text-gray-700 border-r border-gray-200">Phone *</th>
                       <th className="px-4 py-3 font-medium text-gray-700 border-r border-gray-200">Email</th>
                       <th className="px-4 py-3 font-medium text-gray-700 border-r border-gray-200">College Name</th>
+                      <th className="px-4 py-3 font-medium text-gray-700 border-r border-gray-200">Department</th>
+                      <th className="w-24 px-4 py-3 font-medium text-gray-700 border-r border-gray-200">Year</th>
                       <th className="px-4 py-3 font-medium text-gray-700 border-r border-gray-200">Domain</th>
                       <th className="px-4 py-3 font-medium text-gray-700 border-r border-gray-200">Status</th>
                       <th className="w-20 px-4 py-3 text-center font-medium text-gray-700">Action</th>
@@ -401,11 +451,11 @@ export default function SalesImport({ embedded = false, targetEmployeeId, target
                   <tbody>
                     {rows.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="text-center py-12 text-gray-500">No contacts to display.</td>
+                        <td colSpan={10} className="text-center py-12 text-gray-500">No contacts to display.</td>
                       </tr>
                     ) : (
                       rows.map((row) => (
-                        <tr key={row.id} className={`border-b border-gray-100 hover:bg-gray-50/50 group ${selectedIds.has(row.id) ? 'bg-indigo-50/30' : ''}`}>
+                        <tr key={row.id} className={`border-b border-gray-100 hover:bg-gray-50/50 group ${selectedIds.has(row.id) ? 'bg-indigo-50/30' : ''} ${row.validationStatus === 'INVALID' || row.validationStatus === 'DUPLICATE' ? 'bg-red-50/20' : ''}`}>
                           <td className="px-4 py-2 text-center border-r border-gray-100">
                             <input 
                               type="checkbox"
@@ -453,14 +503,40 @@ export default function SalesImport({ embedded = false, targetEmployeeId, target
                           <td className="p-0 border-r border-gray-100 relative">
                             <input 
                               type="text" 
+                              value={row.department}
+                              onChange={e => handleCellChange(row.id, 'department', e.target.value)}
+                              placeholder="Department"
+                              className="w-full h-full min-h-[44px] px-4 py-2 border-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 bg-transparent"
+                            />
+                          </td>
+                          <td className="p-0 border-r border-gray-100 relative">
+                            <input 
+                              type="text" 
+                              value={row.year}
+                              onChange={e => handleCellChange(row.id, 'year', e.target.value)}
+                              placeholder="Year"
+                              className="w-full h-full min-h-[44px] px-4 py-2 border-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 bg-transparent"
+                            />
+                          </td>
+                          <td className="p-0 border-r border-gray-100 relative">
+                            <input 
+                              type="text" 
                               value={row.interestedDomain}
                               onChange={e => handleCellChange(row.id, 'interestedDomain', e.target.value)}
                               placeholder="Domain"
                               className="w-full h-full min-h-[44px] px-4 py-2 border-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 bg-transparent"
                             />
                           </td>
-                          <td className="px-4 py-2 border-r border-gray-100">
-                            {row.isValid ? (
+                          <td className="px-4 py-2 border-r border-gray-100 text-center">
+                            {row.validationStatus === 'NEW' ? (
+                              <Badge variant="success">NEW</Badge>
+                            ) : row.validationStatus === 'DUPLICATE' ? (
+                              <Badge variant="warning" title={row.validationReason}>DUPLICATE</Badge>
+                            ) : row.validationStatus === 'EXISTS_UNASSIGNED' ? (
+                              <Badge variant="info" title="Exists globally, will assign">UPDATE</Badge>
+                            ) : row.validationStatus === 'INVALID' ? (
+                              <Badge variant="error" title={row.validationReason}>INVALID</Badge>
+                            ) : row.isValid ? (
                               <Badge variant="success">VALID</Badge>
                             ) : (
                               <Badge variant="error">
