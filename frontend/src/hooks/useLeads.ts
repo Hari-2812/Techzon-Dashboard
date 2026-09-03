@@ -70,6 +70,7 @@ export const useRecordCall = () => {
       queryClient.invalidateQueries({ queryKey: ['lead', variables.leadId] });
       queryClient.invalidateQueries({ queryKey: ['leadActivities', variables.leadId] });
       queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['employeeLeadStats'] });
     },
   });
 };
@@ -115,6 +116,33 @@ export const useScheduleFollowUp = () => {
       queryClient.invalidateQueries({ queryKey: ['lead', variables.leadId] });
       queryClient.invalidateQueries({ queryKey: ['leadActivities', variables.leadId] });
       queryClient.invalidateQueries({ queryKey: ['leads'] });
+    },
+  });
+};
+
+export const useEmployeeLeadStats = (employeeId?: string) => {
+  return useQuery({
+    queryKey: ['employeeLeadStats', employeeId],
+    queryFn: async () => {
+      const url = employeeId ? `/api/leads/admin/employees/${employeeId}/stats` : `/api/leads/my-stats`;
+      const { data } = await api.get(url);
+      return data;
+    },
+    refetchInterval: 30000,
+  });
+};
+
+export const useResetEmployeeLeads = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (employeeId: string) => {
+      const { data } = await api.delete(`/api/leads/admin/employees/${employeeId}/all`);
+      return data;
+    },
+    onSuccess: (_, employeeId) => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['employeeLeadStats', employeeId] });
+      queryClient.invalidateQueries({ queryKey: ['leadAssignmentStats'] });
     },
   });
 };

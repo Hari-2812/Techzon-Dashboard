@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
-import { Users, User, LayoutDashboard } from 'lucide-react';
+import { Users, User, LayoutDashboard, Trash2, PhoneCall } from 'lucide-react';
 import { useEmployees } from '../hooks/useEmployees';
+import { useEmployeeLeadStats, useResetEmployeeLeads } from '../hooks/useLeads';
+import { Modal } from '../components/ui/Modal';
+import { Button } from '../components/ui/Button';
+import { KpiCard } from '../components/ui/KpiCard';
 import { Card } from '../components/ui/Card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell, TableContainer } from '../components/ui/Table';
 import { Badge } from '../components/ui/Badge';
@@ -14,6 +18,10 @@ export default function LeadAssignment() {
   
   const activeEmployees = allEmployees?.filter((e: any) => e.isActive && e.role !== 'ADMIN') || [];
   const selectedEmployee = activeEmployees.find((e: any) => e._id === selectedEmployeeId);
+
+  const { data: statsData, isLoading: statsLoading } = useEmployeeLeadStats(selectedEmployeeId);
+  const resetLeads = useResetEmployeeLeads();
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
   // Fetch leads for the selected employee
   const { data: leadsData, isLoading: leadsLoading, refetch: refetchLeads } = useQuery({
@@ -74,6 +82,34 @@ export default function LeadAssignment() {
                   </Badge>
                   <Badge variant="warning">{selectedEmployee.role}</Badge>
                 </div>
+              </div>
+            )}
+            
+            {selectedEmployee && (
+              <div className="mt-6 space-y-4">
+                <KpiCard 
+                  label="Assigned Leads" 
+                  value={statsData?.assignedLeads || 0} 
+                  icon={<Users className="h-5 w-5 text-indigo-500" />} 
+                  color="primary" 
+                />
+                <KpiCard 
+                  label="Calls Made" 
+                  value={statsData?.callsMade || 0} 
+                  icon={<PhoneCall className="h-5 w-5 text-green-500" />} 
+                  color="success" 
+                />
+                
+                {(statsData?.assignedLeads > 0) && (
+                  <Button 
+                    variant="danger" 
+                    fullWidth 
+                    className="mt-4 flex items-center justify-center gap-2"
+                    onClick={() => setIsResetModalOpen(true)}
+                  >
+                    <Trash2 className="h-4 w-4" /> Remove All Leads
+                  </Button>
+                )}
               </div>
             )}
           </Card>
@@ -149,6 +185,37 @@ export default function LeadAssignment() {
           )}
         </div>
       </div>
+      
+      {selectedEmployee && (
+        <Modal isOpen={isResetModalOpen} onClose={() => setIsResetModalOpen(false)} title="Remove All Leads?">
+          <div className="space-y-4">
+            <div className="bg-red-50 text-red-800 p-4 rounded-lg border border-red-200">
+              <p className="font-semibold mb-2">Employee: {selectedEmployee.name}</p>
+              <p className="font-semibold mb-4">Assigned Leads: {statsData?.assignedLeads || 0}</p>
+              <p>This will permanently remove all leads currently assigned to {selectedEmployee.name}. This action cannot be undone.</p>
+            </div>
+            
+            <div className="flex justify-end gap-3 mt-6">
+              <Button variant="outline" onClick={() => setIsResetModalOpen(false)}>Cancel</Button>
+              <Button 
+                variant="danger" 
+                disabled={resetLeads.isPending}
+                onClick={async () => {
+                  try {
+                    await resetLeads.mutateAsync(selectedEmployeeId);
+                    setIsResetModalOpen(false);
+                    refetchLeads();
+                  } catch(e: any) {
+                    alert(e.response?.data?.message || 'Failed to remove leads');
+                  }
+                }}
+              >
+                {resetLeads.isPending ? 'Removing...' : 'Remove All Leads'}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

@@ -861,3 +861,41 @@ exports.autoAssign = async (req, res) => {
         res.status(500).json({ success: false, message: 'Server Error' });
     }
 };
+
+// @route GET /api/leads/admin/employees/:employeeId/stats
+exports.getAdminEmployeeLeadStats = async (req, res) => {
+    try {
+        if (req.user.role !== 'ADMIN') return res.status(403).json({ success: false, message: 'Admin only' });
+        const { employeeId } = req.params;
+        if (!employeeId) return res.status(400).json({ success: false, message: 'Employee ID required' });
+        
+        const Lead = require('../models/Lead');
+        const LeadActivity = require('../models/LeadActivity');
+        
+        const assignedLeads = await Lead.countDocuments({ assignedEmployeeId: employeeId });
+        const callsMade = await LeadActivity.countDocuments({ employeeId, activityType: { $regex: '^CALL_' } });
+        
+        res.json({ success: true, assignedLeads, callsMade });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+};
+
+// @route GET /api/leads/my-stats
+exports.getMyLeadStats = async (req, res) => {
+    try {
+        const employeeId = req.user.id;
+        
+        const Lead = require('../models/Lead');
+        const LeadActivity = require('../models/LeadActivity');
+        
+        const assignedLeads = await Lead.countDocuments({ assignedEmployeeId: employeeId });
+        const callsMade = await LeadActivity.countDocuments({ employeeId, activityType: { $regex: '^CALL_' } });
+        
+        res.json({ success: true, assignedLeads, callsMade });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+};

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { useLeads } from '../hooks/useLeads';
+import { useLeads, useEmployeeLeadStats } from '../hooks/useLeads';
+import { PhoneCall } from 'lucide-react';
 import { Users, Phone, UserSquare2, CalendarClock, MessageCircle, MoreVertical, Search, Filter } from 'lucide-react';
 import clsx from 'clsx';
 import AddLeadModal from '../components/AddLeadModal';
@@ -39,6 +40,7 @@ const Leads = () => {
   if (error) return <div className="p-6 text-red-500">Failed to load leads.</div>;
 
   const isAdmin = user?.role === 'ADMIN';
+  const { data: statsData } = useEmployeeLeadStats(isAdmin ? undefined : user?.id);
 
   return (
     <div className="p-6 max-w-7xl mx-auto pb-24">
@@ -90,6 +92,14 @@ const Leads = () => {
             value={data?.meta?.kpis?.completed || 0}
             color="success"
           />
+          {!isAdmin && (
+            <KpiCard
+              label="Calls Made"
+              value={statsData?.callsMade || 0}
+              color="primary"
+              icon={<PhoneCall className="h-5 w-5 text-indigo-500" />}
+            />
+          )}
         </div>
       </div>
 
