@@ -8,6 +8,7 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -21,7 +22,7 @@ const Login = () => {
     try {
       const res = await api.post('/auth/login', { email, password });
       if (res.data.success) {
-        setAuth(res.data.token, res.data.user);
+        setAuth(res.data.token, res.data.user, rememberMe);
         
         // If employee must change password, redirect them immediately
         if (res.data.user.mustChangePassword) {
@@ -121,6 +122,19 @@ const Login = () => {
                     )}
                   </button>
                 </div>
+              </div>
+
+              <div className="flex items-center">
+                <input 
+                  id="remember-me"
+                  type="checkbox" 
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 text-[#3525CD] border-gray-300 rounded focus:ring-[#4F46E5]"
+                />
+                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700 cursor-pointer">
+                  Remember me on this device
+                </label>
               </div>
 
               <button 

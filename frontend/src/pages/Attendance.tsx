@@ -113,7 +113,7 @@ const Attendance = () => {
       setIsClockInModalOpen(false);
       setLateLoginReason('');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to request check-in');
+      alert(err.response?.data?.message || 'Failed to request login');
     }
   };
 
@@ -121,7 +121,7 @@ const Attendance = () => {
     try {
       await attendance.clockOut.mutateAsync();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to request check-out');
+      alert(err.response?.data?.message || 'Failed to request logout');
     }
   };
 
@@ -163,11 +163,11 @@ const Attendance = () => {
           
           <div className="grid grid-cols-2 gap-8 mt-6 text-left w-full max-w-sm">
             <div>
-              <p className="text-sm text-gray-500">Clock In</p>
+              <p className="text-sm text-gray-500">Login</p>
               <p className="font-semibold text-gray-900">{s?.clockInAt ? new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(s.clockInAt)) : '--'}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Clock Out</p>
+              <p className="text-sm text-gray-500">Logout</p>
               <p className="font-semibold text-gray-900">{s?.clockOutAt ? new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(s.clockOutAt)) : '--'}</p>
             </div>
             <div className="col-span-2">
@@ -186,7 +186,7 @@ const Attendance = () => {
              <Clock size={24} className="text-yellow-600" />
           </div>
           <h2 className="text-xl font-bold text-gray-800 mb-2">WAITING FOR APPROVAL</h2>
-          <p className="text-gray-500">Your check-in request is waiting for admin approval.</p>
+          <p className="text-gray-500">Your login request is waiting for admin approval.</p>
         </div>
       );
     }
@@ -209,8 +209,8 @@ const Attendance = () => {
           <div className="animate-pulse w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center mb-4">
              <Clock size={24} className="text-yellow-600" />
           </div>
-          <h2 className="text-xl font-bold text-gray-800 mb-2">WAITING FOR CHECK-OUT APPROVAL</h2>
-          <p className="text-gray-500">Your check-out request is waiting for admin approval.</p>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">WAITING FOR LOGOUT APPROVAL</h2>
+          <p className="text-gray-500">Your logout request is waiting for admin approval.</p>
           <div className="mt-6 text-3xl font-mono font-bold text-gray-800">{timerStr}</div>
         </div>
       );
@@ -248,8 +248,8 @@ const Attendance = () => {
             <Button variant="outline" size="lg" onClick={() => setIsBreakModalOpen(true)} className="gap-2">
                <Coffee size={18} /> TAKE BREAK
             </Button>
-            <Button variant="danger" size="lg" onClick={handleClockOut} className="gap-2">
-               <LogOut size={18} /> CLOCK OUT
+            <Button variant="danger" size="lg" onClick={handleClockOut} className="gap-2" disabled={attendance.clockOut.isPending}>
+               <LogOut size={18} /> {attendance.clockOut.isPending ? 'Submitting Logout...' : 'LOGOUT'}
             </Button>
           </div>
         </div>
@@ -260,10 +260,10 @@ const Attendance = () => {
     return (
       <div className="flex flex-col items-center justify-center p-12 text-center">
         <h2 className="text-2xl font-bold text-gray-800 mb-2">Ready to start your day?</h2>
-        <p className="text-gray-500 mb-8">Click below to send a check-in request to your admin.</p>
+        <p className="text-gray-500 mb-8">Click below to send a login request to your admin.</p>
         <div className="flex flex-col gap-4 w-full max-w-sm mx-auto">
-          <Button size="lg" className="w-full h-14 text-lg" onClick={handleClockIn}>
-            CHECK IN
+          <Button size="lg" className="w-full h-14 text-lg" onClick={handleClockIn} disabled={attendance.clockIn.isPending}>
+            {attendance.clockIn.isPending ? 'Submitting Login...' : 'LOGIN'}
           </Button>
         </div>
       </div>
@@ -551,7 +551,7 @@ const Attendance = () => {
           )}
           {leaveType === 'LATE' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Expected / Actual Clock-In Time *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Expected / Actual Login Time *</label>
               <input
                 type="time"
                 className="w-full border border-gray-300 rounded-md p-2"
@@ -616,10 +616,10 @@ const Attendance = () => {
         </div>
       </Modal>
 
-      <Modal isOpen={isClockInModalOpen} onClose={() => setIsClockInModalOpen(false)} title="Check-In Explanation">
+      <Modal isOpen={isClockInModalOpen} onClose={() => setIsClockInModalOpen(false)} title="Login Explanation">
           <div className="space-y-4">
               <p className="text-sm text-gray-600 bg-yellow-50 p-3 rounded border border-yellow-200">
-                  You are clocking in late today. Please provide a reason for the delay.
+                  You are logging in late today. Please provide a reason for the delay.
               </p>
               <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Reason *</label>
@@ -633,7 +633,7 @@ const Attendance = () => {
               </div>
               <div className="flex justify-end gap-3 mt-6 flex-wrap">
                   <Button variant="outline" onClick={() => setIsClockInModalOpen(false)}>CANCEL</Button>
-                  <Button onClick={() => executeClockIn(lateLoginReason)} disabled={!lateLoginReason.trim()}>SUBMIT & CHECK IN</Button>
+                  <Button onClick={() => executeClockIn(lateLoginReason)} disabled={!lateLoginReason.trim()}>SUBMIT & LOGIN</Button>
               </div>
           </div>
       </Modal>

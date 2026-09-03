@@ -385,7 +385,7 @@ const Dashboard = () => {
           ) : !isClockedIn && !isCompleted ? (
             <div className="flex flex-col sm:flex-row items-center justify-between bg-[var(--color-surface-light)] p-5 rounded-xl border border-[var(--color-border-subtle)]">
               <div>
-                <p className="text-[var(--color-text-primary)] font-semibold text-lg">Not Clocked In</p>
+                <p className="text-[var(--color-text-primary)] font-semibold text-lg">Not Logged In</p>
                 <p className="text-sm text-[var(--color-text-muted)] mt-1">Ready to start your day?</p>
               </div>
               <div className="mt-4 sm:mt-0 w-full sm:w-auto">
@@ -398,7 +398,7 @@ const Dashboard = () => {
                 <p className="text-[var(--color-text-primary)] font-semibold text-lg flex items-center">
                   <span className="w-2 h-2 rounded-full bg-[var(--color-text-muted)] mr-2"></span> Completed
                 </p>
-                <p className="text-sm text-[var(--color-text-muted)] mt-1">Clock In: {new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(attData.session.clockInAt))} &bull; Clock Out: {new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(attData.session.clockOutAt))}</p>
+                <p className="text-sm text-[var(--color-text-muted)] mt-1">Login: {new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(attData.session.clockInAt))} &bull; Logout: {new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(attData.session.clockOutAt))}</p>
               </div>
               <div className="mt-4 sm:mt-0 text-right">
                 <p className="font-semibold text-[var(--color-text-primary)]">{attData.daily?.status || 'PRESENT'}</p>
@@ -414,7 +414,7 @@ const Dashboard = () => {
                   <span className={`w-2 h-2 rounded-full mr-2 ${isOnBreak ? 'bg-[var(--color-warning)]' : 'bg-[var(--color-success)]'}`}></span>
                   {isOnBreak ? 'ON BREAK' : 'WORKING'}
                 </p>
-                <p className="text-sm text-[var(--color-text-muted)] mt-1">Clocked in at {new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(attData.session.clockInAt))}</p>
+                <p className="text-sm text-[var(--color-text-muted)] mt-1">Logged in at {new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(attData.session.clockInAt))}</p>
               </div>
               <div className="text-center mb-4 sm:mb-0">
                 <div className="text-3xl font-bold text-[var(--color-text-primary)] font-mono tracking-tight">{getLiveTimer(now)}</div>
