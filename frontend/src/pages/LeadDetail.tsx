@@ -51,6 +51,13 @@ const LeadDetail = () => {
     setShowCallModal(false);
   };
 
+  const handleCallClick = () => {
+    if (lead?.phone) {
+      window.location.href = `tel:${lead.phone.replace(/[^\d+]/g, '')}`;
+    }
+    setShowCallModal(true);
+  };
+
   const handleVerifyCRYes = () => {
     verifyCRYes.mutate({ leadId: id! }, {
       onError: (error: any) => {
@@ -98,7 +105,7 @@ const LeadDetail = () => {
           <Button onClick={() => setShowUpdateDrawer(true)} variant="primary">
             <ClipboardList size={18} className="mr-2" /> <span>Daily Update</span>
           </Button>
-          <Button onClick={() => setShowCallModal(true)} variant="outline">
+          <Button onClick={handleCallClick} variant="outline">
             <Phone size={18} className="mr-2" /> <span>Quick Call</span>
           </Button>
           <button 
@@ -113,7 +120,7 @@ const LeadDetail = () => {
 
       {/* MOBILE STICKY BOTTOM ACTION BAR */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[var(--color-border-subtle)] p-3 flex gap-2 z-40 safe-area-bottom shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-         <Button onClick={() => setShowCallModal(true)} variant="primary" className="flex-1 py-3 h-12">
+         <Button onClick={handleCallClick} variant="primary" className="flex-1 py-3 h-12">
            <Phone size={18} className="mr-2" /> Call
          </Button>
          <button 

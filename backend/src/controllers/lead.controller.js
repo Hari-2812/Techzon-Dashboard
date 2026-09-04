@@ -35,7 +35,7 @@ exports.getLeads = async (req, res) => {
 
     const leads = await Lead.find(query)
         .populate('assignedEmployeeId', 'name email')
-        .sort({ priority: 1, nextFollowUp: 1, createdAt: -1 })
+        .sort({ assignmentOrder: 1, priority: 1, nextFollowUp: 1, createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(parseInt(limit));
 
@@ -183,9 +183,20 @@ exports.bulkAssign = async (req, res) => {
         
         const { leadIds, employeeId } = req.body;
         
-        await Lead.updateMany({ _id: { $in: leadIds } }, { assignedEmployeeId: employeeId, leadStatus: 'Assigned' });
-        
+        let currentMaxOrder = 0;
+        if (employeeId) {
+            const lastLead = await Lead.findOne({ assignedEmployeeId: employeeId }).sort({ assignmentOrder: -1 }).select('assignmentOrder');
+            if (lastLead && lastLead.assignmentOrder) currentMaxOrder = lastLead.assignmentOrder;
+        }
+
         for (let id of leadIds) {
+            currentMaxOrder++;
+            await Lead.findByIdAndUpdate(id, { 
+                assignedEmployeeId: employeeId, 
+                leadStatus: 'Assigned',
+                assignmentOrder: currentMaxOrder
+            });
+            
             await LeadActivity.create({
                 leadId: id,
                 employeeId: req.user.id, // Admin who did it

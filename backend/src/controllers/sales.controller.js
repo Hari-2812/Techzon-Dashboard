@@ -401,6 +401,12 @@ exports.importEmployeeContacts = async (req, res) => {
         const { normalizePhone } = require('../validations/lead.validation');
         const io = require('../server').io;
 
+        let currentMaxOrder = 0;
+        if (finalTargetEmployeeId) {
+            const lastLead = await Lead.findOne({ assignedEmployeeId: finalTargetEmployeeId }).sort({ assignmentOrder: -1 }).select('assignmentOrder');
+            if (lastLead && lastLead.assignmentOrder) currentMaxOrder = lastLead.assignmentOrder;
+        }
+
         let created = 0;
         let updated = 0;
         let duplicates = 0;
@@ -450,13 +456,18 @@ exports.importEmployeeContacts = async (req, res) => {
                     if (contact.department && !existingLead.department) existingLead.department = contact.department;
                     if (contact.year && !existingLead.year) existingLead.year = contact.year;
                     
+                    currentMaxOrder++;
+                    existingLead.assignmentOrder = currentMaxOrder;
+                    
                     await existingLead.save();
                     updated++;
                 }
             } else {
                 try {
+                    currentMaxOrder++;
                     await Lead.create({
                         studentName: contact.studentName,
+                        assignmentOrder: currentMaxOrder,
                         phone: phone,
                         email: contact.email || '',
                         college: contact.collegeName || '',

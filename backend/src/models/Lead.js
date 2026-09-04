@@ -43,6 +43,7 @@ const LeadSchema = new mongoose.Schema({
         default: 'MEDIUM',
         index: true
     },
+    assignmentOrder: { type: Number, index: true },
     nextFollowUp: { type: Date, index: true },
     source: { type: String, enum: ['MANUAL', 'CSV', 'GOOGLE_SHEETS'], default: 'MANUAL', index: true },
     sourceSpreadsheetId: { type: String },
