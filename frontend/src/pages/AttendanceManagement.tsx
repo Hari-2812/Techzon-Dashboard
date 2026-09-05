@@ -279,7 +279,7 @@ const AttendanceManagement = () => {
   };
 
 
-  const [adminSelectedDate, setAdminSelectedDate] = useState(moment().format('YYYY-MM-DD'));
+  const [adminSelectedDate, setAdminSelectedDate] = useState(moment().tz('Asia/Kolkata').format('YYYY-MM-DD'));
 
   const fetchAdminAttendance = async () => {
     try {
@@ -382,8 +382,8 @@ const AttendanceManagement = () => {
       if (statusFilter === 'Late' && item.status !== 'LATE') return false;
       if (statusFilter === 'Absent' && item.status !== 'ABSENT') return false;
       
-      // Synthesized statuses for not clocked in
-      if (statusFilter === 'Not Clocked In' && item.session) return false;
+      // Synthesized statuses for not logged in
+      if (statusFilter === 'Not Logged In' && item.session) return false;
       if (statusFilter === 'Leave Requested' && item.status !== 'Leave Requested') return false;
       if (statusFilter === 'Permission Requested' && item.status !== 'Permission Requested') return false;
       if (statusFilter === 'Leave Approved' && item.status !== 'Leave Approved' && item.status !== 'PAID_LEAVE') return false;
@@ -408,7 +408,7 @@ const AttendanceManagement = () => {
               className="border-none bg-transparent font-semibold text-[var(--color-text-primary)] focus:ring-0 outline-none cursor-pointer p-0"
               value={adminSelectedDate}
               onChange={(e) => setAdminSelectedDate(e.target.value)}
-              max={moment().format('YYYY-MM-DD')}
+              max={moment().tz('Asia/Kolkata').format('YYYY-MM-DD')}
            />
         </div>
       </div>
@@ -533,7 +533,7 @@ const AttendanceManagement = () => {
                   <option value="Working">Working</option>
                   <option value="On Break">On Break</option>
                   <option value="Completed">Completed</option>
-                  <option value="Not Clocked In">Not Clocked In</option>
+                  <option value="Not Logged In">Not Logged In</option>
                   <option value="Late">Late</option>
                   <option value="Absent">Absent</option>
                   <option value="Leave Requested">Leave Requested</option>

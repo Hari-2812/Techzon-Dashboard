@@ -24,7 +24,13 @@ exports.getTodayAdminAttendance = async (req, res) => {
     const existingDailies = await AttendanceDaily.find(queryCondition).populate('employeeId', 'name email role');
     
     // Get all active employees (excluding ADMINs)
-    const employees = await User.find({ isActive: true, role: { $ne: 'ADMIN' } }).select('_id name email role employeeId department');
+    const employees = await User.find({ 
+        $or: [
+            { isActive: true },
+            { status: { $in: ['ACTIVE', 'INVITED'] } }
+        ],
+        role: { $ne: 'ADMIN' } 
+    }).select('_id name email role employeeId department');
     
     // Get all leave/permission requests for today
     const todayRequests = await LeavePermissionRequest.find({
@@ -44,7 +50,7 @@ exports.getTodayAdminAttendance = async (req, res) => {
         } else {
             // Check for leave/permission requests
             const requests = todayRequests.filter(r => r.employeeId.toString() === empIdStr);
-            let status = 'Not Clocked In';
+            let status = 'Not Logged In';
             
             if (requests.length > 0) {
                 const leaveReq = requests.find(r => r.requestType === 'LEAVE');
@@ -103,7 +109,7 @@ exports.getTodayAdminAttendance = async (req, res) => {
       if (d.status === 'MISSING_CLOCK_OUT') summary.missingClockOut++;
       if (d.status === 'Week Off' || d.status === 'WEEK_OFF') summary.weekOff++;
       
-      if (d.isSynthesized && (d.status === 'No Prior Information' || d.status === 'Not Clocked In')) {
+      if (d.isSynthesized && (d.status === 'No Prior Information' || d.status === 'Not Logged In')) {
           summary.notClockedIn++;
       } else if (!d.isSynthesized && ['PENDING', 'PENDING_CHECK_IN_APPROVAL', 'REJECTED'].includes(d.status)) {
           summary.notClockedIn++;
@@ -181,7 +187,7 @@ exports.manualCorrection = async (req, res) => {
         let daily = await AttendanceDaily.findOne({ employeeId, date, isTestSession: false });
         let session = await WorkSession.findOne({ employeeId, date, isTestSession: false }).sort({ createdAt: -1 });
 
-        const oldStatus = daily ? daily.status : 'Not Clocked In';
+        const oldStatus = daily ? daily.status : 'Not Logged In';
         const oldClockIn = session ? session.clockInAt : null;
         const oldClockOut = session ? session.clockOutAt : null;
 
