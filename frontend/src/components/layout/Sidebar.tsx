@@ -47,6 +47,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, isMobileOpen = fal
 
   const adminOperationsItems = [
     { name: 'Lead Assignment', path: '/lead-assignment', icon: Users },
+    { name: 'Sales', path: '/sales', icon: Wallet },
     { name: 'Daily Updates', path: '/daily-updates', icon: ClipboardList },
   ];
 

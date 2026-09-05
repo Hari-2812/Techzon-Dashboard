@@ -108,7 +108,7 @@ exports.getSales = async (req, res) => {
 
         const leads = await Lead.find(query)
             .populate('assignedEmployeeId', 'name')
-            .sort({ updatedAt: -1 })
+            .sort({ assignmentOrder: 1, updatedAt: -1 })
             .skip((page - 1) * limit)
             .limit(parseInt(limit));
             

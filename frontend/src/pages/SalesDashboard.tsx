@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import api from '../services/api';
 import { useSalesDashboard, useSales, useCallQueue, useBulkUpdateSales } from '../hooks/useSales';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
@@ -32,7 +33,7 @@ const SalesDashboard = () => {
                     </h1>
                 </div>
                 <div className="flex space-x-2 bg-white rounded-lg p-1 border border-gray-200">
-                    {(user?.role === 'ADMIN' ? ['DASHBOARD', 'PIPELINE', 'CALL_QUEUE'] : ['MY_CONTACTS', 'PASTE_CONTACTS']).map(tab => (
+                    {(user?.role === 'ADMIN' ? ['DASHBOARD', 'PIPELINE', 'LIST', 'CALL_QUEUE', 'PASTE_CONTACTS'] : ['MY_CONTACTS', 'PASTE_CONTACTS']).map(tab => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
@@ -159,6 +160,66 @@ const SalesDashboard = () => {
                 </Card>
             )}
 
+            {user?.role === 'ADMIN' && activeTab === 'LIST' && (
+                <Card>
+                    <div className="p-4 border-b border-gray-200">
+                        <h2 className="text-lg font-bold">All Sales Contacts</h2>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <div className="overflow-x-auto w-full"><table className="w-full text-sm text-left">
+                            <thead className="bg-gray-50 text-gray-500 uppercase">
+                                <tr>
+                                    <th className="px-4 py-3">#</th>
+                                    <th className="px-4 py-3">Student</th>
+                                    <th className="px-4 py-3">Phone</th>
+                                    <th className="px-4 py-3">Domain</th>
+                                    <th className="px-4 py-3">Sales Status</th>
+                                    <th className="px-4 py-3">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {sales?.leads?.map((lead: any, idx: number) => (
+                                    <tr key={lead._id} className="border-b hover:bg-gray-50">
+                                        <td className="px-4 py-3 font-semibold text-gray-400">{idx + 1}</td>
+                                        <td className="px-4 py-3 font-semibold">{lead.studentName}</td>
+                                        <td className="px-4 py-3">{lead.phone}</td>
+                                        <td className="px-4 py-3">{lead.interestedDomain || lead.department || 'N/A'}</td>
+                                        <td className="px-4 py-3">
+                                            <select
+                                                className="border border-gray-300 rounded px-2 py-1 text-sm bg-white"
+                                                value={lead.salesStatus}
+                                                onChange={(e) => {
+                                                    api.patch(`/sales/${lead._id}/status`, { status: e.target.value }).then(() => {
+                                                        window.location.reload();
+                                                    });
+                                                }}
+                                            >
+                                                <option value="Not Contacted">Not Contacted</option>
+                                                <option value="Contacted">Contacted</option>
+                                                <option value="Interested">Interested</option>
+                                                <option value="Follow-up">Follow-up</option>
+                                                <option value="Converted">Converted</option>
+                                                <option value="Not Interested">Not Interested</option>
+                                            </select>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <a href={`tel:${lead.phone}`} className="inline-flex items-center p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200" title="Call">
+                                                <Phone size={16} />
+                                            </a>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {(!sales?.leads || sales.leads.length === 0) && (
+                                    <tr>
+                                        <td colSpan={6} className="px-4 py-8 text-center text-gray-500">No contacts available.</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table></div>
+                    </div>
+                </Card>
+            )}
+
             {user?.role !== 'ADMIN' && activeTab === 'MY_CONTACTS' && (
                 <Card>
                     <div className="p-4 border-b border-gray-200">
@@ -200,7 +261,7 @@ const SalesDashboard = () => {
                 </Card>
             )}
 
-            {user?.role !== 'ADMIN' && activeTab === 'PASTE_CONTACTS' && (
+            {activeTab === 'PASTE_CONTACTS' && (
                 <SalesImport />
             )}
         </div>
