@@ -4,6 +4,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis
 import socket from '../services/socket';
 import { Users, Clock, AlertCircle, CalendarX2, Search, Filter, X, Calendar, ChevronRight, ChevronLeft, Play, Square, Coffee, Plus, Mail, UserCheck } from 'lucide-react';
 import moment from 'moment-timezone';
+import { useAuthStore } from '../store/authStore';
 import { useEmployees } from '../hooks/useEmployees';
 import { Card, CardContent } from '../components/ui/Card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell, TableContainer } from '../components/ui/Table';
@@ -48,6 +49,7 @@ const LiveTimer = ({ startTime, breaks }: { startTime: string, breaks: any[] }) 
 const AttendanceManagement = () => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
@@ -111,7 +113,7 @@ const AttendanceManagement = () => {
       try {
           const m = cursor.format('MM');
           const y = cursor.format('YYYY');
-          const token = localStorage.getItem('token') || '';
+          const token = (useAuthStore.getState().token || localStorage.getItem('token')) || '';
           const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
           const res = await fetch(`${apiUrl}/attendance-management/employees/${employeeId}?month=${m}&year=${y}`, {
               headers: { 'Authorization': `Bearer ${token}` }
@@ -145,7 +147,7 @@ const AttendanceManagement = () => {
   const { data: notLoggedInEmployees, refetch: fetchNotLoggedIn, isError: notLoggedInError } = useQuery({
       queryKey: ['notLoggedInEmployees'],
       queryFn: async () => {
-          const token = localStorage.getItem('token') || '';
+          const token = (useAuthStore.getState().token || localStorage.getItem('token')) || '';
           const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
           const res = await fetch(`${apiUrl}/attendance/not-logged-in`, {
               headers: { 'Authorization': `Bearer ${token}` }
@@ -163,7 +165,7 @@ const AttendanceManagement = () => {
           
           if (!window.confirm(`You are about to send an attendance reminder to ${selectedEmployeesForReminder.length} employee(s). Continue?`)) return;
 
-          const token = localStorage.getItem('token') || '';
+          const token = (useAuthStore.getState().token || localStorage.getItem('token')) || '';
           const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
           
           const res = await fetch(`${apiUrl}/attendance/send-reminders-bulk`, {
@@ -212,7 +214,7 @@ const AttendanceManagement = () => {
          return alert('Start Time and End Time are required for permissions.');
       }
       
-      const token = localStorage.getItem('token') || '';
+      const token = (useAuthStore.getState().token || localStorage.getItem('token')) || '';
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
       
       const payload = {
@@ -250,7 +252,7 @@ const AttendanceManagement = () => {
 
   const handleLeaveAction = async () => {
     try {
-      const token = localStorage.getItem('token') || '';
+      const token = (useAuthStore.getState().token || localStorage.getItem('token')) || '';
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
       const endpoint = leaveRequestAction === 'APPROVE' ? 'approve' : 'reject';
       
@@ -283,7 +285,7 @@ const AttendanceManagement = () => {
 
   const fetchAdminAttendance = async () => {
     try {
-      const token = localStorage.getItem('token') || '';
+      const token = (useAuthStore.getState().token || localStorage.getItem('token')) || '';
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
       
       const [res, reqRes, leaveRes] = await Promise.all([
@@ -295,12 +297,19 @@ const AttendanceManagement = () => {
       const reqResult = await reqRes.json();
       const leaveResult = await leaveRes.json();
 
+      if (!res.ok || !result.success) {
+        setError(result.message || 'Failed to load attendance data. Please check your connection or login again.');
+        return;
+      }
+
+      setError(null);
       if (result.success) setData(result.data);
       if (reqResult.success) setPendingRequests(reqResult.data);
       if (leaveResult.success) setLeaveRequests(leaveResult.requests);
 
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setError(err.message || 'A network error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -346,6 +355,15 @@ const AttendanceManagement = () => {
   }, []);
 
   if (loading && !data) return <div className="p-8 text-[var(--color-text-muted)]">Loading Admin Dashboard...</div>;
+
+  if (error && !data) return (
+    <div className="p-8 text-center flex flex-col items-center justify-center space-y-4">
+      <AlertCircle className="w-12 h-12 text-red-500" />
+      <h2 className="text-xl font-bold text-[var(--color-text)]">Error Loading Attendance Data</h2>
+      <p className="text-[var(--color-text-muted)]">{error}</p>
+      <Button onClick={fetchAdminAttendance} variant="primary">Retry</Button>
+    </div>
+  );
 
   const totalEmployees = data?.dailies?.length || 0;
   
@@ -849,7 +867,7 @@ const AttendanceManagement = () => {
                      if (manualStatus === 'PERMISSION' && (!manualStartTime || !manualEndTime)) return alert('Start and End time are required for permission');
                      if ((manualStatus === 'PRESENT' || manualStatus === 'LATE') && !manualClockIn) return alert('Clock In time is required for Present/Late');
 
-                     const token = localStorage.getItem('token') || '';
+                     const token = (useAuthStore.getState().token || localStorage.getItem('token')) || '';
                      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
                      
                      const res = await fetch(`${apiUrl}/attendance/admin/manual-correction`, {
@@ -1224,7 +1242,7 @@ const AttendanceManagement = () => {
 
                      await fetch(`${apiUrl}/attendance/requests/${selectedRequest._id}/approve`, {
                         method: 'POST',
-                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
+                        headers: { 'Authorization': `Bearer ${(useAuthStore.getState().token || localStorage.getItem('token'))}`, 'Content-Type': 'application/json' },
                         body: JSON.stringify({ editedTime: formattedEditedTime, adminComment })
                      });
                      setSelectedRequest(null);
@@ -1254,7 +1272,7 @@ const AttendanceManagement = () => {
                       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
                       await fetch(`${apiUrl}/attendance/requests/${selectedRequest._id}/reject`, {
                          method: 'POST',
-                         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
+                         headers: { 'Authorization': `Bearer ${(useAuthStore.getState().token || localStorage.getItem('token'))}`, 'Content-Type': 'application/json' },
                          body: JSON.stringify({ rejectionReason })
                       });
                       setSelectedRequest(null);
@@ -1282,7 +1300,7 @@ const AttendanceManagement = () => {
                         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
                         const res = await fetch(`${apiUrl}/attendance/admin/force-clock-out/${selectedEmployee.employeeId._id}`, {
                            method: 'POST',
-                           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                           headers: { 'Authorization': `Bearer ${(useAuthStore.getState().token || localStorage.getItem('token'))}` }
                         });
                         const data = await res.json();
                         
@@ -1379,7 +1397,7 @@ const AttendanceManagement = () => {
                         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
                         const res = await fetch(`${apiUrl}/attendance/admin/edit-attendance/${selectedEmployee.session._id}`, {
                            method: 'PUT',
-                           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
+                           headers: { 'Authorization': `Bearer ${(useAuthStore.getState().token || localStorage.getItem('token'))}`, 'Content-Type': 'application/json' },
                            body: JSON.stringify({ 
                              clockIn: formattedClockIn, 
                              clockOut: formattedClockOut, 
