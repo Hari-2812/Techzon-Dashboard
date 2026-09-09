@@ -47,16 +47,22 @@ const getDashboardAnalytics = async (req, res) => {
                         $sum: { $cond: [{ $eq: ['$activityType', 'Sales Call'] }, 1, 0] }
                     },
                     connectedCalls: {
-                        $sum: {
-                            $cond: [
-                                {
-                                    $and: [
-                                        { $eq: ['$activityType', 'Sales Call'] },
-                                        { $in: ['$metadata.callResult', ['Connected', 'Interested', 'Not Interested', 'Call Back Later']] }
-                                    ]
-                                }, 1, 0
-                            ]
-                        }
+                        $sum: { $cond: [{ $and: [{ $eq: ['$activityType', 'Sales Call'] }, { $eq: ['$metadata.callResult', 'Connected'] }] }, 1, 0] }
+                    },
+                    noAnswerCalls: {
+                        $sum: { $cond: [{ $and: [{ $eq: ['$activityType', 'Sales Call'] }, { $eq: ['$metadata.callResult', 'No Answer'] }] }, 1, 0] }
+                    },
+                    busyCalls: {
+                        $sum: { $cond: [{ $and: [{ $eq: ['$activityType', 'Sales Call'] }, { $eq: ['$metadata.callResult', 'Busy'] }] }, 1, 0] }
+                    },
+                    wrongNumberCalls: {
+                        $sum: { $cond: [{ $and: [{ $eq: ['$activityType', 'Sales Call'] }, { $eq: ['$metadata.callResult', 'Wrong Number'] }] }, 1, 0] }
+                    },
+                    callBackCalls: {
+                        $sum: { $cond: [{ $and: [{ $eq: ['$activityType', 'Sales Call'] }, { $eq: ['$metadata.callResult', 'Call Back'] }] }, 1, 0] }
+                    },
+                    failedCalls: {
+                        $sum: { $cond: [{ $and: [{ $eq: ['$activityType', 'Sales Call'] }, { $eq: ['$metadata.callResult', 'Failed'] }] }, 1, 0] }
                     },
                     conversions: {
                         $sum: { $cond: [{ $eq: ['$activityType', 'Sales Conversion'] }, 1, 0] }
@@ -86,7 +92,9 @@ const getDashboardAnalytics = async (req, res) => {
         let totalFollowUpsSum = 0;
 
         const employeeStats = employees.map(emp => {
-            const act = activities.find(a => a._id.toString() === emp._id.toString()) || { totalCalls: 0, connectedCalls: 0, conversions: 0 };
+            const act = activities.find(a => a._id.toString() === emp._id.toString()) || { 
+                totalCalls: 0, connectedCalls: 0, noAnswerCalls: 0, busyCalls: 0, wrongNumberCalls: 0, callBackCalls: 0, failedCalls: 0, conversions: 0 
+            };
             const fu = followUps.find(f => f._id.toString() === emp._id.toString()) || { totalFollowUps: 0 };
             
             totalCallsSum += act.totalCalls;
@@ -100,6 +108,11 @@ const getDashboardAnalytics = async (req, res) => {
                 role: emp.role,
                 totalCalls: act.totalCalls,
                 connectedCalls: act.connectedCalls,
+                noAnswerCalls: act.noAnswerCalls || 0,
+                busyCalls: act.busyCalls || 0,
+                wrongNumberCalls: act.wrongNumberCalls || 0,
+                callBackCalls: act.callBackCalls || 0,
+                failedCalls: act.failedCalls || 0,
                 conversions: act.conversions,
                 followUps: fu.totalFollowUps,
                 conversionRate: act.totalCalls > 0 ? ((act.conversions / act.totalCalls) * 100).toFixed(2) : 0
@@ -171,7 +184,12 @@ const getEmployeeCallAnalytics = async (req, res) => {
         const calls = activities.filter(a => a.activityType === 'Sales Call');
         const conversions = activities.filter(a => a.activityType === 'Sales Conversion').length;
 
-        const connectedCalls = calls.filter(c => ['Connected', 'Interested', 'Not Interested', 'Call Back Later'].includes(c.metadata?.callResult)).length;
+        const connectedCalls = calls.filter(c => c.metadata?.callResult === 'Connected').length;
+        const noAnswerCalls = calls.filter(c => c.metadata?.callResult === 'No Answer').length;
+        const busyCalls = calls.filter(c => c.metadata?.callResult === 'Busy').length;
+        const wrongNumberCalls = calls.filter(c => c.metadata?.callResult === 'Wrong Number').length;
+        const callBackCalls = calls.filter(c => c.metadata?.callResult === 'Call Back').length;
+        const failedCalls = calls.filter(c => c.metadata?.callResult === 'Failed').length;
         const notConnectedCalls = calls.length - connectedCalls;
 
         const followUps = await FollowUp.find({
@@ -194,6 +212,11 @@ const getEmployeeCallAnalytics = async (req, res) => {
                 summary: {
                     totalCalls: calls.length,
                     connectedCalls,
+                    noAnswerCalls,
+                    busyCalls,
+                    wrongNumberCalls,
+                    callBackCalls,
+                    failedCalls,
                     notConnectedCalls,
                     conversions,
                     notConverted: calls.length - conversions,

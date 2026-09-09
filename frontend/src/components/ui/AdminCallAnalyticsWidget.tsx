@@ -81,6 +81,7 @@ export const AdminCallAnalyticsWidget = () => {
                             <TableHead>Employee</TableHead>
                             <TableHead className="text-center">Calls</TableHead>
                             <TableHead className="text-center">Connected</TableHead>
+                            <TableHead className="text-center">Not Connected</TableHead>
                             <TableHead className="text-center">Follow-ups</TableHead>
                             <TableHead className="text-center">Converted</TableHead>
                             <TableHead className="text-center">Rate</TableHead>
@@ -95,7 +96,13 @@ export const AdminCallAnalyticsWidget = () => {
                                     <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">{emp.role}</p>
                                 </TableCell>
                                 <TableCell className="text-center font-semibold">{emp.totalCalls}</TableCell>
-                                <TableCell className="text-center font-medium text-green-700">{emp.connectedCalls}</TableCell>
+                                <TableCell className="text-center font-medium text-green-700">
+                                    {emp.connectedCalls} <span className="text-[10px] text-gray-400 block font-normal">CB: {emp.callBackCalls || 0}</span>
+                                </TableCell>
+                                <TableCell className="text-center font-medium text-red-500">
+                                    {(emp.totalCalls - emp.connectedCalls)}
+                                    <span className="text-[10px] text-gray-400 block font-normal text-nowrap">NA: {emp.noAnswerCalls || 0} | B: {emp.busyCalls || 0}</span>
+                                </TableCell>
                                 <TableCell className="text-center text-orange-600">{emp.followUps}</TableCell>
                                 <TableCell className="text-center font-bold text-purple-600">{emp.conversions}</TableCell>
                                 <TableCell className="text-center text-gray-600">{emp.conversionRate}%</TableCell>

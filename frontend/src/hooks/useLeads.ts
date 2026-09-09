@@ -62,8 +62,8 @@ export const useBulkAssignLeads = () => {
 export const useRecordCall = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ leadId, outcome, notes }: { leadId: string, outcome: string, notes: string }) => {
-      const { data } = await api.post(`/leads/${leadId}/call`, { outcome, notes });
+    mutationFn: async ({ leadId, callResult, customerResponse, nextAction, followUpDate, notes }: { leadId: string, callResult: string, customerResponse?: string, nextAction?: string, followUpDate?: string, notes?: string }) => {
+      const { data } = await api.post(`/leads/${leadId}/call`, { callResult, customerResponse, nextAction, followUpDate, notes });
       return data;
     },
     onSuccess: (_, variables) => {

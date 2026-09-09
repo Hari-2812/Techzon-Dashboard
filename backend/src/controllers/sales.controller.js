@@ -234,11 +234,20 @@ exports.addResponse = async (req, res) => {
 
 exports.logCall = async (req, res) => {
     try {
-        const { callResult, nextFollowUp, remarks } = req.body;
+        const { callResult, customerResponse, nextFollowUp, remarks } = req.body;
         const lead = await Lead.findOne({ _id: req.params.id, ...buildAccessQuery(req) });
         if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
 
-        lead.salesStatus = 'Contacted';
+        if (callResult === 'Connected') {
+            lead.salesStatus = 'Contacted';
+        }
+        
+        if (customerResponse === 'Converted') {
+            lead.salesStatus = 'Converted';
+        } else if (customerResponse === 'Not Converted') {
+            lead.salesStatus = 'Not Converted';
+        }
+        
         lead.lastContactedAt = new Date();
         if (nextFollowUp) {
             lead.nextFollowUp = new Date(nextFollowUp);
@@ -248,7 +257,7 @@ exports.logCall = async (req, res) => {
                 type: 'Sales Follow-up',
                 dueDate: new Date(nextFollowUp),
                 notes: remarks,
-                priority: lead.priority
+                priority: lead.priority || 'Medium'
             });
         }
         await lead.save();
@@ -257,14 +266,15 @@ exports.logCall = async (req, res) => {
             leadId: lead._id,
             employeeId: req.user.id,
             activityType: 'Sales Call',
-            description: `Logged call: ${callResult}`,
-            metadata: { callResult, remarks }
+            description: Logged call: ,
+            metadata: { callResult, response: customerResponse, remarks }
         });
 
         req.app.get('io').emit('sales:updated', { leadId: lead._id });
         res.json({ success: true, lead });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Server error' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Server error logging call' });
     }
 };
 

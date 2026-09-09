@@ -5,7 +5,9 @@ const LeadActivity = require('../models/LeadActivity');
 const CRActivity = require('../models/CRActivity');
 const AuditLog = require('../models/AuditLog');
 
-exports.recordCall = async (leadId, employeeId, outcome, notes) => {
+const FollowUp = require('../models/FollowUp');
+
+exports.recordCall = async (leadId, employeeId, callResult, customerResponse, nextAction, followUpDate, notes) => {
     const lead = await Lead.findById(leadId);
     if (!lead) throw new Error('Lead not found');
 
@@ -13,20 +15,43 @@ exports.recordCall = async (leadId, employeeId, outcome, notes) => {
     await LeadActivity.create({
         leadId,
         employeeId,
-        activityType: outcome,
-        description: `Call outcome: ${outcome}`,
-        metadata: { notes }
+        activityType: 'Sales Call',
+        description: `Logged call: ${callResult}`,
+        metadata: { callResult, response: customerResponse, remarks: notes }
     });
+
+    // Handle nextAction / FollowUp
+    if (nextAction === 'Follow-up' && followUpDate) {
+        lead.nextFollowUp = new Date(followUpDate);
+        await FollowUp.create({
+            leadId: lead._id,
+            assignedEmployeeId: lead.assignedEmployeeId,
+            type: 'Sales Follow-up',
+            dueDate: new Date(followUpDate),
+            notes,
+            priority: lead.priority || 'Medium'
+        });
+    }
 
     // Update lead status
     if (lead.leadStatus === 'New' || lead.leadStatus === 'Assigned' || lead.leadStatus === 'Contact Pending') {
-        if (outcome === 'CALL_COMPLETED') {
+        if (callResult === 'Connected') {
             lead.leadStatus = 'Contacted';
         } else {
             lead.leadStatus = 'No Response';
         }
     }
+    
+    // Check conversions
+    if (customerResponse === 'Converted') {
+        lead.salesStatus = 'Converted';
+    } else if (customerResponse === 'Not Converted') {
+        lead.salesStatus = 'Not Converted';
+    } else if (callResult === 'Connected' && !lead.salesStatus) {
+        lead.salesStatus = 'Contacted';
+    }
 
+    lead.lastContactedAt = new Date();
     await lead.save();
 
     // Audit log
@@ -35,7 +60,7 @@ exports.recordCall = async (leadId, employeeId, outcome, notes) => {
         action: 'CALL_RECORDED',
         entityType: 'Lead',
         entityId: lead._id,
-        metadata: { outcome }
+        metadata: { callResult, customerResponse }
     });
 
     return lead;

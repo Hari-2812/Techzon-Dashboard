@@ -240,7 +240,11 @@ exports.recordCall = async (req, res) => {
         if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
             return res.status(400).json({ success: false, message: 'Invalid lead ID' });
         }
-        const lead = await leadService.recordCall(req.params.id, req.user.id, req.body.outcome, req.body.notes);
+        
+        const { callResult, customerResponse, nextAction, followUpDate, notes } = req.body;
+        const lead = await leadService.recordCall(req.params.id, req.user.id, callResult, customerResponse, nextAction, followUpDate, notes);
+        
+        req.app.get('io').emit('leads:updated', { leadId: req.params.id });
         res.json({ success: true, data: lead });
     } catch (err) {
         console.error(err);
