@@ -23,6 +23,7 @@ import GroupDetail from './pages/GroupDetail';
 import Attendance from './pages/Attendance';
 import AttendanceManagement from './pages/AttendanceManagement';
 import EmployeeAttendanceHistory from './pages/EmployeeAttendanceHistory';
+import EmployeeCallAnalytics from './pages/EmployeeCallAnalytics';
 import MyPerformance from './pages/MyPerformance';
 import TeamPerformance from './pages/TeamPerformance';
 import Analytics from './pages/Analytics';
@@ -111,6 +112,7 @@ function App() {
             <Route element={<RoleRoute roles={['ADMIN']} />}>
               <Route path="/attendance-management" element={<AttendanceManagement />} />
               <Route path="/attendance-management/employee/:employeeId" element={<EmployeeAttendanceHistory />} />
+              <Route path="/admin/call-analytics/:employeeId" element={<EmployeeCallAnalytics />} />
               <Route path="/performance" element={<TeamPerformance />} />
               <Route path="/holiday-management" element={<HolidayManagement />} />
               <Route path="/employees" element={<EmployeeManagement />} />

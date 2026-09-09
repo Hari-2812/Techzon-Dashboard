@@ -63,6 +63,7 @@ app.use('/api/whatsapp-groups', require('./routes/whatsappGroup.routes'));
 app.use('/api/daily-updates', require('./routes/dailyUpdates.routes'));
 app.use('/api/attendance-management', require('./routes/admin-attendance.routes'));
 app.use('/api/sales', require('./routes/sales.routes'));
+app.use('/api/call-analytics', require('./routes/callAnalytics.routes'));
 app.use('/api/performance', require('./routes/performance.routes'));
 app.use('/api/holidays', require('./routes/holiday.routes'));
 app.use('/api/holiday-responses', require('./routes/holidayResponse.routes'));

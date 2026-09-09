@@ -16,6 +16,7 @@ import { useQueryClient, useQuery } from '@tanstack/react-query';
 import api from '../services/api';
 import moment from 'moment';
 import { getNotifications, getAdminNotifications } from '../api/notifications';
+import { AdminCallAnalyticsWidget } from '../components/ui/AdminCallAnalyticsWidget';
 
 const RecentNotificationsWidget = () => {
   const { user } = useAuthStore();
@@ -255,6 +256,9 @@ const Dashboard = () => {
           </div>
         </Card>
       )}
+
+      {/* ADMIN ONLY: CALL ANALYTICS WIDGET */}
+      {isAdmin && <AdminCallAnalyticsWidget />}
 
       {/* ADMIN ONLY: ATTENDANCE REMINDERS WIDGET */}
       {isAdmin && attendanceReminders && (
