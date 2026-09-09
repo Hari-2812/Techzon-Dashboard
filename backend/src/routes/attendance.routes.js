@@ -37,7 +37,11 @@ router.post('/requests/:requestId/approve', auth, approveRequest);
 router.post('/requests/:requestId/reject', auth, rejectRequest);
 router.post('/manual', auth, createManualAttendance);
 
-const { manualCorrection } = require('../controllers/admin-attendance.controller');
+const { 
+    getEmployeeAttendanceDetail,
+    manualCorrection,
+    getEmployeeAttendanceHistory 
+} = require('../controllers/admin-attendance.controller');
 router.post('/admin/manual-correction', auth, manualCorrection);
 
 const {
@@ -87,6 +91,8 @@ router.post('/admin/trigger-reminder-job', auth, async (req, res) => {
 router.post('/break/start', auth, startBreak);
 router.post('/break/end', auth, endBreak);
 router.post('/correction', auth, requestCorrection);
+router.get('/admin/employee/:employeeId', auth, getEmployeeAttendanceDetail);
+router.get('/admin/employee/:employeeId/history', auth, getEmployeeAttendanceHistory);
 router.get('/monthly', auth, getMonthlyAttendance);
 router.get('/settings', auth, getSettings);
 router.put('/settings', auth, updateSettings);

@@ -4,111 +4,139 @@ import type { DropResult } from '@hello-pangea/dnd';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import { Badge } from '../ui/Badge';
-import { useNavigate } from 'react-router-dom';
+import { Button } from '../ui/Button';
+import { Phone, Edit, CalendarClock } from 'lucide-react';
+import moment from 'moment-timezone';
 
-const PIPELINE_STAGES = [
-    'Not Contacted', 'Contacted', 'Interested', 'Follow-up'
-]; 
-const ALL_STAGES = [...PIPELINE_STAGES, 'Converted', 'Not Interested', 'Closed'];
+const PIPELINE_STAGES = ['New', 'Contacted', 'Interested', 'Follow-up', 'Converted', 'Not Interested'];
+// Mappings for older string versions if they exist
+const normalizeStage = (status: string) => {
+    if (!status) return 'New';
+    const s = status.toLowerCase();
+    if (s.includes('not contacted') || s === 'new') return 'New';
+    if (s.includes('converted')) return 'Converted';
+    if (s.includes('interested') && !s.includes('not')) return 'Interested';
+    if (s.includes('not interested') || s.includes('closed')) return 'Not Interested';
+    if (s.includes('follow-up')) return 'Follow-up';
+    return 'Contacted';
+};
 
-export const SalesKanban = ({ leads }: { leads: any[] }) => {
-    const navigate = useNavigate();
+interface SalesKanbanProps {
+    sales: any[];
+    onUpdate: (sale: any) => void;
+    onCall: (sale: any) => void;
+}
+
+export const SalesKanban = ({ sales, onUpdate, onCall }: SalesKanbanProps) => {
     const queryClient = useQueryClient();
-    
-    // Group leads by stage
     const [columns, setColumns] = useState<Record<string, any[]>>({});
 
     useEffect(() => {
-        const newCols: Record<string, any[]> = {};
-        ALL_STAGES.forEach(stage => {
-            newCols[stage] = leads?.filter(l => l.salesStatus === stage) || [];
-        });
+        const initialCols: Record<string, any[]> = {};
+        PIPELINE_STAGES.forEach(s => initialCols[s] = []);
         
-        // Group remaining leads into 'Not Contacted' if they have an old status
-        leads?.forEach(l => {
-            if (!ALL_STAGES.includes(l.salesStatus)) {
-                newCols['Not Contacted'] = [...(newCols['Not Contacted'] || []), l];
-            }
-        });
-        setColumns(newCols);
-    }, [leads]);
+        if (sales && sales.length > 0) {
+            sales.forEach(sale => {
+                const stage = normalizeStage(sale.salesStatus);
+                if (initialCols[stage]) {
+                    initialCols[stage].push(sale);
+                } else {
+                    initialCols['New'].push(sale);
+                }
+            });
+        }
+        setColumns(initialCols);
+    }, [sales]);
 
-    const updateStageMutation = useMutation({
-        mutationFn: async ({ id, stage }: { id: string, stage: string }) => {
-            await api.patch(`/sales/${id}/stage`, { salesStatus: stage });
+    const updateStatusMutation = useMutation({
+        mutationFn: async ({ id, status }: { id: string, status: string }) => {
+            const canonicalStatus = status === 'New' ? 'Not Contacted' : status;
+            await api.patch(`/sales/${id}/status`, { salesStatus: canonicalStatus });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['sales'] });
-            queryClient.invalidateQueries({ queryKey: ['salesDashboard'] });
         }
     });
 
     const onDragEnd = (result: DropResult) => {
-        if (!result.destination) return;
         const { source, destination, draggableId } = result;
+        if (!destination) return;
+        if (source.droppableId === destination.droppableId && source.index === destination.index) return;
 
-        if (source.droppableId === destination.droppableId) return; // Same column
-
-        // Optimistic UI update
-        const sourceCol = [...(columns[source.droppableId] || [])];
-        const destCol = [...(columns[destination.droppableId] || [])];
+        const sourceCol = [...columns[source.droppableId]];
+        const destCol = source.droppableId === destination.droppableId ? sourceCol : [...columns[destination.droppableId]];
+        
         const [movedItem] = sourceCol.splice(source.index, 1);
-        movedItem.salesStatus = destination.droppableId;
+        movedItem.salesStatus = destination.droppableId === 'New' ? 'Not Contacted' : destination.droppableId;
         destCol.splice(destination.index, 0, movedItem);
 
-        setColumns({
-            ...columns,
+        setColumns(prev => ({
+            ...prev,
             [source.droppableId]: sourceCol,
             [destination.droppableId]: destCol
-        });
+        }));
 
-        updateStageMutation.mutate({ id: draggableId, stage: destination.droppableId });
+        if (source.droppableId !== destination.droppableId) {
+            updateStatusMutation.mutate({ id: draggableId, status: destination.droppableId });
+        }
     };
 
     return (
-        <DragDropContext onDragEnd={onDragEnd}>
-            <div className="flex space-x-4 overflow-x-auto pb-4 min-h-[600px] select-none">
-                {PIPELINE_STAGES.map((stage) => (
-                    <div key={stage} className="bg-gray-100 rounded-lg w-80 flex-shrink-0 flex flex-col max-h-full">
-                        <div className="p-3 bg-gray-200 font-bold text-gray-700 rounded-t-lg flex justify-between items-center">
-                            <span>{stage}</span>
-                            <Badge variant="neutral">{columns[stage]?.length || 0}</Badge>
+        <div className="flex overflow-x-auto pb-4 gap-4 min-h-[600px]">
+            <DragDropContext onDragEnd={onDragEnd}>
+                {PIPELINE_STAGES.map(stage => (
+                    <div key={stage} className="flex-none w-80 bg-gray-50/80 rounded-xl border border-gray-200 flex flex-col max-h-[800px]">
+                        <div className="p-3 border-b border-gray-200 bg-gray-100/50 rounded-t-xl flex justify-between items-center">
+                            <h3 className="font-bold text-gray-700">{stage}</h3>
+                            <Badge className="bg-white text-gray-600">{columns[stage]?.length || 0}</Badge>
                         </div>
+                        
                         <Droppable droppableId={stage}>
                             {(provided) => (
                                 <div 
-                                    {...provided.droppableProps} 
                                     ref={provided.innerRef}
-                                    className="p-3 flex-1 overflow-y-auto space-y-3 min-h-[150px]"
+                                    {...provided.droppableProps}
+                                    className="flex-1 overflow-y-auto p-2 space-y-2"
                                 >
-                                    {columns[stage]?.map((lead, index) => (
-                                        <Draggable key={lead._id} draggableId={lead._id} index={index}>
+                                    {columns[stage]?.map((sale, index) => (
+                                        <Draggable key={sale._id} draggableId={sale._id} index={index}>
                                             {(provided, snapshot) => (
                                                 <div
                                                     ref={provided.innerRef}
                                                     {...provided.draggableProps}
                                                     {...provided.dragHandleProps}
-                                                    className={`bg-white p-4 rounded-lg shadow-sm border border-gray-200 cursor-grab ${snapshot.isDragging ? 'shadow-lg border-primary ring-2 ring-primary ring-opacity-50 z-50' : 'hover:border-primary-300'}`}
-                                                    onClick={(e) => {
-                                                        // Prevent navigation if we are dragging
-                                                        if (e.defaultPrevented) return;
-                                                        navigate(`/sales/${lead._id}`);
-                                                    }}
+                                                    className={`bg-white p-3 rounded-lg border shadow-sm transition-shadow ${snapshot.isDragging ? 'shadow-md border-indigo-400' : 'border-gray-200 hover:border-gray-300'}`}
                                                 >
-                                                    <div className="flex justify-between items-start mb-2">
-                                                        <h4 className="font-bold text-gray-800 truncate pr-2">{lead.studentName}</h4>
-                                                        <Badge variant={lead.priority === 'HIGH' ? 'error' : lead.priority === 'MEDIUM' ? 'warning' : 'neutral'}>{lead.priority}</Badge>
-                                                    </div>
-                                                    <p className="text-sm text-gray-500 mb-2 truncate">{lead.interestedDomain || lead.department || 'N/A'}</p>
+                                                    <div className="font-bold text-gray-900 mb-1">{sale.studentName}</div>
+                                                    <div className="text-xs text-indigo-600 font-mono mb-2">{sale.phone}</div>
                                                     
-                                                    {lead.nextFollowUp && (
-                                                        <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500 flex justify-between">
-                                                            <span>Follow-up:</span>
-                                                            <span className={new Date(lead.nextFollowUp) < new Date() ? 'text-red-500 font-bold' : ''}>
-                                                                {new Date(lead.nextFollowUp).toLocaleDateString()}
-                                                            </span>
+                                                    {sale.interestedDomain && (
+                                                        <div className="text-xs text-gray-500 mb-2 truncate bg-gray-50 p-1 rounded">
+                                                            Domain: <span className="font-medium text-gray-700">{sale.interestedDomain}</span>
                                                         </div>
                                                     )}
+                                                    
+                                                    {sale.studentResponse && (
+                                                        <div className="text-xs text-gray-600 italic mb-2 line-clamp-2" title={sale.studentResponse}>
+                                                            "{sale.studentResponse}"
+                                                        </div>
+                                                    )}
+                                                    
+                                                    {sale.nextFollowUp && (
+                                                        <div className="flex items-center gap-1 text-[10px] text-gray-500 mb-3 bg-blue-50/50 p-1 rounded text-blue-700">
+                                                            <CalendarClock className="w-3 h-3" />
+                                                            {moment(sale.nextFollowUp).format('DD MMM, hh:mm A')}
+                                                        </div>
+                                                    )}
+                                                    
+                                                    <div className="flex gap-2 mt-2 pt-2 border-t border-gray-100">
+                                                        <Button size="sm" variant="outline" className="flex-1 py-1 h-auto text-xs border-green-200 text-green-700 hover:bg-green-50" onClick={() => onCall(sale)}>
+                                                            <Phone className="w-3 h-3 mr-1" /> Call
+                                                        </Button>
+                                                        <Button size="sm" variant="outline" className="flex-1 py-1 h-auto text-xs" onClick={() => onUpdate(sale)}>
+                                                            <Edit className="w-3 h-3 mr-1" /> Edit
+                                                        </Button>
+                                                    </div>
                                                 </div>
                                             )}
                                         </Draggable>
@@ -119,7 +147,7 @@ export const SalesKanban = ({ leads }: { leads: any[] }) => {
                         </Droppable>
                     </div>
                 ))}
-            </div>
-        </DragDropContext>
+            </DragDropContext>
+        </div>
     );
 };

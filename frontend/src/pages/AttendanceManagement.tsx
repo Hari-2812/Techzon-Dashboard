@@ -5,6 +5,7 @@ import socket from '../services/socket';
 import { Users, Clock, AlertCircle, CalendarX2, Search, Filter, X, Calendar, ChevronRight, ChevronLeft, Play, Square, Coffee, Plus, Mail, UserCheck } from 'lucide-react';
 import moment from 'moment-timezone';
 import { useAuthStore } from '../store/authStore';
+import { useNavigate } from 'react-router-dom';
 import { useEmployees } from '../hooks/useEmployees';
 import { Card, CardContent } from '../components/ui/Card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell, TableContainer } from '../components/ui/Table';
@@ -47,6 +48,7 @@ const LiveTimer = ({ startTime, breaks }: { startTime: string, breaks: any[] }) 
 };
 
 const AttendanceManagement = () => {
+  const navigate = useNavigate();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -582,7 +584,7 @@ const AttendanceManagement = () => {
                   return (
                     <TableRow key={item._id} className="cursor-pointer" onClick={() => setSelectedEmployee(item)}>
                       <TableCell className="w-[50%] overflow-hidden">
-                        <p className="font-bold text-[var(--color-text-primary)] truncate" title={item.employeeId?.name}>{item.employeeId?.name}</p>
+                        <p className="font-bold text-[var(--color-primary)] truncate hover:underline cursor-pointer" title={item.employeeId?.name} onClick={(e) => { e.stopPropagation(); navigate(`/attendance-management/employee/${item.employeeId?._id}`); }}>{item.employeeId?.name}</p>
                         <p className="text-xs text-[var(--color-text-muted)] font-medium mt-0.5 truncate" title={item.employeeId?.role}>{item.employeeId?.role}</p>
                       </TableCell>
                       <TableCell className="w-[25%] overflow-hidden">
@@ -1454,3 +1456,4 @@ const StatusBadge = ({ isActive, isOnBreak, isCompleted, dailyStatus }: any) => 
 }
 
 export default AttendanceManagement;
+

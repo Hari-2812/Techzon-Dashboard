@@ -128,6 +128,32 @@ export default function SalesImport({ embedded = false, targetEmployeeId, target
     });
   };
 
+    const handleImport = async () => {
+    if (rows.filter(r => !r.isValid).length > 0) {
+      setError('Please fix invalid rows before importing.');
+      return;
+    }
+    
+    setStatus('importing');
+    setError('');
+    
+    try {
+      const validRows = rows.filter(r => r.isValid);
+      const res = await api.post('/sales/import', { leads: validRows, targetEmployeeId });
+      if (res.data.success) {
+        setSuccessStats(res.data.stats || { created: validRows.length, updated: 0 });
+        setStatus('success');
+        if (onSuccess) onSuccess();
+      } else {
+        setError(res.data.message || 'Import failed');
+        setStatus('preview');
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Import failed due to server error');
+      setStatus('preview');
+    }
+  };
   const parseMessyData = (text: string) => {
     const KNOWN_DOMAINS = ['Python', 'Java', 'Data Science', 'Full Stack Development', 'AI', 'Machine Learning', 'Web Development', 'Full Stack', 'Fullstack', 'MERN'];
     const KNOWN_DEPARTMENTS = ['Computer Science', 'CSE', 'Information Technology', 'IT', 'Artificial Intelligence', 'AI', 'Data Science', 'Mechanical', 'Civil', 'ECE', 'EEE'];
@@ -830,3 +856,4 @@ export default function SalesImport({ embedded = false, targetEmployeeId, target
     </div>
   );
 }
+
