@@ -51,7 +51,10 @@ const EmployeeAttendanceHistory = () => {
 
     const handleEditClick = (record: any) => {
         setSelectedRecord(record);
-        setEditStatus(record.status || 'PRESENT');
+        const mappedStatus = ['WORKING', 'COMPLETED'].includes(record.status) ? 'PRESENT' 
+                           : ['PAID_LEAVE'].includes(record.status) ? 'LEAVE'
+                           : record.status || 'PRESENT';
+        setEditStatus(mappedStatus);
         
         if (record.session?.clockInAt) {
             setEditClockIn(moment(record.session.clockInAt).tz('Asia/Kolkata').format('HH:mm'));
