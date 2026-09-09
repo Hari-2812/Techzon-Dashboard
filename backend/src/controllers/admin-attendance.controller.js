@@ -204,6 +204,10 @@ exports.manualCorrection = async (req, res) => {
         const newClockIn = parseTime(clockInTime);
         const newClockOut = parseTime(clockOutTime);
 
+        if (newClockIn && newClockOut && newClockOut < newClockIn) {
+            return res.status(400).json({ success: false, message: 'Logout time must be after login time.' });
+        }
+
         // Manage LeavePermissionRequest if status is LEAVE or PERMISSION
         if (['LEAVE', 'PERMISSION'].includes(status)) {
             const existingReq = await LeavePermissionRequest.findOne({
@@ -348,3 +352,4 @@ exports.getEmployeeAttendanceHistory = async (req, res) => {
         res.status(500).json({ success: false, message: 'Server Error' });
     }
 };
+

@@ -54,13 +54,13 @@ const EmployeeAttendanceHistory = () => {
         setEditStatus(record.status || 'PRESENT');
         
         if (record.session?.clockInAt) {
-            setEditClockIn(moment(record.session.clockInAt).tz('Asia/Kolkata').format('YYYY-MM-DDTHH:mm'));
+            setEditClockIn(moment(record.session.clockInAt).tz('Asia/Kolkata').format('HH:mm'));
         } else {
             setEditClockIn('');
         }
         
         if (record.session?.clockOutAt) {
-            setEditClockOut(moment(record.session.clockOutAt).tz('Asia/Kolkata').format('YYYY-MM-DDTHH:mm'));
+            setEditClockOut(moment(record.session.clockOutAt).tz('Asia/Kolkata').format('HH:mm'));
         } else {
             setEditClockOut('');
         }
@@ -289,7 +289,7 @@ const EmployeeAttendanceHistory = () => {
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Login Time</label>
                                 <input 
-                                    type="datetime-local" 
+                                    type="time" 
                                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
                                     value={editClockIn}
                                     onChange={(e) => setEditClockIn(e.target.value)}
@@ -298,7 +298,7 @@ const EmployeeAttendanceHistory = () => {
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Logout Time</label>
                                 <input 
-                                    type="datetime-local" 
+                                    type="time" 
                                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
                                     value={editClockOut}
                                     onChange={(e) => setEditClockOut(e.target.value)}
@@ -324,3 +324,5 @@ const EmployeeAttendanceHistory = () => {
 };
 
 export default EmployeeAttendanceHistory;
+
+
