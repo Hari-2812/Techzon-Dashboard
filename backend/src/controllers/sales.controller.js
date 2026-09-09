@@ -266,7 +266,7 @@ exports.logCall = async (req, res) => {
             leadId: lead._id,
             employeeId: req.user.id,
             activityType: 'Sales Call',
-            description: Logged call: ,
+            description: `Logged call: ${callResult}`,
             metadata: { callResult, response: customerResponse, remarks }
         });
 
