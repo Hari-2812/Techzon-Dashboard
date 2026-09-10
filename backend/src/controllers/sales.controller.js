@@ -58,13 +58,13 @@ exports.getDashboard = async (req, res) => {
             performance = users.map(user => {
                 const employeeLeads = user.leads || [];
                 return {
-                    _id: user._id,
-                    name: user.name,
-                    totalLeads: employeeLeads.length,
+                    employeeId: user._id,
+                    employeeName: user.name,
+                    totalAssigned: employeeLeads.length,
                     contacted: employeeLeads.filter(l => ['Contacted', 'Interested', 'Follow-up', 'Converted'].includes(l.salesStatus)).length,
                     interested: employeeLeads.filter(l => l.salesStatus === 'Interested').length,
                     followUp: employeeLeads.filter(l => l.nextFollowUp && new Date(l.nextFollowUp) <= todayEndOfDay).length,
-                    conversions: employeeLeads.filter(l => l.salesStatus === 'Converted').length
+                    converted: employeeLeads.filter(l => l.salesStatus === 'Converted').length
                 };
             });
         }

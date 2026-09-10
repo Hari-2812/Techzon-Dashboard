@@ -888,7 +888,7 @@ exports.getAdminEmployeeLeadStats = async (req, res) => {
         const LeadActivity = require('../models/LeadActivity');
         
         const assignedLeads = await Lead.countDocuments({ assignedEmployeeId: employeeId });
-        const callsMade = await LeadActivity.countDocuments({ employeeId, activityType: { $regex: '^CALL_' } });
+        const callsMade = await LeadActivity.countDocuments({ employeeId, activityType: { $in: ['Sales Call', 'CALL_COMPLETED'] } });
         
         res.json({ success: true, assignedLeads, callsMade });
     } catch (err) {
@@ -906,7 +906,7 @@ exports.getMyLeadStats = async (req, res) => {
         const LeadActivity = require('../models/LeadActivity');
         
         const assignedLeads = await Lead.countDocuments({ assignedEmployeeId: employeeId });
-        const callsMade = await LeadActivity.countDocuments({ employeeId, activityType: { $regex: '^CALL_' } });
+        const callsMade = await LeadActivity.countDocuments({ employeeId, activityType: { $in: ['Sales Call', 'CALL_COMPLETED'] } });
         
         res.json({ success: true, assignedLeads, callsMade });
     } catch (err) {

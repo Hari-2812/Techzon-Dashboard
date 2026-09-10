@@ -71,6 +71,8 @@ export const useRecordCall = () => {
       queryClient.invalidateQueries({ queryKey: ['leadActivities', variables.leadId] });
       queryClient.invalidateQueries({ queryKey: ['leads'] });
       queryClient.invalidateQueries({ queryKey: ['employeeLeadStats'] });
+      queryClient.invalidateQueries({ queryKey: ['salesDashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['callAnalytics'] });
     },
   });
 };

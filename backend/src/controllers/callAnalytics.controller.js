@@ -35,7 +35,7 @@ const getDashboardAnalytics = async (req, res) => {
             timestamp: { $gte: startDate.toDate(), $lte: endDate.toDate() }
         };
 
-        const employees = await User.find({ role: { $in: ['Employee', 'Sales', 'Manager'] } }).select('name role _id');
+        const employees = await User.find({ role: { $ne: 'ADMIN' }, isActive: true }).select('name role _id');
         const employeeIds = employees.map(e => e._id);
 
         const activities = await LeadActivity.aggregate([
