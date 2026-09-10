@@ -7,10 +7,13 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell, TableCon
 
 // Helper to get initials
 const getInitials = (name: string) => {
-    if (!name) return '?';
-    const parts = name.split(' ');
-    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-    return name.substring(0, 2).toUpperCase();
+    if (!name || typeof name !== 'string') return '?';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 0 || !parts[0]) return '?';
+    if (parts.length >= 2 && parts[1]) {
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return parts[0].substring(0, 2).toUpperCase();
 };
 
 export const AdminCallAnalyticsWidget = () => {
@@ -212,12 +215,12 @@ export const AdminCallAnalyticsWidget = () => {
                                             >
                                                 <TableCell className="py-3">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">
+                                                        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs shrink-0">
                                                             {getInitials(emp.name)}
                                                         </div>
-                                                        <div>
-                                                            <p className="font-semibold text-gray-900 text-sm">{emp.name}</p>
-                                                            <p className="text-[11px] text-gray-500 font-medium">{emp.role}</p>
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="font-semibold text-gray-900 text-sm truncate" title={emp.name}>{emp.name || 'Employee'}</p>
+                                                            {emp.role && <p className="text-[11px] text-gray-500 font-medium truncate">{emp.role}</p>}
                                                         </div>
                                                     </div>
                                                 </TableCell>
@@ -289,16 +292,16 @@ export const AdminCallAnalyticsWidget = () => {
                                     onClick={() => navigate(`/admin/call-analytics/${emp.employeeId}`)}
                                 >
                                     <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm shadow-sm">
+                                        <div className="flex items-center gap-3 min-w-0 flex-1 pr-3">
+                                            <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm shadow-sm shrink-0">
                                                 {getInitials(emp.name)}
                                             </div>
-                                            <div>
-                                                <p className="font-bold text-gray-900 text-sm leading-tight">{emp.name}</p>
-                                                <p className="text-[11px] text-gray-500 font-medium">{emp.role}</p>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="font-bold text-gray-900 text-sm leading-tight truncate" title={emp.name}>{emp.name || 'Employee'}</p>
+                                                {emp.role && <p className="text-[11px] text-gray-500 font-medium truncate">{emp.role}</p>}
                                             </div>
                                         </div>
-                                        <button className="p-1.5 bg-gray-50 text-gray-400 rounded-full">
+                                        <button className="p-1.5 bg-gray-50 text-gray-400 rounded-full shrink-0">
                                             <ChevronRight size={16} />
                                         </button>
                                     </div>
