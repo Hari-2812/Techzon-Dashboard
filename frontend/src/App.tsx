@@ -1,46 +1,46 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, Suspense, lazy } from 'react';
 import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import RoleRoute from './components/auth/RoleRoute';
 
 // Pages
-import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
-import ForgotPassword from './pages/ForgotPassword';
-import ResetPassword from './pages/ResetPassword';
-import NotFound from './pages/NotFound';
-import Leads from './pages/Leads';
-import LeadDetail from './pages/LeadDetail';
-import SalesDashboard from './pages/SalesDashboard';
-import SalesDetail from './pages/SalesDetail';
-import DailyUpdates from './pages/DailyUpdates';
-import CRManagement from './pages/CRManagement';
-import CRDetail from './pages/CRDetail';
-import FollowUps from './pages/FollowUps';
-import WhatsAppGroups from './pages/WhatsAppGroups';
-import GroupDetail from './pages/GroupDetail';
-import Attendance from './pages/Attendance';
-import AttendanceManagement from './pages/AttendanceManagement';
-import EmployeeAttendanceHistory from './pages/EmployeeAttendanceHistory';
-import EmployeeCallAnalytics from './pages/EmployeeCallAnalytics';
-import MyPerformance from './pages/MyPerformance';
-import TeamPerformance from './pages/TeamPerformance';
-import Analytics from './pages/Analytics';
-import ImportLeads from './pages/ImportLeads';
-import SalesImport from './pages/SalesImport';
-import Notifications from './pages/Notifications';
-import AuditLogs from './pages/AuditLogs';
-import Settings from './pages/Settings';
-import Team from './pages/Team';
-import SalaryAttendance from './pages/SalaryAttendance';
-import HolidayManagement from './pages/HolidayManagement';
-import EmployeeManagement from './pages/EmployeeManagement';
-import CreateEmployee from './pages/CreateEmployee';
-import EmployeeProfile from './pages/EmployeeProfile';
-import EditEmployee from './pages/EditEmployee';
-import LeadAssignment from './pages/LeadAssignment';
-import ChangePassword from './pages/ChangePassword';
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
+const NotFound = lazy(() => import('./pages/NotFound'));
+const Leads = lazy(() => import('./pages/Leads'));
+const LeadDetail = lazy(() => import('./pages/LeadDetail'));
+const SalesDashboard = lazy(() => import('./pages/SalesDashboard'));
+const SalesDetail = lazy(() => import('./pages/SalesDetail'));
+const DailyUpdates = lazy(() => import('./pages/DailyUpdates'));
+const CRManagement = lazy(() => import('./pages/CRManagement'));
+const CRDetail = lazy(() => import('./pages/CRDetail'));
+const FollowUps = lazy(() => import('./pages/FollowUps'));
+const WhatsAppGroups = lazy(() => import('./pages/WhatsAppGroups'));
+const GroupDetail = lazy(() => import('./pages/GroupDetail'));
+const Attendance = lazy(() => import('./pages/Attendance'));
+const AttendanceManagement = lazy(() => import('./pages/AttendanceManagement'));
+const EmployeeAttendanceHistory = lazy(() => import('./pages/EmployeeAttendanceHistory'));
+const EmployeeCallAnalytics = lazy(() => import('./pages/EmployeeCallAnalytics'));
+const MyPerformance = lazy(() => import('./pages/MyPerformance'));
+const TeamPerformance = lazy(() => import('./pages/TeamPerformance'));
+const Analytics = lazy(() => import('./pages/Analytics'));
+const ImportLeads = lazy(() => import('./pages/ImportLeads'));
+const SalesImport = lazy(() => import('./pages/SalesImport'));
+const Notifications = lazy(() => import('./pages/Notifications'));
+const AuditLogs = lazy(() => import('./pages/AuditLogs'));
+const Settings = lazy(() => import('./pages/Settings'));
+const Team = lazy(() => import('./pages/Team'));
+const SalaryAttendance = lazy(() => import('./pages/SalaryAttendance'));
+const HolidayManagement = lazy(() => import('./pages/HolidayManagement'));
+const EmployeeManagement = lazy(() => import('./pages/EmployeeManagement'));
+const CreateEmployee = lazy(() => import('./pages/CreateEmployee'));
+const EmployeeProfile = lazy(() => import('./pages/EmployeeProfile'));
+const EditEmployee = lazy(() => import('./pages/EditEmployee'));
+const LeadAssignment = lazy(() => import('./pages/LeadAssignment'));
+const ChangePassword = lazy(() => import('./pages/ChangePassword'));
 
 const DynamicTitle = () => {
   const location = useLocation();
@@ -78,7 +78,8 @@ function App() {
   return (
     <Router>
       <DynamicTitle />
-      <Routes>
+      <Suspense fallback={<div className="h-screen flex items-center justify-center text-[var(--color-primary)]">Loading application...</div>}>
+        <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -134,6 +135,7 @@ function App() {
           </Route>
         </Route>
       </Routes>
+      </Suspense>
     </Router>
   );
 }

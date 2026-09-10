@@ -318,8 +318,18 @@ exports.getAnalytics = async (req, res) => {
         if (req.user.role === 'ADMIN') {
             const users = await User.find({ role: { $ne: 'ADMIN' }, isActive: true });
             
+            // Pre-calculate assigned leads for all valid users in one query to avoid N+1 problem
+            const leadsAggregation = await Lead.aggregate([
+                { $match: { assignedEmployeeId: { $in: users.map(u => u._id) } } },
+                { $group: { _id: "$assignedEmployeeId", count: { $sum: 1 } } }
+            ]);
+            const assignedLeadsMap = {};
+            leadsAggregation.forEach(item => {
+                assignedLeadsMap[item._id.toString()] = item.count;
+            });
+            
             for (const user of users) {
-                const assignedLeadsCount = await Lead.countDocuments({ assignedEmployeeId: user._id });
+                const assignedLeadsCount = assignedLeadsMap[user._id.toString()] || 0;
                 const userUpdates = updates.filter(u => u.employeeId.toString() === user._id.toString());
                 
                 // Count unique valid leads updated
