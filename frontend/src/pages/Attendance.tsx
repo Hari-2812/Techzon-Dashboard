@@ -172,7 +172,7 @@ const Attendance = () => {
             </div>
             <div className="col-span-2">
               <p className="text-sm text-gray-500">Worked Time</p>
-              <p className="font-mono font-semibold text-gray-900 text-xl">{s?.clockOutAt || isToday ? timerStr : `${daily?.workedMinutes ? Math.floor(daily.workedMinutes/60) + 'h ' + (daily.workedMinutes%60) + 'm' : '00h 00m'}`}</p>
+              <p className="font-mono font-semibold text-gray-900 text-xl">{['HOLIDAY', 'LEAVE', 'ABSENT'].includes(daily?.status) ? '--' : s?.clockOutAt || isToday ? timerStr : `${daily?.workedMinutes ? Math.floor(daily.workedMinutes/60) + 'h ' + (daily.workedMinutes%60) + 'm' : '00h 00m'}`}</p>
             </div>
           </div>
         </div>
