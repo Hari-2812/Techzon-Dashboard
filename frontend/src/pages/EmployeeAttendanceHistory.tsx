@@ -91,15 +91,19 @@ const EmployeeAttendanceHistory = () => {
 
     const { employee, history } = historyData?.data || {};
 
-    const isFullDay = (logoutStr: string) => {
-        if (!logoutStr) return false;
-        const logoutTime = moment(logoutStr).tz('Asia/Kolkata');
-        const hour = logoutTime.hour();
-        const min = logoutTime.minute();
-        if ((hour === 19 && min >= 30) || (hour === 20 && min === 0)) {
-            return true;
-        }
-        return false;
+    const calculateTotalMinutes = (clockIn?: string, clockOut?: string) => {
+        if (!clockIn || !clockOut) return null;
+        const inTime = moment(clockIn).tz('Asia/Kolkata');
+        const outTime = moment(clockOut).tz('Asia/Kolkata');
+        const diff = outTime.diff(inTime, 'minutes');
+        return diff >= 0 ? diff : 0;
+    };
+
+    const formatTotalHours = (minutes: number | null) => {
+        if (minutes === null) return '--';
+        const hrs = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        return `${hrs.toString().padStart(2, '0')}h ${mins.toString().padStart(2, '0')}m`;
     };
 
     const formatTime = (timeStr: string) => {
@@ -107,10 +111,14 @@ const EmployeeAttendanceHistory = () => {
         return moment(timeStr).tz('Asia/Kolkata').format('hh:mm A');
     };
 
-    const renderStatus = (status: string, session?: any) => {
+    const renderStatus = (status: string, session?: any, totalMins?: number | null) => {
         if (['PRESENT', 'WORKING', 'COMPLETED', 'ON_BREAK'].includes(status)) {
-            if (session?.clockOutAt && isFullDay(session.clockOutAt)) {
-                return <Badge className="bg-green-100 text-green-800">Full Day</Badge>;
+            if (totalMins !== null && totalMins !== undefined) {
+                if (totalMins >= 540) {
+                    return <Badge className="bg-green-100 text-green-800">Full Day</Badge>;
+                } else if (totalMins >= 270) {
+                    return <Badge className="bg-orange-100 text-orange-800">Half Day</Badge>;
+                }
             }
             return <Badge className="bg-blue-100 text-blue-800">Present</Badge>;
         }
@@ -129,7 +137,9 @@ const EmployeeAttendanceHistory = () => {
     let fullDayCount = 0;
 
     history?.forEach((h: any) => {
-        const isFD = h.session?.clockOutAt && isFullDay(h.session.clockOutAt);
+        const totalMins = calculateTotalMinutes(h.session?.clockInAt, h.session?.clockOutAt);
+        const isFD = totalMins !== null && totalMins >= 540;
+        
         if (['PRESENT', 'WORKING', 'COMPLETED', 'ON_BREAK'].includes(h.status)) {
             presentCount++;
             if (isFD) fullDayCount++;
@@ -162,7 +172,7 @@ const EmployeeAttendanceHistory = () => {
                             <p className="text-sm text-gray-500 mt-1">Attendance History</p>
                         </div>
                         {todayRecord && (
-                            <div className="bg-gray-50 rounded-lg p-3 border border-gray-100 flex items-center gap-4 text-sm">
+                            <div className="bg-gray-50 rounded-lg p-3 border border-gray-100 flex flex-wrap items-center gap-4 text-sm">
                                 <div>
                                     <span className="text-gray-500 block text-xs font-semibold">Today's Login</span>
                                     <span className="font-bold text-gray-900">{formatTime(todayRecord.session?.clockInAt)}</span>
@@ -172,8 +182,12 @@ const EmployeeAttendanceHistory = () => {
                                     <span className="font-bold text-gray-900">{formatTime(todayRecord.session?.clockOutAt)}</span>
                                 </div>
                                 <div>
+                                    <span className="text-gray-500 block text-xs font-semibold">Total Hours</span>
+                                    <span className="font-bold text-gray-900">{formatTotalHours(calculateTotalMinutes(todayRecord.session?.clockInAt, todayRecord.session?.clockOutAt))}</span>
+                                </div>
+                                <div>
                                     <span className="text-gray-500 block text-xs font-semibold">Status</span>
-                                    {renderStatus(todayRecord.status, todayRecord.session)}
+                                    {renderStatus(todayRecord.status, todayRecord.session, calculateTotalMinutes(todayRecord.session?.clockInAt, todayRecord.session?.clockOutAt))}
                                 </div>
                             </div>
                         )}
@@ -222,6 +236,7 @@ const EmployeeAttendanceHistory = () => {
                                 <TableHead className="py-3">Date</TableHead>
                                 <TableHead className="py-3">Login Time</TableHead>
                                 <TableHead className="py-3">Logout Time</TableHead>
+                                <TableHead className="py-3">Total Hours</TableHead>
                                 <TableHead className="py-3">Status</TableHead>
                                 <TableHead className="text-right py-3">Action</TableHead>
                             </TableRow>
@@ -229,13 +244,15 @@ const EmployeeAttendanceHistory = () => {
                         <TableBody>
                             {history?.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                                         No attendance records found for this month.
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                history?.map((record: any) => (
-                                    <TableRow key={record._id} className="hover:bg-gray-50">
+                                history?.map((record: any) => {
+                                    const totalMins = calculateTotalMinutes(record.session?.clockInAt, record.session?.clockOutAt);
+                                    return (
+                                        <TableRow key={record._id} className="hover:bg-gray-50">
                                         <TableCell className="font-medium text-gray-900">
                                             {moment(record.date, 'YYYY-MM-DD').format('DD/MM/YYYY')}
                                         </TableCell>
@@ -245,8 +262,11 @@ const EmployeeAttendanceHistory = () => {
                                         <TableCell className="font-mono text-sm text-gray-600">
                                             {formatTime(record.session?.clockOutAt)}
                                         </TableCell>
+                                        <TableCell className="font-mono text-sm text-gray-600">
+                                            {formatTotalHours(totalMins)}
+                                        </TableCell>
                                         <TableCell>
-                                            {renderStatus(record.status, record.session)}
+                                            {renderStatus(record.status, record.session, totalMins)}
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <Button 
@@ -260,7 +280,8 @@ const EmployeeAttendanceHistory = () => {
                                             </Button>
                                         </TableCell>
                                     </TableRow>
-                                ))
+                                    );
+                                })
                             )}
                         </TableBody>
                     </Table>
