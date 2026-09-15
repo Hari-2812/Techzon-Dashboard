@@ -802,10 +802,11 @@ const AttendanceManagement = () => {
                 <option value="ABSENT">Absent</option>
                 <option value="LEAVE">Leave</option>
                 <option value="PERMISSION">Permission</option>
+                <option value="WORK_FROM_HOME">Work From Home</option>
               </select>
             </div>
 
-            {(manualStatus === 'PRESENT' || manualStatus === 'LATE') && (
+            {(manualStatus === 'PRESENT' || manualStatus === 'LATE' || manualStatus === 'WORK_FROM_HOME') && (
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Clock In Time</label>
@@ -867,7 +868,7 @@ const AttendanceManagement = () => {
                  try {
                      if (!manualStatus) return alert('Status is required');
                      if (manualStatus === 'PERMISSION' && (!manualStartTime || !manualEndTime)) return alert('Start and End time are required for permission');
-                     if ((manualStatus === 'PRESENT' || manualStatus === 'LATE') && !manualClockIn) return alert('Clock In time is required for Present/Late');
+                     if ((manualStatus === 'PRESENT' || manualStatus === 'LATE' || manualStatus === 'WORK_FROM_HOME') && !manualClockIn) return alert('Clock In time is required for Present/Late/WFH');
 
                      const token = (useAuthStore.getState().token || localStorage.getItem('token')) || '';
                      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
@@ -1130,6 +1131,7 @@ const AttendanceManagement = () => {
                                                   case 'WEEK_OFF': colorClass = 'bg-blue-50 text-blue-600'; label = 'WO'; break;
                                                   case 'HOLIDAY': colorClass = 'bg-teal-100 text-teal-700'; label = 'H'; break;
                                                   case 'PERMISSION': colorClass = 'bg-purple-100 text-purple-700'; label = 'PM'; break;
+                                                  case 'WORK_FROM_HOME': colorClass = 'bg-indigo-100 text-indigo-700'; label = 'WFH'; break;
                                                   default: colorClass = 'bg-gray-100 text-gray-600'; label = '-';
                                               }
                                           } else if (moment(dateStr).isAfter(moment(), 'day')) {
@@ -1137,7 +1139,40 @@ const AttendanceManagement = () => {
                                           }
                                           
                                           return (
-                                              <div key={d} className="aspect-square flex flex-col items-center justify-center border border-gray-100 rounded-md p-1" title={record?.status || 'No Record'}>
+                                              <div 
+                                                key={d} 
+                                                className={`aspect-square flex flex-col items-center justify-center border border-gray-100 rounded-md p-1 ${moment(dateStr).isAfter(moment(), 'day') ? '' : 'cursor-pointer hover:bg-gray-50 transition-colors'}`} 
+                                                title={record?.status || 'No Record - Click to Mark'}
+                                                onClick={() => {
+                                                   if (moment(dateStr).isAfter(moment(), 'day')) return;
+                                                   setManualEmployeeId(selectedEmployee.employeeId._id || selectedEmployee.employeeId);
+                                                   setManualDate(dateStr);
+                                                   
+                                                   const statusFromBackend = record?.status || 'PRESENT';
+                                                   const mappedStatus = ['WORKING', 'COMPLETED'].includes(statusFromBackend) ? 'PRESENT' 
+                                                                      : ['PAID_LEAVE'].includes(statusFromBackend) ? 'LEAVE'
+                                                                      : statusFromBackend;
+                                                   
+                                                   setManualStatus(mappedStatus);
+                                                   
+                                                   if (record?.session?.clockInAt) {
+                                                       setManualClockIn(moment(record.session.clockInAt).tz('Asia/Kolkata').format('HH:mm'));
+                                                   } else {
+                                                       setManualClockIn('');
+                                                   }
+                                                   
+                                                   if (record?.session?.clockOutAt) {
+                                                       setManualClockOut(moment(record.session.clockOutAt).tz('Asia/Kolkata').format('HH:mm'));
+                                                   } else {
+                                                       setManualClockOut('');
+                                                   }
+                                                   
+                                                   setManualStartTime('');
+                                                   setManualEndTime('');
+                                                   setManualAdminRemarks('');
+                                                   setManualCorrectionModalOpen(true);
+                                                }}
+                                              >
                                                   <span className="text-xs text-gray-400 mb-1">{d}</span>
                                                   <span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${colorClass}`}>
                                                       {label}
@@ -1352,6 +1387,7 @@ const StatusBadge = ({ isActive, isOnBreak, isCompleted, dailyStatus }: any) => 
   
   if (dailyStatus === 'LATE') return <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-yellow-100 text-yellow-700 border border-yellow-200">LATE</span>;
   if (dailyStatus === 'ABSENT') return <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-red-100 text-red-700 border border-red-200">ABSENT</span>;
+  if (dailyStatus === 'WORK_FROM_HOME') return <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-700 border border-indigo-200">WFH</span>;
   
   return <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-gray-100 text-gray-600 border border-gray-200">NOT CLOCKED IN</span>;
 }

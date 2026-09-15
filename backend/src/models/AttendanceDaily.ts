@@ -9,7 +9,7 @@ export interface IAttendanceDaily extends Document {
   lateMinutes: number;
   earlyLeaveMinutes: number;
   overtimeMinutes: number;
-  status: 'PRESENT' | 'LATE' | 'HALF_DAY' | 'ABSENT' | 'PAID_LEAVE' | 'HOLIDAY' | 'WEEK_OFF' | 'EARLY_LEAVE' | 'OVERTIME' | 'REQUIRES_REVIEW';
+  status: 'PRESENT' | 'LATE' | 'HALF_DAY' | 'ABSENT' | 'PAID_LEAVE' | 'HOLIDAY' | 'WEEK_OFF' | 'EARLY_LEAVE' | 'OVERTIME' | 'REQUIRES_REVIEW' | 'WORK_FROM_HOME';
   correctionStatus?: 'Pending' | 'Approved' | 'Rejected';
   correctionReason?: string;
   approvedBy?: mongoose.Types.ObjectId;
@@ -28,7 +28,7 @@ const AttendanceDailySchema: Schema = new Schema({
   overtimeMinutes: { type: Number, default: 0 },
   status: {
     type: String,
-    enum: ['PRESENT', 'LATE', 'HALF_DAY', 'ABSENT', 'PAID_LEAVE', 'HOLIDAY', 'WEEK_OFF', 'EARLY_LEAVE', 'OVERTIME', 'REQUIRES_REVIEW'],
+    enum: ['PRESENT', 'LATE', 'HALF_DAY', 'ABSENT', 'PAID_LEAVE', 'HOLIDAY', 'WEEK_OFF', 'EARLY_LEAVE', 'OVERTIME', 'REQUIRES_REVIEW', 'WORK_FROM_HOME'],
     required: true,
     index: true
   },

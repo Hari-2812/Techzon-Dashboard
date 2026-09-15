@@ -117,6 +117,7 @@ const EmployeeAttendanceHistory = () => {
         if (status === 'ABSENT') return <Badge className="bg-red-100 text-red-800">Absent</Badge>;
         if (status === 'LEAVE') return <Badge className="bg-purple-100 text-purple-800">Leave</Badge>;
         if (status === 'LATE') return <Badge className="bg-yellow-100 text-yellow-800">Late</Badge>;
+        if (status === 'WORK_FROM_HOME') return <Badge className="bg-indigo-100 text-indigo-800">Work From Home</Badge>;
         return <Badge className="bg-gray-100 text-gray-800">{status}</Badge>;
     };
 
@@ -284,10 +285,11 @@ const EmployeeAttendanceHistory = () => {
                             <option value="ABSENT">Absent</option>
                             <option value="LEAVE">Leave</option>
                             <option value="LATE">Late</option>
+                            <option value="WORK_FROM_HOME">Work From Home</option>
                         </select>
                     </div>
 
-                    {['PRESENT', 'LATE'].includes(editStatus) && (
+                    {['PRESENT', 'LATE', 'WORK_FROM_HOME'].includes(editStatus) && (
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Login Time</label>

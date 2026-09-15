@@ -243,10 +243,16 @@ exports.manualCorrection = async (req, res) => {
                 session.status = 'COMPLETED';
                 await session.save();
             }
-        } else if (['PRESENT', 'LATE', 'PERMISSION'].includes(status)) {
-            daily.status = status === 'PERMISSION' ? (daily.status === 'PENDING' ? 'WORKING' : daily.status) : (status === 'PRESENT' ? 'WORKING' : 'LATE');
+        } else if (['PRESENT', 'LATE', 'PERMISSION', 'WORK_FROM_HOME'].includes(status)) {
+            if (status === 'PERMISSION') {
+                daily.status = (daily.status === 'PENDING' ? 'WORKING' : daily.status);
+            } else if (status === 'WORK_FROM_HOME') {
+                daily.status = 'WORK_FROM_HOME';
+            } else {
+                daily.status = (status === 'PRESENT' ? 'WORKING' : 'LATE');
+            }
             
-            // Manage WorkSession for PRESENT and LATE
+            // Manage WorkSession for PRESENT, LATE, WORK_FROM_HOME
             if (newClockIn) {
                 if (!session) {
                     session = new WorkSession({ employeeId, date, isTestSession: false });
