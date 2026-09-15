@@ -235,7 +235,7 @@ exports.manualCorrection = async (req, res) => {
             daily = new AttendanceDaily({ employeeId, date, isTestSession: false });
         }
 
-        if (['LEAVE', 'ABSENT'].includes(status)) {
+        if (['LEAVE', 'ABSENT', 'HOLIDAY'].includes(status)) {
             daily.status = status;
             // End active session if any
             if (session && !session.clockOutAt) {

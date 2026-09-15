@@ -803,6 +803,7 @@ const AttendanceManagement = () => {
                 <option value="LEAVE">Leave</option>
                 <option value="PERMISSION">Permission</option>
                 <option value="WORK_FROM_HOME">Work From Home</option>
+                <option value="HOLIDAY">Holiday</option>
               </select>
             </div>
 
@@ -1388,6 +1389,7 @@ const StatusBadge = ({ isActive, isOnBreak, isCompleted, dailyStatus }: any) => 
   if (dailyStatus === 'LATE') return <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-yellow-100 text-yellow-700 border border-yellow-200">LATE</span>;
   if (dailyStatus === 'ABSENT') return <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-red-100 text-red-700 border border-red-200">ABSENT</span>;
   if (dailyStatus === 'WORK_FROM_HOME') return <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-700 border border-indigo-200">WFH</span>;
+  if (dailyStatus === 'HOLIDAY') return <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-teal-100 text-teal-700 border border-teal-200">HOLIDAY</span>;
   
   return <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-gray-100 text-gray-600 border border-gray-200">NOT CLOCKED IN</span>;
 }

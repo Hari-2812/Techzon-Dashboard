@@ -126,6 +126,7 @@ const EmployeeAttendanceHistory = () => {
         if (status === 'LEAVE') return <Badge className="bg-purple-100 text-purple-800">Leave</Badge>;
         if (status === 'LATE') return <Badge className="bg-yellow-100 text-yellow-800">Late</Badge>;
         if (status === 'WORK_FROM_HOME') return <Badge className="bg-indigo-100 text-indigo-800">Work From Home</Badge>;
+        if (status === 'HOLIDAY') return <Badge className="bg-teal-100 text-teal-800">Holiday</Badge>;
         return <Badge className="bg-gray-100 text-gray-800">{status}</Badge>;
     };
 
@@ -183,7 +184,7 @@ const EmployeeAttendanceHistory = () => {
                                 </div>
                                 <div>
                                     <span className="text-gray-500 block text-xs font-semibold">Total Hours</span>
-                                    <span className="font-bold text-gray-900">{formatTotalHours(calculateTotalMinutes(todayRecord.session?.clockInAt, todayRecord.session?.clockOutAt))}</span>
+                                    <span className="font-bold text-gray-900">{['HOLIDAY', 'LEAVE', 'ABSENT'].includes(todayRecord.status) ? '--' : formatTotalHours(calculateTotalMinutes(todayRecord.session?.clockInAt, todayRecord.session?.clockOutAt))}</span>
                                 </div>
                                 <div>
                                     <span className="text-gray-500 block text-xs font-semibold">Status</span>
@@ -263,7 +264,7 @@ const EmployeeAttendanceHistory = () => {
                                             {formatTime(record.session?.clockOutAt)}
                                         </TableCell>
                                         <TableCell className="font-mono text-sm text-gray-600">
-                                            {formatTotalHours(totalMins)}
+                                            {['HOLIDAY', 'LEAVE', 'ABSENT'].includes(record.status) ? '--' : formatTotalHours(totalMins)}
                                         </TableCell>
                                         <TableCell>
                                             {renderStatus(record.status, record.session, totalMins)}
@@ -307,6 +308,7 @@ const EmployeeAttendanceHistory = () => {
                             <option value="LEAVE">Leave</option>
                             <option value="LATE">Late</option>
                             <option value="WORK_FROM_HOME">Work From Home</option>
+                            <option value="HOLIDAY">Holiday</option>
                         </select>
                     </div>
 
