@@ -113,13 +113,6 @@ const EmployeeAttendanceHistory = () => {
 
     const renderStatus = (status: string, session?: any, totalMins?: number | null) => {
         if (['PRESENT', 'WORKING', 'COMPLETED', 'ON_BREAK'].includes(status)) {
-            if (totalMins !== null && totalMins !== undefined) {
-                if (totalMins >= 540) {
-                    return <Badge className="bg-green-100 text-green-800">Full Day</Badge>;
-                } else if (totalMins >= 270) {
-                    return <Badge className="bg-orange-100 text-orange-800">Half Day</Badge>;
-                }
-            }
             return <Badge className="bg-blue-100 text-blue-800">Present</Badge>;
         }
         if (status === 'ABSENT') return <Badge className="bg-red-100 text-red-800">Absent</Badge>;
@@ -127,6 +120,8 @@ const EmployeeAttendanceHistory = () => {
         if (status === 'LATE') return <Badge className="bg-yellow-100 text-yellow-800">Late</Badge>;
         if (status === 'WORK_FROM_HOME') return <Badge className="bg-indigo-100 text-indigo-800">Work From Home</Badge>;
         if (status === 'HOLIDAY') return <Badge className="bg-teal-100 text-teal-800">Holiday</Badge>;
+        if (status === 'HALF_DAY') return <Badge className="bg-orange-100 text-orange-800">Half Day</Badge>;
+        if (status === 'FULL_DAY') return <Badge className="bg-green-100 text-green-800">Full Day</Badge>;
         return <Badge className="bg-gray-100 text-gray-800">{status}</Badge>;
     };
 
