@@ -177,10 +177,10 @@ const runReminderJob = async (manualActorId = null) => {
                     email: emp.email,
                     name: emp.name,
                     reason: 'No Prior Information',
-                    message: 'Our records indicate that you have not logged in yet today. If you are working, please clock in immediately. If you are on leave or running late, please submit the appropriate request in the portal.',
+                    message: 'Our records indicate that you have not logged in yet today. If you are working, please login immediately. If you are on leave or running late, please submit the appropriate request in the portal.',
                     date: todayStr,
                     expectedLoginTime,
-                    currentStatus: 'Not Clocked In'
+                    currentStatus: 'Not Logged In'
                 });
                 emailSent = true;
                 sentCount++;
@@ -197,7 +197,7 @@ const runReminderJob = async (manualActorId = null) => {
                         recipientId: emp._id,
                         senderId: manualActorId || (adminUser ? adminUser._id : null),
                         title: 'Attendance Reminder',
-                        message: 'Our records indicate that you have not logged in yet today. Please clock in.',
+                        message: 'Our records indicate that you have not logged in yet today. Please login.',
                         type: 'ATTENDANCE',
                         priority: 'HIGH'
                     });
@@ -238,7 +238,7 @@ const runReminderJob = async (manualActorId = null) => {
         }
 
         console.log(`[ATTENDANCE CRON] Active employees found: ${employees.length}`);
-        console.log(`[ATTENDANCE CRON] Already clocked in: ${clockedInCount}`);
+        console.log(`[ATTENDANCE CRON] Already logged in: ${clockedInCount}`);
         console.log(`[ATTENDANCE CRON] On leave/permission excluded: ${leavePermissionCount}`);
         console.log(`[ATTENDANCE CRON] Reminder candidates: ${eligibleCount}`);
         

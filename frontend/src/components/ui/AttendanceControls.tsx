@@ -90,7 +90,7 @@ export const AttendanceControls: React.FC<AttendanceControlsProps> = ({ layout =
           disabled={isPending}
           className={layout !== 'topbar' ? "py-3 shadow-md" : ""}
         >
-          <Play className="mr-2" size={layout === 'topbar' ? 14 : 18} /> {isPending ? 'Processing...' : 'CLOCK IN'}
+          <Play className="mr-2" size={layout === 'topbar' ? 14 : 18} /> {isPending ? 'Processing...' : 'LOGIN'}
         </Button>
       );
     }
@@ -111,7 +111,7 @@ export const AttendanceControls: React.FC<AttendanceControlsProps> = ({ layout =
                   handleAction('CLOCK_OUT');
                 }
              }} disabled={isPending}>
-               <Square className="mr-2" size={20} /> Clock Out
+               <Square className="mr-2" size={20} /> Logout
              </Button>
         </div>
       )
@@ -135,7 +135,7 @@ export const AttendanceControls: React.FC<AttendanceControlsProps> = ({ layout =
               }
             }}
           >
-            <Square className="mr-2" size={18} /> {isPending ? 'Processing...' : 'CLOCK OUT'}
+            <Square className="mr-2" size={18} /> {isPending ? 'Processing...' : 'LOGOUT'}
           </Button>
         )}
         
@@ -167,7 +167,7 @@ export const AttendanceControls: React.FC<AttendanceControlsProps> = ({ layout =
                }
              }}
            >
-             {isPending ? 'Processing...' : 'CLOCK OUT'}
+             {isPending ? 'Processing...' : 'LOGOUT'}
            </Button>
         )}
       </div>

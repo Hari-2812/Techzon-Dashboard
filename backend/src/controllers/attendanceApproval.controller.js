@@ -130,7 +130,7 @@ exports.approveRequest = async (req, res) => {
             
         } else if (request.requestType === 'CHECK_OUT') {
             session = await WorkSession.findOne({ employeeId: request.employeeId, date: request.date, isTestSession: request.isTestSession }).sort({ createdAt: -1 });
-            if (!session) return res.status(404).json({ success: false, message: 'Session not found to clock out' });
+            if (!session) return res.status(404).json({ success: false, message: 'Session not found to logout' });
 
             session.clockOutAt = approvedTime;
             session.status = 'COMPLETED';

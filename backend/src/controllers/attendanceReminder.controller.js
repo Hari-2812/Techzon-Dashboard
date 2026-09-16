@@ -16,7 +16,7 @@ exports.getNotLoggedInEmployees = async (req, res) => {
             role: { $ne: 'ADMIN' }
         }).select('_id name email employeeId department');
 
-        // 2. Get today's work sessions (anyone who clocked in)
+        // 2. Get today's work sessions (anyone who logged in)
         const todaySessions = await WorkSession.find({
             date: todayStr,
             isTestSession: false
@@ -45,7 +45,7 @@ exports.getNotLoggedInEmployees = async (req, res) => {
         for (const emp of employees) {
             const empIdStr = emp._id.toString();
 
-            // Skip if they have a WorkSession (meaning they clocked in)
+            // Skip if they have a WorkSession (meaning they logged in)
             if (clockedInEmployeeIds.includes(empIdStr)) {
                 continue;
             }
@@ -55,7 +55,7 @@ exports.getNotLoggedInEmployees = async (req, res) => {
             if (daily) {
                 // If they are on full-day leave, holiday, week off, skip them.
                 if (['LEAVE', 'PAID_LEAVE', 'HOLIDAY', 'WEEK_OFF', 'ABSENT'].includes(daily.status)) {
-                    continue; // They are not expected to clock in normally or are already categorized
+                    continue; // They are not expected to login normally or are already categorized
                 }
             }
 
@@ -286,7 +286,7 @@ exports.getRemindersToday = async (req, res) => {
             // Determine Current Attendance Status (just for display context)
             const session = todaySessions.find(s => s.employeeId.toString() === empIdStr);
             const daily = todayDailies.find(d => d.employeeId.toString() === empIdStr);
-            let currentStatus = 'Not Clocked In';
+            let currentStatus = 'Not Logged In';
             
             if (session) {
                 currentStatus = session.status === 'ACTIVE' ? 'Working' : 'On Break';
@@ -302,13 +302,13 @@ exports.getRemindersToday = async (req, res) => {
             if (log) {
                 reminderStatus = log.status;
             } else {
-                // If there's no log and they are clocked in or on leave, it's virtually NOT_REQUIRED
-                if (currentStatus !== 'Not Clocked In' && currentStatus !== 'ABSENT') {
+                // If there's no log and they are logged in or on leave, it's virtually NOT_REQUIRED
+                if (currentStatus !== 'Not Logged In' && currentStatus !== 'ABSENT') {
                     reminderStatus = 'NOT_REQUIRED';
                 }
             }
 
-            if (currentStatus === 'Not Clocked In') {
+            if (currentStatus === 'Not Logged In') {
                 summary.totalNotClockedIn++;
             }
 

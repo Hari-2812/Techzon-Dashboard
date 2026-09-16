@@ -704,7 +704,7 @@ const AttendanceManagement = () => {
                  <TableHead>Employee</TableHead>
                  <TableHead>Department</TableHead>
                  <TableHead>Status/Reason</TableHead>
-                 <TableHead>Clock In</TableHead>
+                 <TableHead>Login</TableHead>
                  <TableHead>Reminder Status</TableHead>
                  <TableHead className="text-right">Action</TableHead>
                </TableRow>
@@ -713,7 +713,7 @@ const AttendanceManagement = () => {
                {notLoggedInError ? (
                  <TableRow>
                    <TableCell colSpan={6} className="py-8 text-center text-red-500 font-medium">
-                     Failed to load employees who have not clocked in.
+                     Failed to load employees who have not logged in.
                    </TableCell>
                  </TableRow>
                ) : notLoggedInEmployees?.length > 0 ? (
@@ -810,7 +810,7 @@ const AttendanceManagement = () => {
             {(manualStatus === 'PRESENT' || manualStatus === 'LATE' || manualStatus === 'WORK_FROM_HOME') && (
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Clock In Time</label>
+                  <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Login Time</label>
                   <input
                     type="time"
                     value={manualClockIn}
@@ -819,7 +819,7 @@ const AttendanceManagement = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Clock Out Time (Optional)</label>
+                  <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-1">Logout Time (Optional)</label>
                   <input
                     type="time"
                     value={manualClockOut}
@@ -869,7 +869,7 @@ const AttendanceManagement = () => {
                  try {
                      if (!manualStatus) return alert('Status is required');
                      if (manualStatus === 'PERMISSION' && (!manualStartTime || !manualEndTime)) return alert('Start and End time are required for permission');
-                     if ((manualStatus === 'PRESENT' || manualStatus === 'LATE' || manualStatus === 'WORK_FROM_HOME') && !manualClockIn) return alert('Clock In time is required for Present/Late/WFH');
+                     if ((manualStatus === 'PRESENT' || manualStatus === 'LATE' || manualStatus === 'WORK_FROM_HOME') && !manualClockIn) return alert('Login time is required for Present/Late/WFH');
 
                      const token = (useAuthStore.getState().token || localStorage.getItem('token')) || '';
                      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
@@ -944,7 +944,7 @@ const AttendanceManagement = () => {
                               />
                               { (selectedEmployee.session?.status === 'ACTIVE' || selectedEmployee.session?.status === 'RUNNING' || selectedEmployee.session?.status === 'ON_BREAK') && (
                                 <Button variant="danger" size="sm" onClick={() => setForceClockOutModalOpen(true)}>
-                                  Force Clock Out
+                                  Force Logout
                                 </Button>
                               )}
                               <Button variant="outline" size="sm" onClick={() => {
@@ -980,11 +980,11 @@ const AttendanceManagement = () => {
                            </div>
                          </div>
                          <div className="flex justify-between items-center">
-                           <span className="text-[var(--color-text-muted)]">Clock In</span>
+                           <span className="text-[var(--color-text-muted)]">Login</span>
                            <span className="font-semibold">{selectedEmployee.session ? moment(selectedEmployee.session.clockInAt).format('hh:mm A') : '—'}</span>
                          </div>
                          <div className="flex justify-between items-center">
-                           <span className="text-[var(--color-text-muted)]">Clock Out</span>
+                           <span className="text-[var(--color-text-muted)]">Logout</span>
                            <span className="font-semibold">{selectedEmployee.session?.clockOutAt ? moment(selectedEmployee.session.clockOutAt).format('hh:mm A') : '—'}</span>
                          </div>
                          <div className="flex justify-between items-center">
@@ -1035,7 +1035,7 @@ const AttendanceManagement = () => {
                      <Card className="p-5">
                        <h3 className="text-sm font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-4">Today's Timeline</h3>
                        <div className="space-y-5 relative before:absolute before:inset-0 before:ml-3.5 before:-translate-x-px before:h-full before:w-0.5 before:bg-[var(--color-border-subtle)]">
-                          <TimelineItem time={moment(selectedEmployee.session.clockInAt).format('hh:mm A')} text="Clock In" icon={<Play size={12}/>} color="bg-green-100 text-green-600 border-green-200" />
+                          <TimelineItem time={moment(selectedEmployee.session.clockInAt).format('hh:mm A')} text="Login" icon={<Play size={12}/>} color="bg-green-100 text-green-600 border-green-200" />
                           {selectedEmployee.session.breaks?.map((b:any, i:number) => (
                             <React.Fragment key={i}>
                               <TimelineItem time={moment(b.startAt).format('hh:mm A')} text={`Break (${b.reason || 'Started'})`} icon={<Coffee size={12}/>} color="bg-orange-100 text-orange-600 border-orange-200" />
@@ -1043,7 +1043,7 @@ const AttendanceManagement = () => {
                             </React.Fragment>
                           ))}
                           {selectedEmployee.session.clockOutAt && (
-                            <TimelineItem time={moment(selectedEmployee.session.clockOutAt).format('hh:mm A')} text="Clock Out" icon={<Square size={12}/>} color="bg-[var(--color-surface-light)] text-[var(--color-text-muted)] border-[var(--color-border-subtle)]" />
+                            <TimelineItem time={moment(selectedEmployee.session.clockOutAt).format('hh:mm A')} text="Logout" icon={<Square size={12}/>} color="bg-[var(--color-surface-light)] text-[var(--color-text-muted)] border-[var(--color-border-subtle)]" />
                           )}
                        </div>
                      </Card>
@@ -1325,13 +1325,13 @@ const AttendanceManagement = () => {
           </div>
        </Modal>
 
-       <Modal isOpen={forceClockOutModalOpen} onClose={() => setForceClockOutModalOpen(false)} title="Force Clock Out Employee?">
+       <Modal isOpen={forceClockOutModalOpen} onClose={() => setForceClockOutModalOpen(false)} title="Force Logout Employee?">
           {selectedEmployee && (
              <div className="space-y-4">
                <div className="p-4 bg-red-50 text-red-800 rounded-lg border border-red-100 text-sm">
-                 <p className="font-semibold mb-2">Are you sure you want to forcefully clock out this employee?</p>
+                 <p className="font-semibold mb-2">Are you sure you want to forcefully logout this employee?</p>
                  <p className="mb-1"><strong>Employee:</strong> {selectedEmployee.employeeId?.name}</p>
-                 <p className="mb-1"><strong>Clock In:</strong> {selectedEmployee.session ? moment(selectedEmployee.session.clockInAt).format('hh:mm A') : '—'}</p>
+                 <p className="mb-1"><strong>Login:</strong> {selectedEmployee.session ? moment(selectedEmployee.session.clockInAt).format('hh:mm A') : '—'}</p>
                  <p>The session will be closed immediately using the current server time.</p>
                </div>
                
@@ -1352,13 +1352,13 @@ const AttendanceManagement = () => {
                            setSelectedEmployee(null); // Close drawer to refresh fully
                            fetchAdminAttendance();
                         } else {
-                           alert(data.message || 'Unable to clock out employee.');
+                           alert(data.message || 'Unable to logout employee.');
                         }
                       } catch(e) { 
                         console.error(e); 
-                        alert('Unable to clock out employee. Please try again.');
+                        alert('Unable to logout employee. Please try again.');
                       }
-                   }}>Confirm Clock Out</Button>
+                   }}>Confirm Logout</Button>
                </div>
              </div>
           )}
@@ -1391,7 +1391,7 @@ const StatusBadge = ({ isActive, isOnBreak, isCompleted, dailyStatus }: any) => 
   if (dailyStatus === 'WORK_FROM_HOME') return <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-700 border border-indigo-200">WFH</span>;
   if (dailyStatus === 'HOLIDAY') return <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-teal-100 text-teal-700 border border-teal-200">HOLIDAY</span>;
   
-  return <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-gray-100 text-gray-600 border border-gray-200">NOT CLOCKED IN</span>;
+  return <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-gray-100 text-gray-600 border border-gray-200">NOT LOGGED IN</span>;
 }
 
 export default AttendanceManagement;

@@ -68,7 +68,7 @@ exports.calculateSessionStats = async (workSession, settings) => {
     status = 'LATE';
   }
   
-  // If they forgot to clock out and we are just projecting, it might be incomplete
+  // If they forgot to logout and we are just projecting, it might be incomplete
   if (!workSession.clockOutAt && workSession.status === 'MISSING_CLOCK_OUT') {
     status = 'REQUIRES_REVIEW';
   }

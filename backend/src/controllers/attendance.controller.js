@@ -89,10 +89,10 @@ exports.clockIn = async (req, res) => {
       return res.status(400).json({ success: false, message: 'You already have a pending Check-In request.' });
     }
 
-    // Check if they are already clocked in
+    // Check if they are already logged in
     const existingSession = await WorkSession.findOne({ employeeId: req.user.id, date: dateStr, isTestSession: isTestMode });
     if (existingSession) {
-      return res.status(400).json({ success: false, message: 'Already clocked in today' });
+      return res.status(400).json({ success: false, message: 'Already logged in today' });
     }
 
     // Create the Request
@@ -154,7 +154,7 @@ exports.clockOut = async (req, res) => {
 
     let session = await WorkSession.findOne({ employeeId: req.user.id, date: dateStr, isTestSession: isTestMode }).sort({ createdAt: -1 });
     if (!session || session.clockOutAt) {
-      return res.status(400).json({ success: false, message: 'Not actively clocked in' });
+      return res.status(400).json({ success: false, message: 'Not actively logged in' });
     }
 
     // Prevent clocking out while on an active break
@@ -213,7 +213,7 @@ exports.startBreak = async (req, res) => {
     
     let session = await WorkSession.findOne({ employeeId: req.user.id, date: dateStr, isTestSession: isTestMode }).sort({ createdAt: -1 });
     if (!session || session.clockOutAt) {
-      return res.status(400).json({ success: false, message: 'Not actively clocked in' });
+      return res.status(400).json({ success: false, message: 'Not actively logged in' });
     }
 
     if (session.breaks && session.breaks.length > 0 && !session.breaks[session.breaks.length - 1].endAt) {
@@ -272,7 +272,7 @@ exports.endBreak = async (req, res) => {
     
     let session = await WorkSession.findOne({ employeeId: req.user.id, date: dateStr, isTestSession: isTestMode }).sort({ createdAt: -1 });
     if (!session || session.clockOutAt) {
-      return res.status(400).json({ success: false, message: 'Not actively clocked in' });
+      return res.status(400).json({ success: false, message: 'Not actively logged in' });
     }
 
     if (!session.breaks || session.breaks.length === 0 || session.breaks[session.breaks.length - 1].endAt) {
@@ -478,7 +478,7 @@ exports.adminCorrectAttendance = async (req, res) => {
 exports.adminForceClockOut = async (req, res) => {
   try {
     if (req.user.role !== 'ADMIN') {
-      return res.status(403).json({ success: false, message: 'Forbidden: Only Admins can force clock out' });
+      return res.status(403).json({ success: false, message: 'Forbidden: Only Admins can force logout' });
     }
 
     const { employeeId } = req.params;
@@ -492,7 +492,7 @@ exports.adminForceClockOut = async (req, res) => {
     }).sort({ createdAt: -1 });
 
     if (!session) {
-      return res.status(400).json({ success: false, message: 'Employee is already clocked out or has no active session.' });
+      return res.status(400).json({ success: false, message: 'Employee is already logged out or has no active session.' });
     }
 
     const clockOutTime = new Date();
@@ -550,7 +550,7 @@ exports.adminForceClockOut = async (req, res) => {
       });
     }
 
-    res.json({ success: true, message: 'Employee forcefully clocked out.', session, daily });
+    res.json({ success: true, message: 'Employee forcefully logged out.', session, daily });
 
   } catch (err) {
     console.error(err);
@@ -561,14 +561,14 @@ exports.adminForceClockOut = async (req, res) => {
 exports.adminEditClockOut = async (req, res) => {
   try {
     if (req.user.role !== 'ADMIN') {
-      return res.status(403).json({ success: false, message: 'Forbidden: Only Admins can edit clock out time' });
+      return res.status(403).json({ success: false, message: 'Forbidden: Only Admins can edit logout time' });
     }
 
     const { sessionId } = req.params;
     const { clockOut, reason } = req.body;
 
     if (!clockOut) {
-      return res.status(400).json({ success: false, message: 'Clock Out time is required' });
+      return res.status(400).json({ success: false, message: 'Logout time is required' });
     }
 
     let session = await WorkSession.findById(sessionId);
@@ -578,7 +578,7 @@ exports.adminEditClockOut = async (req, res) => {
     }
 
     if (session.status !== 'COMPLETED' || !session.clockOutAt) {
-      return res.status(400).json({ success: false, message: 'Only completed sessions can be edited. Please force clock out first if the session is still active.' });
+      return res.status(400).json({ success: false, message: 'Only completed sessions can be edited. Please force logout first if the session is still active.' });
     }
 
     const newClockOutTime = new Date(clockOut);
@@ -665,7 +665,7 @@ exports.adminEditAttendance = async (req, res) => {
     const { clockIn, clockOut, clearClockOut, breakDurationMinutes, reason } = req.body;
 
     if (!clockIn) {
-      return res.status(400).json({ success: false, message: 'Clock In time is required' });
+      return res.status(400).json({ success: false, message: 'Login time is required' });
     }
 
     let session = await WorkSession.findById(sessionId);

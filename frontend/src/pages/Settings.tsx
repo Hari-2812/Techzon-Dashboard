@@ -405,12 +405,12 @@ const Settings = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Allowed Radius (Meters)</label>
                   <input type="number" name="allowedRadiusMeters" value={attendanceForm.allowedRadiusMeters} onChange={handleAttendanceChange} className="w-full border rounded-lg p-2" />
-                  <p className="text-xs text-gray-500 mt-1">Employees must be within this distance to clock in.</p>
+                  <p className="text-xs text-gray-500 mt-1">Employees must be within this distance to login.</p>
                 </div>
                 
                 <label className="flex items-center gap-3 cursor-pointer p-2 hover:bg-gray-50 rounded-lg transition-colors">
                   <input type="checkbox" name="requireLocationForClockOut" checked={attendanceForm.requireLocationForClockOut} onChange={handleAttendanceChange} className="w-4 h-4 text-indigo-600 rounded" />
-                  <span className="text-sm font-medium text-gray-700">Require office location for Clock Out</span>
+                  <span className="text-sm font-medium text-gray-700">Require office location for Logout</span>
                 </label>
               </div>
 

@@ -180,7 +180,7 @@ exports.sendAttendanceReminderEmail = async (employeeData) => {
     const dashboardUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:5173/dashboard';
     const attendanceUrl = dashboardUrl.replace('/dashboard', '/attendance');
     
-    const statusText = currentStatus || 'Not Clocked In';
+    const statusText = currentStatus || 'Not Logged In';
     const expectedTimeText = expectedLoginTime || '11:30 AM';
     
     const textContent = `Dear ${name},
@@ -197,7 +197,7 @@ ${reason}
 
 ${message ? 'Message from Admin:\n' + message + '\n\n' : ''}Please complete the appropriate attendance action in the employee portal.
 
-If you are unable to clock in because you require leave or permission, submit the appropriate request from the Attendance section.
+If you are unable to login because you require leave or permission, submit the appropriate request from the Attendance section.
 
 Complete your attendance here:
 ${attendanceUrl}
@@ -232,7 +232,7 @@ Techzon Administrator`;
         ` : ''}
         
         <p>Please complete the appropriate attendance action in the employee portal.</p>
-        <p>If you are unable to clock in because you require leave or permission, submit the appropriate request from the Attendance section.</p>
+        <p>If you are unable to login because you require leave or permission, submit the appropriate request from the Attendance section.</p>
 
         <div style="text-align: center; margin-top: 32px; margin-bottom: 32px;">
             <a href="${attendanceUrl}" style="background-color: #3525CD; color: #FFFFFF; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Update Attendance</a>

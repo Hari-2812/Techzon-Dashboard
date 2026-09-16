@@ -236,7 +236,7 @@ const Dashboard = () => {
 
               <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm flex flex-col justify-between hover:border-red-300 transition-colors">
                  <div className="flex justify-between items-center mb-2">
-                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Not Clocked In</p>
+                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Not Logged In</p>
                     <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
                        <AlertCircle size={16} className="text-red-600" />
                     </div>
@@ -273,7 +273,7 @@ const Dashboard = () => {
               
               <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm flex flex-col justify-between hover:border-gray-300 transition-colors">
                  <div className="flex justify-between items-center mb-2">
-                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Not Clocked In</p>
+                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Not Logged In</p>
                     <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
                        <Users size={16} className="text-gray-600" />
                     </div>
@@ -335,7 +335,7 @@ const Dashboard = () => {
                            </td>
                            <td className="px-6 py-4 whitespace-nowrap">
                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                               ${emp.currentStatus === 'Not Clocked In' || emp.currentStatus === 'ABSENT' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}
+                               ${emp.currentStatus === 'Not Logged In' || emp.currentStatus === 'ABSENT' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}
                              `}>
                                {emp.currentStatus}
                              </span>
