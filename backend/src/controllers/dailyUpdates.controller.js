@@ -43,10 +43,6 @@ exports.createUpdate = async (req, res) => {
             }
         }
 
-        if (!finalDepartment) {
-            return res.status(400).json({ success: false, message: 'Department is required (Please update your profile or specify one)' });
-        }
-
         // Determine if we need to fetch an existing lead or create a new one
         if (entryType === 'existing' && leadId) {
             lead = await Lead.findById(leadId);
@@ -57,28 +53,33 @@ exports.createUpdate = async (req, res) => {
                 return res.status(403).json({ success: false, message: 'Not authorized to update this lead' });
             }
         } else if (entryType === 'manual' && createLead) {
-            // Check if lead with this phone already exists
-            lead = await Lead.findOne({ phone });
-            if (lead) {
-                // Lead exists, we use it instead of creating duplicate
-                finalLeadId = lead._id;
-                // Update basic info if not set
-                lead.email = lead.email || email;
-                lead.college = college || lead.college;
+            if (!studentName || !phone) {
+                // Cannot create a lead without name and phone. Just save as Daily Update.
+                finalLeadId = undefined;
             } else {
-                // Create new Lead
-                lead = await Lead.create({
-                    studentName,
-                    phone,
-                    email,
-                    college,
-                    department: finalDepartment,
-                    year,
-                    course: courseInterested,
-                    assignedEmployeeId: req.user.id,
-                    leadStatus: leadStatus || 'New'
-                });
-                finalLeadId = lead._id;
+                // Check if lead with this phone already exists
+                lead = await Lead.findOne({ phone });
+                if (lead) {
+                    // Lead exists, we use it instead of creating duplicate
+                    finalLeadId = lead._id;
+                    // Update basic info if not set
+                    lead.email = lead.email || email;
+                    lead.college = college || lead.college;
+                } else {
+                    // Create new Lead
+                    lead = await Lead.create({
+                        studentName,
+                        phone,
+                        email,
+                        college,
+                        department: finalDepartment,
+                        year,
+                        course: courseInterested,
+                        assignedEmployeeId: req.user.id,
+                        leadStatus: leadStatus || 'New'
+                    });
+                    finalLeadId = lead._id;
+                }
             }
         }
 

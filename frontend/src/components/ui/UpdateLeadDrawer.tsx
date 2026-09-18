@@ -220,27 +220,27 @@ const UpdateLeadDrawer: React.FC<UpdateLeadDrawerProps> = ({ lead, isOpen, onClo
               <h3 className="text-lg font-bold text-gray-900 mb-6">Student & Lead Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Student Name <span className="text-red-500">*</span></label>
-                      <input type="text" name="studentName" value={formData.studentName} onChange={handleChange} required disabled={entryType === 'existing' && !!selectedLead} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 disabled:text-gray-500" />
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Student Name <span className="text-gray-400 font-normal ml-1">(Optional)</span></label>
+                      <input type="text" name="studentName" value={formData.studentName} onChange={handleChange} disabled={entryType === 'existing' && !!selectedLead} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 disabled:text-gray-500" />
                   </div>
                   <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number <span className="text-red-500">*</span></label>
-                      <input type="text" name="phone" value={formData.phone} onChange={handleChange} required disabled={entryType === 'existing' && !!selectedLead} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 disabled:text-gray-500" />
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number <span className="text-gray-400 font-normal ml-1">(Optional)</span></label>
+                      <input type="text" name="phone" value={formData.phone} onChange={handleChange} disabled={entryType === 'existing' && !!selectedLead} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 disabled:text-gray-500" />
                   </div>
                   <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">College <span className="text-red-500">*</span></label>
-                      <input type="text" name="college" value={formData.college} onChange={handleChange} required disabled={entryType === 'existing' && !!selectedLead} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 disabled:text-gray-500" />
+                      <label className="block text-sm font-medium text-gray-700 mb-2">College <span className="text-gray-400 font-normal ml-1">(Optional)</span></label>
+                      <input type="text" name="college" value={formData.college} onChange={handleChange} disabled={entryType === 'existing' && !!selectedLead} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 disabled:text-gray-500" />
                   </div>
                   <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Department / Domain <span className="text-red-500">*</span></label>
-                      <input type="text" name="department" value={formData.department} onChange={handleChange} required disabled={entryType === 'existing' && !!selectedLead} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 disabled:text-gray-500" />
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Department / Domain <span className="text-gray-400 font-normal ml-1">(Optional)</span></label>
+                      <input type="text" name="department" value={formData.department} onChange={handleChange} disabled={entryType === 'existing' && !!selectedLead} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 disabled:text-gray-500" />
                   </div>
                   <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Year <span className="text-gray-400 font-normal ml-1">(Optional)</span></label>
                       <input type="text" name="year" value={formData.year} onChange={handleChange} disabled={entryType === 'existing' && !!selectedLead} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 disabled:text-gray-500" />
                   </div>
                   <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Email Address <span className="text-gray-400 font-normal ml-1">(Optional)</span></label>
                       <input type="email" name="email" value={formData.email} onChange={handleChange} disabled={entryType === 'existing' && !!selectedLead && !!selectedLead.email} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 disabled:text-gray-500" />
                   </div>
               </div>

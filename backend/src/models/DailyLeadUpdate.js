@@ -4,11 +4,11 @@ const DailyLeadUpdateSchema = new mongoose.Schema({
     employeeId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     leadId: { type: mongoose.Schema.Types.ObjectId, ref: 'Lead', index: true }, // Optional
 
-    studentName: { type: String, required: true },
-    phone: { type: String, required: true },
+    studentName: { type: String },
+    phone: { type: String },
     email: { type: String },
-    college: { type: String, required: true },
-    department: { type: String, required: true },
+    college: { type: String },
+    department: { type: String },
     year: { type: String },
     courseInterested: { type: String },
 
