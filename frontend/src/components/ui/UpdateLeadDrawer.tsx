@@ -47,6 +47,7 @@ const UpdateLeadDrawer: React.FC<UpdateLeadDrawerProps> = ({ lead, isOpen, onClo
     crDepartment: '',
     crYear: '',
     crSection: '',
+    crBulkText: '',
 
     // Follow-up
     followUpRequired: false,
@@ -74,6 +75,13 @@ const UpdateLeadDrawer: React.FC<UpdateLeadDrawerProps> = ({ lead, isOpen, onClo
         courseInterested: selectedLead.course || '',
         leadStatus: selectedLead.leadStatus || 'New',
         crStatus: selectedLead.crStatus || 'Not Asked',
+        crName: selectedLead.crName || '',
+        crPhone: selectedLead.crPhone || '',
+        crCollege: selectedLead.crCollege || '',
+        crYear: selectedLead.crYear || '',
+        crBulkText: [selectedLead.crName, selectedLead.crPhone, selectedLead.crYear, selectedLead.crCollege]
+          .filter(val => val && val.trim() !== '')
+          .join(', ') || '',
       }));
     }
   }, [selectedLead, entryType]);
@@ -85,6 +93,19 @@ const UpdateLeadDrawer: React.FC<UpdateLeadDrawerProps> = ({ lead, isOpen, onClo
     setFormData((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleCRBulkChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    const parts = value.split(',').map(part => part.trim());
+    setFormData(prev => ({
+      ...prev,
+      crBulkText: value,
+      crName: parts[0] || '',
+      crPhone: parts[1] || '',
+      crYear: parts[2] || '',
+      crCollege: parts[3] || ''
     }));
   };
 
@@ -290,24 +311,39 @@ const UpdateLeadDrawer: React.FC<UpdateLeadDrawerProps> = ({ lead, isOpen, onClo
                 </div>
 
                 {showCRFields && (
-                    <>
-                      <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">CR Name</label>
-                          <input type="text" name="crName" value={formData.crName} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
-                      </div>
-                      <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">CR Phone Number</label>
-                          <input type="text" name="crPhone" value={formData.crPhone} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
-                      </div>
-                      <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">CR Year</label>
-                          <input type="text" name="crYear" value={formData.crYear} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
-                      </div>
-                      <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">CR College</label>
-                          <input type="text" name="crCollege" value={formData.crCollege} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
-                      </div>
-                    </>
+                    <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Paste CR details using commas
+                        </label>
+                        <p className="text-xs text-gray-500 mb-2">
+                            Example: Rahul Kumar, 9876543210, 3rd Year, ABC Engineering College
+                        </p>
+                        <textarea 
+                            name="crBulkText" 
+                            value={formData.crBulkText} 
+                            onChange={handleCRBulkChange} 
+                            placeholder="CR Name, CR Phone Number, CR Year, CR College"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-h-[100px] resize-y"
+                        />
+                        
+                        {(formData.crBulkText.split(',').length > 4) && (
+                            <p className="text-sm text-red-500 mt-2 font-medium">
+                                Warning: Too many commas detected. Expected format is: CR Name, CR Phone Number, CR Year, CR College
+                            </p>
+                        )}
+                        
+                        {(formData.crName || formData.crPhone || formData.crYear || formData.crCollege) ? (
+                            <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Parsed Preview:</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                                    <div><span className="font-medium text-gray-700">CR Name:</span> {formData.crName || <span className="text-gray-400 italic">empty</span>}</div>
+                                    <div><span className="font-medium text-gray-700">CR Phone Number:</span> {formData.crPhone || <span className="text-gray-400 italic">empty</span>}</div>
+                                    <div><span className="font-medium text-gray-700">CR Year:</span> {formData.crYear || <span className="text-gray-400 italic">empty</span>}</div>
+                                    <div><span className="font-medium text-gray-700">CR College:</span> {formData.crCollege || <span className="text-gray-400 italic">empty</span>}</div>
+                                </div>
+                            </div>
+                        ) : null}
+                    </div>
                 )}
             </div>
           </section>
