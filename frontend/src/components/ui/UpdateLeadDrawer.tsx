@@ -122,31 +122,32 @@ const UpdateLeadDrawer: React.FC<UpdateLeadDrawerProps> = ({ lead, isOpen, onClo
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/50 overflow-hidden">
-      <div className="bg-white w-full max-w-lg h-full overflow-y-auto flex flex-col animate-slide-in-right shadow-2xl">
+      {/* Changed to max-w-3xl to allow more breathing room for a 2-column layout */}
+      <div className="bg-gray-50 w-full max-w-3xl h-full overflow-y-auto flex flex-col animate-slide-in-right shadow-2xl">
         
-        <div className="flex justify-between items-center p-4 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-hover)] sticky top-0 z-20">
-          <h2 className="text-lg font-bold text-[var(--color-text-primary)]">Add Daily Update</h2>
-          <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded-full transition-colors">
-            <X size={20} className="text-gray-500" />
+        <div className="flex justify-between items-center p-6 border-b border-gray-200 bg-white sticky top-0 z-20">
+          <h2 className="text-xl font-bold text-gray-900">Add Daily Update</h2>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+            <X size={24} className="text-gray-500" />
           </button>
         </div>
 
-        <form id="update-lead-form" onSubmit={handleSubmit} className="p-4 md:p-6 space-y-6 flex-1">
+        <form id="update-lead-form" onSubmit={handleSubmit} className="p-6 md:p-8 space-y-10 flex-1">
             
           {/* Mode Toggle */}
           {!lead && (
-              <div className="flex p-1 bg-gray-100 rounded-lg">
+              <div className="flex p-1.5 bg-gray-200 rounded-lg max-w-md mx-auto">
                   <button 
                     type="button"
                     onClick={() => setEntryType('manual')}
-                    className={`flex-1 py-2 text-sm font-semibold rounded-md transition-colors ${entryType === 'manual' ? 'bg-white shadow text-[var(--color-primary)]' : 'text-gray-500'}`}
+                    className={`flex-1 py-2.5 text-sm font-semibold rounded-md transition-colors ${entryType === 'manual' ? 'bg-white shadow text-indigo-700' : 'text-gray-600 hover:text-gray-800'}`}
                   >
                       Manual Entry
                   </button>
                   <button 
                     type="button"
                     onClick={() => setEntryType('existing')}
-                    className={`flex-1 py-2 text-sm font-semibold rounded-md transition-colors ${entryType === 'existing' ? 'bg-white shadow text-[var(--color-primary)]' : 'text-gray-500'}`}
+                    className={`flex-1 py-2.5 text-sm font-semibold rounded-md transition-colors ${entryType === 'existing' ? 'bg-white shadow text-indigo-700' : 'text-gray-600 hover:text-gray-800'}`}
                   >
                       Select Existing Lead
                   </button>
@@ -156,211 +157,214 @@ const UpdateLeadDrawer: React.FC<UpdateLeadDrawerProps> = ({ lead, isOpen, onClo
           {/* Existing Lead Search */}
           {entryType === 'existing' && !lead && (
               <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">Search Lead (Name, Phone, College)</label>
+                  <label className="block text-sm font-medium text-gray-700">Search Existing Lead</label>
                   <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                       <input 
                         type="text" 
-                        placeholder="Search..." 
+                        placeholder="Search by name, phone, or college..." 
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="input w-full pl-9"
+                        className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm transition-all"
                       />
                   </div>
                   {searchQuery && (
-                      <div className="border border-gray-200 rounded-md max-h-48 overflow-y-auto shadow-sm">
+                      <div className="border border-gray-200 bg-white rounded-lg max-h-60 overflow-y-auto shadow-lg mt-1">
                           {leadsLoading ? (
-                              <div className="p-3 text-sm text-gray-500">Searching...</div>
+                              <div className="p-4 text-sm text-gray-500 text-center">Searching...</div>
                           ) : leadsData?.data?.length > 0 ? (
                               leadsData.data.map((l: any) => (
                                   <div 
                                     key={l._id} 
-                                    className="p-3 border-b last:border-0 hover:bg-gray-50 cursor-pointer text-sm"
+                                    className="p-4 border-b last:border-0 hover:bg-indigo-50 cursor-pointer transition-colors"
                                     onClick={() => {
                                         setSelectedLead(l);
                                         setSearchQuery('');
                                     }}
                                   >
-                                      <div className="font-semibold">{l.studentName}</div>
-                                      <div className="text-xs text-gray-500">{l.phone} • {l.college}</div>
+                                      <div className="font-semibold text-gray-900">{l.studentName}</div>
+                                      <div className="text-sm text-gray-500 mt-0.5">{l.phone} • {l.college}</div>
                                   </div>
                               ))
                           ) : (
-                              <div className="p-3 text-sm text-gray-500">No leads found.</div>
+                              <div className="p-4 text-sm text-gray-500 text-center">No leads found.</div>
                           )}
                       </div>
                   )}
               </div>
           )}
 
-          {/* Student Info Card */}
-          <div className="bg-gray-50 p-4 rounded-xl border border-[var(--color-border-subtle)] space-y-4">
-              <h3 className="font-bold text-[var(--color-text-primary)] border-b pb-2">Student Information</h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Section A: Student / Lead Details */}
+          <section className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
+              <h3 className="text-lg font-bold text-gray-900 mb-6">Student & Lead Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Student Name *</label>
-                      <input type="text" name="studentName" value={formData.studentName} onChange={handleChange} required disabled={entryType === 'existing' && !!selectedLead} className="input w-full bg-white" />
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Student Name <span className="text-red-500">*</span></label>
+                      <input type="text" name="studentName" value={formData.studentName} onChange={handleChange} required disabled={entryType === 'existing' && !!selectedLead} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 disabled:text-gray-500" />
                   </div>
                   <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Phone Number *</label>
-                      <input type="text" name="phone" value={formData.phone} onChange={handleChange} required disabled={entryType === 'existing' && !!selectedLead} className="input w-full bg-white" />
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number <span className="text-red-500">*</span></label>
+                      <input type="text" name="phone" value={formData.phone} onChange={handleChange} required disabled={entryType === 'existing' && !!selectedLead} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 disabled:text-gray-500" />
                   </div>
                   <div className="md:col-span-2">
-                      <label className="block text-xs font-medium text-gray-600 mb-1">College *</label>
-                      <input type="text" name="college" value={formData.college} onChange={handleChange} required disabled={entryType === 'existing' && !!selectedLead} className="input w-full bg-white" />
+                      <label className="block text-sm font-medium text-gray-700 mb-2">College <span className="text-red-500">*</span></label>
+                      <input type="text" name="college" value={formData.college} onChange={handleChange} required disabled={entryType === 'existing' && !!selectedLead} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 disabled:text-gray-500" />
                   </div>
                   <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Department / Domain *</label>
-                      <input type="text" name="department" value={formData.department} onChange={handleChange} required disabled={entryType === 'existing' && !!selectedLead} className="input w-full bg-white" />
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Department / Domain <span className="text-red-500">*</span></label>
+                      <input type="text" name="department" value={formData.department} onChange={handleChange} required disabled={entryType === 'existing' && !!selectedLead} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 disabled:text-gray-500" />
                   </div>
                   <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Year</label>
-                      <input type="text" name="year" value={formData.year} onChange={handleChange} disabled={entryType === 'existing' && !!selectedLead} className="input w-full bg-white" />
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
+                      <input type="text" name="year" value={formData.year} onChange={handleChange} disabled={entryType === 'existing' && !!selectedLead} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 disabled:text-gray-500" />
                   </div>
                   <div className="md:col-span-2">
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
-                      <input type="email" name="email" value={formData.email} onChange={handleChange} disabled={entryType === 'existing' && !!selectedLead && !!selectedLead.email} className="input w-full bg-white" />
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                      <input type="email" name="email" value={formData.email} onChange={handleChange} disabled={entryType === 'existing' && !!selectedLead && !!selectedLead.email} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 disabled:text-gray-500" />
                   </div>
               </div>
-          </div>
+          </section>
 
-          <div className="space-y-5">
-            {/* Lead Status */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Lead Status *</label>
-              <select name="leadStatus" value={formData.leadStatus} onChange={handleChange} className="input w-full" required>
-                <option value="New">New</option>
-                <option value="Contact Pending">Contact Pending</option>
-                <option value="Contacted">Contacted</option>
-                <option value="Interested">Interested</option>
-                <option value="Follow-up">Follow-up</option>
-                <option value="CR Identified">CR Identified</option>
-                <option value="Converted">Converted</option>
-                <option value="Not Interested">Not Interested</option>
-                <option value="No Response">No Response</option>
-                <option value="Invalid">Invalid</option>
-              </select>
-            </div>
-
-            {/* Call Status & Response */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Today's Call Status</label>
-                <select name="callOutcome" value={formData.callOutcome} onChange={handleChange} className="input w-full">
-                    <option value="">Not Called</option>
-                    <option value="Connected">Connected</option>
-                    <option value="Not Connected">Not Connected</option>
-                    <option value="Busy">Busy</option>
-                    <option value="Switched Off">Switched Off</option>
-                    <option value="Call Back Requested">Call Back Requested</option>
-                    <option value="Wrong Number">Wrong Number</option>
-                </select>
-                </div>
-                <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Student Response</label>
-                <select name="studentResponse" value={formData.studentResponse} onChange={handleChange} className="input w-full">
-                    <option value="">None</option>
+          {/* Section B: Daily Activity Details */}
+          <section className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
+            <h3 className="text-lg font-bold text-gray-900 mb-6">Daily Activity Details</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Lead Status <span className="text-red-500">*</span></label>
+                  <select name="leadStatus" value={formData.leadStatus} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" required>
+                    <option value="New">New</option>
+                    <option value="Contact Pending">Contact Pending</option>
+                    <option value="Contacted">Contacted</option>
                     <option value="Interested">Interested</option>
+                    <option value="Follow-up">Follow-up</option>
+                    <option value="CR Identified">CR Identified</option>
+                    <option value="Converted">Converted</option>
                     <option value="Not Interested">Not Interested</option>
-                    <option value="Need More Information">Need More Information</option>
-                    <option value="Will Discuss With Parents">Will Discuss With Parents</option>
-                    <option value="Already Enrolled">Already Enrolled</option>
-                    <option value="Looking For Another Course">Looking For Another Course</option>
-                    <option value="Call Later">Call Later</option>
                     <option value="No Response">No Response</option>
-                </select>
+                    <option value="Invalid">Invalid</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Call Status</label>
+                  <select name="callOutcome" value={formData.callOutcome} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                      <option value="">Not Called</option>
+                      <option value="Connected">Connected</option>
+                      <option value="Not Connected">Not Connected</option>
+                      <option value="Busy">Busy</option>
+                      <option value="Switched Off">Switched Off</option>
+                      <option value="Call Back Requested">Call Back Requested</option>
+                      <option value="Wrong Number">Wrong Number</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Student Response</label>
+                  <select name="studentResponse" value={formData.studentResponse} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                      <option value="">None</option>
+                      <option value="Interested">Interested</option>
+                      <option value="Not Interested">Not Interested</option>
+                      <option value="Need More Information">Need More Information</option>
+                      <option value="Will Discuss With Parents">Will Discuss With Parents</option>
+                      <option value="Already Enrolled">Already Enrolled</option>
+                      <option value="Looking For Another Course">Looking For Another Course</option>
+                      <option value="Call Later">Call Later</option>
+                      <option value="No Response">No Response</option>
+                  </select>
                 </div>
             </div>
+          </section>
 
-            {/* CR Block */}
-            <div className="border border-purple-100 bg-purple-50/30 p-4 rounded-xl">
-                <label className="block text-sm font-medium text-purple-900 mb-1">CR Status</label>
-                <select name="crStatus" value={formData.crStatus} onChange={handleChange} className="input w-full border-purple-200">
-                  <option value="Not Asked">Not Asked</option>
-                  <option value="Student Is CR">Student Is CR</option>
-                  <option value="Student Is Not CR">Student Is Not CR</option>
-                  <option value="CR Details Received">CR Details Received</option>
-                  <option value="CR Confirmed">CR Confirmed</option>
-                  <option value="Not Applicable">Not Applicable</option>
-                </select>
+          {/* Section C: CR Details */}
+          <section className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
+            <h3 className="text-lg font-bold text-gray-900 mb-6">CR Details</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">CR Status</label>
+                  <select name="crStatus" value={formData.crStatus} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="Not Asked">Not Asked</option>
+                    <option value="Student Is CR">Student Is CR</option>
+                    <option value="Student Is Not CR">Student Is Not CR</option>
+                    <option value="CR Details Received">CR Details Received</option>
+                    <option value="CR Confirmed">CR Confirmed</option>
+                    <option value="Not Applicable">Not Applicable</option>
+                  </select>
+                </div>
 
                 {showCRFields && (
-                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-white border border-purple-100 rounded-lg">
-                        <div className="md:col-span-2 text-xs font-semibold text-purple-800 uppercase tracking-wide">CR Details</div>
-                        <div>
-                            <input type="text" name="crName" placeholder="CR Name" value={formData.crName} onChange={handleChange} className="input w-full text-sm" />
-                        </div>
-                        <div>
-                            <input type="text" name="crPhone" placeholder="CR Phone" value={formData.crPhone} onChange={handleChange} className="input w-full text-sm" />
-                        </div>
-                        <div className="md:col-span-2">
-                            <input type="text" name="crCollege" placeholder="CR College (if different)" value={formData.crCollege} onChange={handleChange} className="input w-full text-sm" />
-                        </div>
-                        <div>
-                            <input type="text" name="crDepartment" placeholder="CR Dept" value={formData.crDepartment} onChange={handleChange} className="input w-full text-sm" />
-                        </div>
-                        <div>
-                            <input type="text" name="crYear" placeholder="CR Year" value={formData.crYear} onChange={handleChange} className="input w-full text-sm" />
-                        </div>
-                        <div className="md:col-span-2">
-                            <input type="text" name="crSection" placeholder="CR Section" value={formData.crSection} onChange={handleChange} className="input w-full text-sm" />
-                        </div>
-                    </div>
+                    <>
+                      <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">CR Name</label>
+                          <input type="text" name="crName" value={formData.crName} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                      </div>
+                      <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">CR Phone Number</label>
+                          <input type="text" name="crPhone" value={formData.crPhone} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                      </div>
+                      <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">CR College (if different)</label>
+                          <input type="text" name="crCollege" value={formData.crCollege} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                      </div>
+                      <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">CR Department</label>
+                          <input type="text" name="crDepartment" value={formData.crDepartment} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                      </div>
+                      <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">CR Year</label>
+                          <input type="text" name="crYear" value={formData.crYear} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                      </div>
+                    </>
                 )}
             </div>
+          </section>
 
-            {/* Sales Block */}
-            <div className="border border-green-100 bg-green-50/30 p-4 rounded-xl">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-green-900 mb-1">Sales Status</label>
-                        <select name="salesStatus" value={formData.salesStatus} onChange={handleChange} className="input w-full border-green-200">
-                        <option value="NOT_CONTACTED">Not Contacted</option>
-                        <option value="CONTACTED">Contacted</option>
-                        <option value="INTERESTED">Interested</option>
-                        <option value="FOLLOW_UP">Follow Up</option>
-                        <option value="NOT_INTERESTED">Not Interested</option>
-                        <option value="CONVERTED">Converted</option>
-                        <option value="CALL_BACK">Call Back</option>
-                        <option value="NO_RESPONSE">No Response</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-green-900 mb-1">Course Interested In</label>
-                        <input type="text" name="courseInterested" value={formData.courseInterested} onChange={handleChange} className="input w-full border-green-200" placeholder="e.g. Full Stack" />
-                    </div>
+          {/* Section D: Sales & Follow-up Details */}
+          <section className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
+            <h3 className="text-lg font-bold text-gray-900 mb-6">Sales & Follow-up</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Sales Status</label>
+                    <select name="salesStatus" value={formData.salesStatus} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                      <option value="NOT_CONTACTED">Not Contacted</option>
+                      <option value="CONTACTED">Contacted</option>
+                      <option value="INTERESTED">Interested</option>
+                      <option value="FOLLOW_UP">Follow Up</option>
+                      <option value="NOT_INTERESTED">Not Interested</option>
+                      <option value="CONVERTED">Converted</option>
+                      <option value="CALL_BACK">Call Back</option>
+                      <option value="NO_RESPONSE">No Response</option>
+                    </select>
                 </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Course Interested In</label>
+                    <input type="text" name="courseInterested" value={formData.courseInterested} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g. Full Stack" />
+                </div>
+                
                 {showExpectedDate && (
-                    <div className="mt-3">
-                        <label className="block text-sm font-medium text-green-900 mb-1">Expected Conversion Date (Optional)</label>
-                        <input type="date" name="expectedConversionDate" value={formData.expectedConversionDate} onChange={handleChange} className="input w-full border-green-200" />
+                    <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Expected Conversion Date</label>
+                        <input type="date" name="expectedConversionDate" value={formData.expectedConversionDate} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
                     </div>
                 )}
             </div>
 
-            {/* Follow-up Section */}
-            <div className="pt-2">
-              <label className="flex items-center space-x-2 mb-4 p-3 border border-orange-200 bg-orange-50 rounded-lg cursor-pointer">
-                <input type="checkbox" name="followUpRequired" checked={formData.followUpRequired} onChange={handleChange} className="w-5 h-5 text-orange-600 rounded focus:ring-orange-500 border-gray-300" />
-                <span className="text-sm font-bold text-orange-900">Follow-up Required?</span>
+            <div className="mt-8 pt-6 border-t border-gray-100">
+              <label className="flex items-center space-x-3 mb-6 cursor-pointer">
+                <input type="checkbox" name="followUpRequired" checked={formData.followUpRequired} onChange={handleChange} className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300" />
+                <span className="text-base font-semibold text-gray-900">Schedule a Follow-up</span>
               </label>
 
               {formData.followUpRequired && (
-                <div className="space-y-4 pl-4 md:pl-6 border-l-2 border-orange-400">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Follow-up Date *</label>
-                      <input type="date" name="followUpDate" value={formData.followUpDate} onChange={handleChange} className="input w-full" required />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Time *</label>
-                      <input type="time" name="followUpTime" value={formData.followUpTime} onChange={handleChange} className="input w-full" required />
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-indigo-50/50 p-6 rounded-xl border border-indigo-100">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Follow-up Date <span className="text-red-500">*</span></label>
+                    <input type="date" name="followUpDate" value={formData.followUpDate} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" required />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Follow-up Type</label>
-                    <select name="followUpType" value={formData.followUpType} onChange={handleChange} className="input w-full">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Time <span className="text-red-500">*</span></label>
+                    <input type="time" name="followUpTime" value={formData.followUpTime} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" required />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Follow-up Type</label>
+                    <select name="followUpType" value={formData.followUpType} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                       <option value="Student Verification">Student Verification</option>
                       <option value="CR Identification">CR Identification</option>
                       <option value="CR First Contact">CR First Contact</option>
@@ -373,40 +377,45 @@ const UpdateLeadDrawer: React.FC<UpdateLeadDrawerProps> = ({ lead, isOpen, onClo
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Priority</label>
-                    <select name="followUpPriority" value={formData.followUpPriority} onChange={handleChange} className="input w-full">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                    <select name="followUpPriority" value={formData.followUpPriority} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                       <option value="HIGH">High</option>
                       <option value="MEDIUM">Medium</option>
                       <option value="LOW">Low</option>
                     </select>
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Follow-up Notes</label>
-                    <textarea name="followUpNotes" value={formData.followUpNotes} onChange={handleChange} className="input w-full h-16 resize-none" placeholder="Call student tomorrow after 5 PM." />
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Follow-up Notes</label>
+                    <textarea name="followUpNotes" value={formData.followUpNotes} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none min-h-[80px]" placeholder="Specific instructions for this follow-up..." />
                   </div>
                 </div>
               )}
             </div>
+          </section>
 
+          {/* Section E: General Daily Notes */}
+          <section className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">General Daily Notes</h3>
+            <p className="text-sm text-gray-500 mb-4">Describe your daily activity, student response, call discussion, CR details, follow-up information, and other important updates.</p>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Today's Update / Call Notes <span className="text-red-500">*</span></label>
               <textarea 
                 name="notes" 
                 value={formData.notes} 
                 onChange={handleChange} 
-                className="input w-full h-24 resize-none" 
-                placeholder="Student is interested in Full Stack Development. Asked to call tomorrow evening after discussing with parents."
+                className="w-full px-4 py-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-h-[180px] resize-y text-gray-700 leading-relaxed" 
+                placeholder="Type your complete update here..."
                 required
               />
             </div>
-          </div>
+          </section>
+
         </form>
 
-        <div className="p-4 border-t border-[var(--color-border-subtle)] bg-white sticky bottom-0 z-20 flex justify-end space-x-3 safe-area-bottom shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-          <Button variant="outline" type="button" onClick={onClose} disabled={createUpdate.isPending}>
+        <div className="p-6 border-t border-gray-200 bg-white sticky bottom-0 z-20 flex justify-end space-x-4 shadow-[0_-10px_20px_-10px_rgba(0,0,0,0.1)]">
+          <Button variant="outline" type="button" onClick={onClose} disabled={createUpdate.isPending} className="px-6 py-2.5 text-base rounded-lg">
             Cancel
           </Button>
-          <Button type="submit" form="update-lead-form" disabled={createUpdate.isPending}>
+          <Button type="submit" form="update-lead-form" disabled={createUpdate.isPending} className="px-8 py-2.5 text-base font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm">
             {createUpdate.isPending ? 'Saving...' : 'Save Daily Update'}
           </Button>
         </div>

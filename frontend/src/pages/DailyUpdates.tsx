@@ -212,10 +212,11 @@ const DailyUpdates = () => {
                 <th className="p-4 font-medium border-b border-[var(--color-border-subtle)]">Student Info</th>
                 {isAdmin && <th className="p-4 font-medium border-b border-[var(--color-border-subtle)]">Employee</th>}
                 <th className="p-4 font-medium border-b border-[var(--color-border-subtle)]">Lead Status</th>
-                <th className="p-4 font-medium border-b border-[var(--color-border-subtle)]">CR Status</th>
+                <th className="p-4 font-medium border-b border-[var(--color-border-subtle)]">CR Info</th>
                 <th className="p-4 font-medium border-b border-[var(--color-border-subtle)]">Sales Status</th>
                 <th className="p-4 font-medium border-b border-[var(--color-border-subtle)]">Call Info</th>
                 <th className="p-4 font-medium border-b border-[var(--color-border-subtle)]">Follow-up</th>
+                <th className="p-4 font-medium border-b border-[var(--color-border-subtle)] max-w-xs">Notes</th>
                 <th className="p-4 font-medium border-b border-[var(--color-border-subtle)]">Time</th>
                 <th className="p-4 font-medium border-b border-[var(--color-border-subtle)]">Actions</th>
               </tr>
@@ -241,6 +242,8 @@ const DailyUpdates = () => {
                   </td>
                   <td className="p-4 align-top">
                       <div className="text-xs font-semibold text-purple-700">{update.crStatus || 'Not Asked'}</div>
+                      {update.crName && <div className="text-[10px] text-gray-500 mt-1">{update.crName}</div>}
+                      {update.crPhone && <div className="text-[10px] text-gray-500">{update.crPhone}</div>}
                   </td>
                   <td className="p-4 align-top">
                       <div className="text-xs font-semibold text-green-700">{update.salesStatus || 'Not Contacted'}</div>
@@ -259,6 +262,15 @@ const DailyUpdates = () => {
                           <span className="text-xs text-gray-400">No</span>
                       )}
                   </td>
+                  <td className="p-4 align-top max-w-xs">
+                      {update.dailyNotes ? (
+                        <div className="text-xs text-gray-600 line-clamp-2" title={update.dailyNotes}>
+                            {update.dailyNotes}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">-</span>
+                      )}
+                  </td>
                   <td className="p-4 text-xs text-[var(--color-text-muted)] whitespace-nowrap align-top">
                      {new Date(update.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                   </td>
@@ -271,7 +283,7 @@ const DailyUpdates = () => {
               ))}
               {updates.length === 0 && (
                 <tr>
-                  <td colSpan={isAdmin ? 9 : 8} className="p-8 text-center text-[var(--color-text-muted)] bg-gray-50">
+                  <td colSpan={isAdmin ? 10 : 9} className="p-8 text-center text-[var(--color-text-muted)] bg-gray-50">
                     <div className="flex flex-col items-center justify-center">
                         <ClipboardList size={32} className="mb-2 text-gray-300" />
                         <p>No updates recorded today.</p>
